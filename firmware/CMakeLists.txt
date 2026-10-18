@@ -86,14 +86,8 @@ add_dependencies(${FW_NAME} version_header)
 target_include_directories(${FW_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${GENERATED_DIR})
-target_link_libraries(${FW_NAME} PRIVATE stm32_hal)
-
 # Our own code is held to a stricter standard than the vendor code.
-target_compile_options(${FW_NAME} PRIVATE
-    $<$<COMPILE_LANGUAGE:C>:
-        -Wall -Wextra -Werror
-        -Wshadow -Wdouble-promotion -Wformat=2 -Wundef
-        -Wstrict-prototypes -Wmissing-prototypes -Wcast-align>)
+target_link_libraries(${FW_NAME} PRIVATE stm32_hal core project_warnings)
 
 target_link_options(${FW_NAME} PRIVATE
     -T${LINKER_SCRIPT}

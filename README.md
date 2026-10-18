@@ -1,5 +1,8 @@
 # OBD2 CAN Sniffer
 
+[![CI](https://github.com/ka5j/obd2-sniffer/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/ka5j/obd2-sniffer/actions/workflows/ci.yml)
+[![Quality report](https://img.shields.io/badge/quality%20report-tests%20%26%20coverage-0969da)](https://ka5j.github.io/obd2-sniffer/)
+
 A small device that plugs into a car's diagnostic port, listens to the conversations between the
 car's computers, and shows live engine data on a laptop. It is built from scratch on an STM32
 microcontroller, with a desktop app and a command-line tool for the laptop side.
@@ -36,8 +39,10 @@ This project is a scan tool and network analyzer I am building myself:
   wakes up automatically when traffic resumes.
 - **Testable without a car.** The microcontroller has two network controllers. One acts as a fake
   engine computer, so the whole system can be developed and tested on a desk.
-- **Professional workflow.** Automated builds and tests on every change, unit tests for the core
-  logic, version-tagged releases, and a custom circuit board as the final step.
+- **Tested to safety-critical standards.** The core logic is unit-tested to 100% MC/DC coverage,
+  the coverage standard used for flight-control and automotive safety software, and every change
+  is built and tested automatically before it can be merged. Results are published as a
+  [live quality report](https://ka5j.github.io/obd2-sniffer/).
 
 ## How it works
 
@@ -72,7 +77,7 @@ flowchart LR
 | Automotive protocols | CAN, OBD2 (SAE J1979), ISO-TP multi-frame transport |
 | Reliability and safety | Watchdog, crash capture, fault injection, failure-mode analysis (FMEA) |
 | Python | Desktop app (PySide6), command-line tool, serial communication |
-| Testing and tooling | Unit tests in C and Python, CMake, GitHub Actions CI, Git branching workflow |
+| Testing and tooling | Unit tests in C (Unity) and Python, 100% MC/DC coverage, sanitizers, CMake, GitHub Actions CI, Git branching workflow |
 | Hardware | Bench wiring, logic analyzer debugging, custom PCB in KiCad |
 
 ## Project status
@@ -83,7 +88,7 @@ flowchart LR
 | Microcontroller start-up: 180 MHz clock, serial console, start-up report | Done, awaiting hardware check |
 | Interactive console, watchdog, crash reporting | In progress |
 | Laptop tool: command line, desktop app, simulated device | In progress |
-| Unit tests in CI | In progress |
+| Unit tests with 100% MC/DC coverage gate, published test and coverage reports | Done |
 | Capturing CAN messages and streaming them to the laptop | Not started |
 | OBD2 requests: live data, VIN, trouble codes | Not started |
 | Two-controller test bus on the desk, performance measurements | Not started |
@@ -118,12 +123,24 @@ cmake --build --preset firmware --target flash   # load it onto the board over U
 Then open the board's serial port at 115200 baud (for example
 `screen /dev/tty.usbmodem* 115200`) and press the reset button to see the start-up report.
 
+## Testing
+
+```sh
+cmake --preset host-tests && cmake --build --preset host-tests && ctest --preset host-tests
+```
+
+The unit tests run on a normal computer under memory-error, undefined-behaviour and race
+detectors. CI also measures coverage and rejects any change that drops below 100% MC/DC. See
+[docs/design/testing.md](docs/design/testing.md) and the
+[live quality report](https://ka5j.github.io/obd2-sniffer/).
+
 ## Documentation
 
 Each document starts with a short plain-language summary, followed by the engineering detail.
 
 - [Hardware and wiring](docs/design/hardware.md)
 - [Build system and start-up sequence](docs/design/build-and-boot.md)
+- [Testing and code coverage](docs/design/testing.md)
 
 ## License
 
