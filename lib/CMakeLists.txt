@@ -3,6 +3,8 @@
 
 add_library(core STATIC
     src/cli.c
+    src/crc16.c
+    src/fault_record.c
     src/line_editor.c
     src/ring_buffer.c)
 target_include_directories(core PUBLIC include)
