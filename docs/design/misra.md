@@ -44,7 +44,7 @@ All changes were checked by the existing unit tests and the 100% MC/DC coverage 
 
 | ID | Rules | What and why |
 |---|---|---|
-| DEV-01 | 17.1, 21.6 | `printf`-style formatting for the diagnostic console, confined to one function. Format strings are checked by the compiler and output is bounded by a fixed buffer. |
+| DEV-01 | 17.1, 21.6 | `printf`-style formatting for the diagnostic console, confined to two functions in `console.c`. Format strings are checked by the compiler and output is bounded by a fixed buffer. |
 | DEV-02 | 10.8, 14.4 | Expansions of ST's HAL macros (for example `do { } while (0U)` in clock-enable macros). This is third-party code used as intended, pinned to a fixed version. |
 | DEV-03 | 11.6, 21.2 | The C library (newlib) requires functions with reserved names such as `_sbrk`, which must return `(void *)-1` on failure. |
 

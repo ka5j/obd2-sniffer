@@ -4,77 +4,63 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "board.h"
+#include "commands.h"
+#include "console_core.h"
+#include "uart_link.h"
 
-#define CONSOLE_PRINTF_BUF 160U
-#define CONSOLE_TX_TIMEOUT 100U /* ms, per write */
+#define CONSOLE_FORMAT_BUF    160U
+#define CONSOLE_TX_TIMEOUT_MS 50U /* longest wait for transmit buffer space */
 
-static UART_HandleTypeDef huart2;
+static console_core_t core;
 
-void console_init(void)
+static void write_out(void *user, const char *data, size_t len)
 {
-    huart2.Instance = USART2;
-    huart2.Init.BaudRate = CONSOLE_BAUD;
-    huart2.Init.WordLength = UART_WORDLENGTH_8B;
-    huart2.Init.StopBits = UART_STOPBITS_1;
-    huart2.Init.Parity = UART_PARITY_NONE;
-    huart2.Init.Mode = UART_MODE_TX_RX; /* MISRA DEV-02 */
-    huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-    huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-
-    /* If the UART can't be configured there is nowhere to report it; the
-     * LED heartbeat still shows the firmware is alive. */
-    (void)HAL_UART_Init(&huart2);
+    (void)user;
+    (void)uart_link_write((const uint8_t *)data, len, CONSOLE_TX_TIMEOUT_MS);
 }
 
-/* Signature fixed by the HAL, which declares it weak. */
-// cppcheck-suppress constParameterPointer
-void HAL_UART_MspInit(UART_HandleTypeDef *huart)
+bool console_init(void)
 {
-    if (huart->Instance != USART2) {
-        return;
+    if (!uart_link_init()) {
+        return false;
     }
+    console_core_init(&core, commands_table(), commands_count(), write_out, NULL);
+    return true;
+}
 
-    __HAL_RCC_USART2_CLK_ENABLE(); /* MISRA DEV-02 */
-    __HAL_RCC_GPIOA_CLK_ENABLE();  /* MISRA DEV-02 */
-
-    GPIO_InitTypeDef pin = {
-        .Pin = BOARD_VCP_TX_PIN,
-        .Mode = GPIO_MODE_AF_PP,
-        .Pull = GPIO_PULLUP, /* idle-high line stays defined if ST-LINK is unpowered */
-        .Speed = GPIO_SPEED_FREQ_VERY_HIGH,
-        .Alternate = BOARD_VCP_AF,
-    };
-    HAL_GPIO_Init(BOARD_VCP_TX_PORT, &pin);
-
-    pin.Pin = BOARD_VCP_RX_PIN;
-    HAL_GPIO_Init(BOARD_VCP_RX_PORT, &pin);
+void console_poll(void)
+{
+    uint8_t byte = 0U;
+    while (uart_link_read(&byte)) {
+        console_core_feed(&core, (char)byte);
+    }
 }
 
 void console_write(const char *data, size_t len)
 {
-    size_t offset = 0U;
-
-    while (offset < len) {
-        /* HAL takes a uint16_t length. */
-        size_t remaining = len - offset;
-        uint16_t chunk =
-            (remaining > (size_t)UINT16_MAX) ? (uint16_t)UINT16_MAX : (uint16_t)remaining;
-        (void)HAL_UART_Transmit(&huart2, (const uint8_t *)&data[offset], chunk, CONSOLE_TX_TIMEOUT);
-        offset += chunk;
-    }
+    write_out(NULL, data, len);
 }
 
-void console_puts(const char *s)
+void console_puts(const char *text)
 {
-    console_write(s, strlen(s));
+    console_write(text, strlen(text));
 }
 
-/* The only use of <stdarg.h> and <stdio.h> in the firmware: see deviation
+void console_prompt(void)
+{
+    console_core_prompt(&core);
+}
+
+void console_event(const char *text)
+{
+    console_core_event(&core, text);
+}
+
+/* The only uses of <stdarg.h> and <stdio.h> in the firmware: deviation
  * DEV-01 in misra/config.toml. */
 void console_printf(const char *fmt, ...)
 {
-    char buf[CONSOLE_PRINTF_BUF];
+    char buf[CONSOLE_FORMAT_BUF];
     va_list args; /* MISRA DEV-01 */
 
     va_start(args, fmt);                            /* MISRA DEV-01 */
@@ -86,4 +72,19 @@ void console_printf(const char *fmt, ...)
     }
     size_t len = ((size_t)n < sizeof(buf)) ? (size_t)n : (sizeof(buf) - 1U);
     console_write(buf, len);
+}
+
+void console_fieldf(void *ctx, const char *key, const char *label, const char *fmt, ...)
+{
+    char value[CONSOLE_FORMAT_BUF];
+    va_list args; /* MISRA DEV-01 */
+
+    va_start(args, fmt);                                /* MISRA DEV-01 */
+    int n = vsnprintf(value, sizeof(value), fmt, args); /* MISRA DEV-01 */
+    va_end(args);                                       /* MISRA DEV-01 */
+
+    if (n < 0) {
+        value[0] = '\0';
+    }
+    console_core_field(ctx, key, label, value);
 }

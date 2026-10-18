@@ -109,9 +109,9 @@ title = "Formatted text output on the diagnostic console"
 reason = """\
 The serial console prints human-readable status (start-up report, command \
 replies) with printf-style formatting, which needs <stdarg.h> (Rule 17.1) \
-and vsnprintf from <stdio.h> (Rule 21.6). It is confined to one function, \
-console_printf(), used only for diagnostic text and never in interrupt \
-handlers or the CAN data path."""
+and vsnprintf from <stdio.h> (Rule 21.6). It is confined to two functions \
+in firmware/src/console.c, console_printf() and console_fieldf(), used only \
+for diagnostic text and never in interrupt handlers or the CAN data path."""
 mitigation = """\
 Format strings are compile-time literals checked against their arguments by \
 the compiler (format attribute with -Wformat=2 -Werror). Output goes through \
