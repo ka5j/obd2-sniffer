@@ -22,7 +22,7 @@ its risk controls, and the exact lines it applies to.
 | Category | Meaning | In this project |
 |---|---|---|
 | Mandatory | Must always be followed | Always followed. The checker refuses any exception to these. |
-| Required | Must be followed unless a formal *deviation* is recorded | 3 deviations, each tagged at the exact lines it covers |
+| Required | Must be followed unless a formal *deviation* is recorded | 4 deviations, each tagged at the exact lines it covers, or with its location recorded where the tool can't detect it |
 | Advisory | Recommended; a project may decide not to apply one, with a reason | 4 not applied, each with a recorded reason |
 
 Most findings when the check was introduced were fixed in the code. Examples:
@@ -47,6 +47,7 @@ All changes were checked by the existing unit tests and the 100% MC/DC coverage 
 | DEV-01 | 17.1, 21.6 | `printf`-style formatting for the diagnostic console, confined to two functions in `console.c`. Format strings are checked by the compiler and output is bounded by a fixed buffer. |
 | DEV-02 | 10.8, 14.4 | Expansions of ST's HAL macros (for example `do { } while (0U)` in clock-enable macros). This is third-party code used as intended, pinned to a fixed version. |
 | DEV-03 | 11.6, 21.2 | The C library (newlib) requires functions with reserved names such as `_sbrk`, which must return `(void *)-1` on failure. |
+| DEV-04 | 1.3 | The debug-only `crash` command divides by zero and reads an unmapped address on purpose, to prove crash capture works. Never compiled into release builds. |
 
 ### Advisory rules not applied
 
@@ -85,6 +86,13 @@ in [misra/config.toml](../../misra/config.toml) and on the live report.
   - a mandatory rule is deviated, or a non-advisory rule is disapplied.
 
   Tags that no longer cover a finding are reported so they get removed.
+
+### Assembly language
+
+All assembly is in one file, `firmware/src/fault_entry.S` (the fault entry stubs), as Directive 4.3
+requires. There is no inline assembly in the C code. The checker reports inline `asm` statements as
+implicitly declared functions (Rule 17.3, mandatory), so keeping assembly out of C also avoids a
+false report against a rule that must never be deviated.
 
 ### Deviation tags
 

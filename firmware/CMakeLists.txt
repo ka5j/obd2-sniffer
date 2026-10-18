@@ -77,9 +77,12 @@ add_executable(${FW_NAME}
     src/clock.c
     src/commands.c
     src/console.c
+    src/fault.c
+    src/fault_entry.S
     src/reset_cause.c
     src/status_led.c
     src/uart_link.c
+    src/watchdog.c
     src/stm32f4xx_it.c
     src/stm32f4xx_hal_msp.c
     src/syscalls.c)

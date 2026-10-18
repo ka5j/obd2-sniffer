@@ -10,10 +10,12 @@
 #include "clock.h"
 #include "commands.h"
 #include "console.h"
+#include "fault.h"
 #include "reset_cause.h"
 #include "status_led.h"
 #include "uart_link.h"
 #include "version.h"
+#include "watchdog.h"
 
 #define BUTTON_DEBOUNCE_MS     30U
 #define RESET_FLUSH_TIMEOUT_MS 100U
@@ -32,6 +34,13 @@ static void print_banner(clock_source_t clk_src, reset_cause_t cause)
                    (unsigned long)(HAL_RCC_GetPCLK1Freq() / 1000000U),
                    (unsigned long)(HAL_RCC_GetPCLK2Freq() / 1000000U));
     console_printf(" Reset    %s\r\n", reset_cause_name(cause));
+
+    const fault_record_t *crash = fault_last();
+    if (crash != NULL) {
+        console_printf(" Crash    %s at 0x%08lX: %s\r\n", fault_type_str(crash->type),
+                       (unsigned long)crash->pc, fault_cause_str(crash->cfsr, crash->hfsr));
+        console_puts("          details: 'fault'\r\n");
+    }
     console_puts("========================================\r\n");
     console_puts("Type 'help' for a list of commands.\r\n");
 }
@@ -68,6 +77,7 @@ int main(void)
     if (!clock_init(&clk_src)) {
         board_panic();
     }
+    fault_init();
 
     if (!console_init()) {
         board_panic();
@@ -76,9 +86,15 @@ int main(void)
     print_banner(clk_src, cause);
     console_prompt();
 
+    /* Started last, once start-up can no longer take long. */
+    if (!watchdog_init()) {
+        board_panic();
+    }
+
     for (;;) {
         uint32_t now = HAL_GetTick();
 
+        watchdog_kick();
         console_poll();
         status_led_task(now);
         button_task(now);

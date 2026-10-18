@@ -261,6 +261,7 @@ def main() -> int:
             rows.append({key: label, "rules": rules, "category": item.get("category", ""),
                          "title": item["title"], "reason": item["reason"],
                          "mitigation": item.get("mitigation", ""),
+                         "where": item.get("where", ""),
                          "paths": item.get("paths", []), "instances": n})
         return rows
 

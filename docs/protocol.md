@@ -23,7 +23,9 @@ with CR, LF or CR LF.
 | `status` | Uptime, reason for the last reset, clock source and speed, LED mode, serial statistics |
 | `led on\|off\|auto` | Green LED on, off, or blinking once per second (`auto`, the default) |
 | `mode interactive\|host` | Switch the console mode |
+| `fault [clear]` | Details of the last crash (type, cause, code address, bad memory address), or forget it |
 | `reset` | Restart the board (the reply is sent before it restarts) |
+| `crash bus\|usage\|divzero\|hard\|watchdog` | Debug builds only: crash on purpose to test crash capture. See [fault-handling.md](design/fault-handling.md) |
 
 Commands and arguments are not case-sensitive.
 
@@ -35,6 +37,8 @@ obd> status
   Last reset      reset pin
   Clock source    HSE 8 MHz bypass
   CPU clock (Hz)  180000000
+  Watchdog (ms)   500
+  Last crash      none
   LED             auto
   Serial received 7
     dropped       0
@@ -65,7 +69,7 @@ For programs that talk to the board. Enter it with `mode host`; leave it with
 | `OK` | The command succeeded |
 | `ERR <reason>` | It failed: `unknown command`, `wrong number of arguments (usage: ...)`, `invalid argument`, `too many arguments`, `command failed` |
 
-**Data lines** for `version` and `status` are `key=value`:
+**Data lines** for `version`, `status` and `fault` are `key=value`:
 
 ```
 > status
@@ -73,6 +77,8 @@ For programs that talk to the board. Enter it with `mode host`; leave it with
 < reset_cause=reset pin
 < clock=HSE 8 MHz bypass
 < sysclk_hz=180000000
+< watchdog_timeout_ms=500
+< last_fault=none
 < led=auto
 < uart_rx_bytes=7
 < uart_rx_dropped=0
