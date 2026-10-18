@@ -37,4 +37,6 @@ function(add_unit_test name)
     endforeach()
 endfunction()
 
+add_unit_test(test_cli)
+add_unit_test(test_line_editor)
 add_unit_test(test_ring_buffer)
