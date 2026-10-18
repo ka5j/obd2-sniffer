@@ -1,42 +1,47 @@
 #include "cli.h"
 
+/* Distance between lowercase and uppercase ASCII letters. */
+#define CASE_OFFSET ('a' - 'A')
+
 static bool is_space(char c)
 {
-    return c == ' ' || c == '\t';
+    return (c == ' ') || (c == '\t');
 }
 
 static char to_lower(char c)
 {
-    return (c >= 'A' && c <= 'Z') ? (char)(c - 'A' + 'a') : c;
+    return ((c >= 'A') && (c <= 'Z')) ? (char)(c + CASE_OFFSET) : c;
 }
 
 bool cli_streq(const char *a, const char *b)
 {
-    while (*a != '\0' && to_lower(*a) == to_lower(*b)) {
-        a++;
-        b++;
+    size_t i = 0U;
+    while ((a[i] != '\0') && (to_lower(a[i]) == to_lower(b[i]))) {
+        i++;
     }
-    return to_lower(*a) == to_lower(*b);
+    return to_lower(a[i]) == to_lower(b[i]);
 }
 
 int cli_tokenize(char *line, char *argv[], size_t max)
 {
     size_t argc = 0U;
-    char *p = line;
+    size_t i = 0U;
 
     for (;;) {
-        while (is_space(*p)) {
-            *p++ = '\0';
+        while (is_space(line[i])) {
+            line[i] = '\0';
+            i++;
         }
-        if (*p == '\0') {
+        if (line[i] == '\0') {
             return (int)argc;
         }
         if (argc == max) {
             return -1;
         }
-        argv[argc++] = p;
-        while (*p != '\0' && !is_space(*p)) {
-            p++;
+        argv[argc] = &line[i];
+        argc++;
+        while ((line[i] != '\0') && !is_space(line[i])) {
+            i++;
         }
     }
 }
@@ -68,7 +73,7 @@ cli_status_t cli_execute(const cli_command_t *table, size_t count, char *line, v
         int nargs = argc - 1;
         if (cmd == NULL) {
             status = CLI_ERR_UNKNOWN;
-        } else if (nargs < (int)cmd->min_args || nargs > (int)cmd->max_args) {
+        } else if ((nargs < (int)cmd->min_args) || (nargs > (int)cmd->max_args)) {
             status = CLI_ERR_ARGS;
         } else {
             status = cmd->handler(argc, argv, ctx);
@@ -103,14 +108,15 @@ const char *cli_status_str(cli_status_t status)
     }
 }
 
+/* Value of one hex/decimal digit, or -1 if `c` is not a hex digit. */
 static int digit_value(char c)
 {
-    if (c >= '0' && c <= '9') {
+    if ((c >= '0') && (c <= '9')) {
         return c - '0';
     }
     char l = to_lower(c);
-    if (l >= 'a' && l <= 'f') {
-        return l - 'a' + 10;
+    if ((l >= 'a') && (l <= 'f')) {
+        return (l - 'a') + 10;
     }
     return -1;
 }
@@ -118,24 +124,26 @@ static int digit_value(char c)
 bool cli_parse_u32(const char *s, uint32_t *out)
 {
     uint32_t base = 10U;
-    if (s[0] == '0' && to_lower(s[1]) == 'x') {
+    size_t i = 0U;
+
+    if ((s[0] == '0') && (to_lower(s[1]) == 'x')) {
         base = 16U;
-        s += 2;
+        i = 2U;
     }
-    if (*s == '\0') {
+    if (s[i] == '\0') {
         return false;
     }
 
     uint32_t value = 0U;
-    for (; *s != '\0'; s++) {
-        int d = digit_value(*s);
-        if (d < 0 || (uint32_t)d >= base) {
+    for (; s[i] != '\0'; i++) {
+        int d = digit_value(s[i]);
+        if ((d < 0) || ((uint32_t)d >= base)) {
             return false;
         }
-        if (value > (UINT32_MAX - (uint32_t)d) / base) {
+        if (value > ((UINT32_MAX - (uint32_t)d) / base)) {
             return false; /* would overflow */
         }
-        value = value * base + (uint32_t)d;
+        value = (value * base) + (uint32_t)d;
     }
     *out = value;
     return true;

@@ -1,25 +1,28 @@
 #include "crc16.h"
 
-uint16_t crc16_update(uint16_t crc, const void *data, size_t len)
+#define CRC16_POLY    0x1021U
+#define CRC16_TOP_BIT 0x8000U
+
+uint16_t crc16_update(uint16_t crc, const uint8_t *data, size_t len)
 {
-    const uint8_t *p = data;
+    uint16_t value = crc;
 
     /* Bitwise implementation: small (no 512-byte table) and fast enough for
      * the data rates involved. */
-    while (len-- > 0U) {
-        crc ^= (uint16_t)((uint16_t)*p++ << 8);
-        for (int bit = 0; bit < 8; bit++) {
-            if ((crc & 0x8000U) != 0U) {
-                crc = (uint16_t)((crc << 1) ^ 0x1021U);
+    for (size_t i = 0U; i < len; i++) {
+        value ^= (uint16_t)((uint16_t)data[i] << 8U);
+        for (uint32_t bit = 0U; bit < 8U; bit++) {
+            if ((value & CRC16_TOP_BIT) != 0U) {
+                value = (uint16_t)((uint16_t)(value << 1U) ^ CRC16_POLY);
             } else {
-                crc = (uint16_t)(crc << 1);
+                value = (uint16_t)(value << 1U);
             }
         }
     }
-    return crc;
+    return value;
 }
 
-uint16_t crc16(const void *data, size_t len)
+uint16_t crc16(const uint8_t *data, size_t len)
 {
     return crc16_update(CRC16_INIT, data, len);
 }

@@ -1,5 +1,6 @@
 /*
- * Minimal newlib system calls.
+ * Minimal newlib system calls. The reserved names (_write, _sbrk, ...) and
+ * the (void *)-1 failure value are dictated by newlib: deviation DEV-03.
  *
  * The firmware has no heap: _sbrk always fails, so an accidental malloc()
  * returns NULL instead of silently eating the stack's RAM. Use
@@ -25,7 +26,7 @@ void _exit(int status);
 
 int _write(int fd, const char *buf, int len)
 {
-    if (fd != 1 && fd != 2) {
+    if ((fd != 1) && (fd != 2)) {
         errno = EBADF;
         return -1;
     }
@@ -73,7 +74,7 @@ void *_sbrk(ptrdiff_t increment)
 {
     (void)increment;
     errno = ENOMEM;
-    return (void *)-1;
+    return (void *)-1; /* MISRA DEV-03 */
 }
 
 int _getpid(void)

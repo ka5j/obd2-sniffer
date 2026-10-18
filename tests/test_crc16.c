@@ -15,7 +15,7 @@ void tearDown(void)
 
 static void test_standard_check_value(void)
 {
-    TEST_ASSERT_EQUAL_HEX16(0x29B1U, crc16("123456789", 9U));
+    TEST_ASSERT_EQUAL_HEX16(0x29B1U, crc16((const uint8_t *)"123456789", 9U));
 }
 
 static void test_known_vectors(void)
@@ -25,20 +25,20 @@ static void test_known_vectors(void)
     for (int i = 0; i < 256; i++) {
         ramp[i] = (uint8_t)i;
     }
-    TEST_ASSERT_EQUAL_HEX16(0xB915U, crc16("A", 1U));
+    TEST_ASSERT_EQUAL_HEX16(0xB915U, crc16((const uint8_t *)"A", 1U));
     TEST_ASSERT_EQUAL_HEX16(0x84C0U, crc16(zeros, sizeof zeros));
     TEST_ASSERT_EQUAL_HEX16(0x3FBDU, crc16(ramp, sizeof ramp));
 }
 
 static void test_empty_input_returns_initial_value(void)
 {
-    TEST_ASSERT_EQUAL_HEX16(CRC16_INIT, crc16("", 0U));
+    TEST_ASSERT_EQUAL_HEX16(CRC16_INIT, crc16((const uint8_t *)"", 0U));
 }
 
 static void test_incremental_matches_one_shot(void)
 {
-    uint16_t crc = crc16_update(CRC16_INIT, "1234", 4U);
-    crc = crc16_update(crc, "56789", 5U);
+    uint16_t crc = crc16_update(CRC16_INIT, (const uint8_t *)"1234", 4U);
+    crc = crc16_update(crc, (const uint8_t *)"56789", 5U);
     TEST_ASSERT_EQUAL_HEX16(0x29B1U, crc);
 }
 

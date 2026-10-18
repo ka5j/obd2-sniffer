@@ -48,7 +48,7 @@ static void test_corrupted_field_is_detected(void)
 static void test_wrong_magic_with_matching_crc_is_invalid(void)
 {
     rec.magic = 0x12345678U;
-    rec.crc = crc16(&rec, offsetof(fault_record_t, crc)); /* CRC itself is fine */
+    rec.crc = crc16((const uint8_t *)&rec, offsetof(fault_record_t, crc)); /* CRC itself is fine */
     TEST_ASSERT_FALSE(fault_record_is_valid(&rec));
 }
 
@@ -120,7 +120,9 @@ static void test_hardfault_only_causes(void)
                              fault_cause_str(0U, HFSR_VECTTBL));
     TEST_ASSERT_EQUAL_STRING("debug event (breakpoint with no debugger attached)",
                              fault_cause_str(0U, HFSR_DEBUGEVT));
-    TEST_ASSERT_EQUAL_STRING("no cause recorded", fault_cause_str(0U, HFSR_FORCED));
+    TEST_ASSERT_EQUAL_STRING("fault escalated to HardFault, no further detail",
+                             fault_cause_str(0U, HFSR_FORCED));
+    TEST_ASSERT_EQUAL_STRING("no cause recorded", fault_cause_str(0U, 0U));
 }
 
 /* ---- faulting address ------------------------------------------------------- */

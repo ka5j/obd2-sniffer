@@ -40,9 +40,10 @@ This project is a scan tool and network analyzer I am building myself:
 - **Testable without a car.** The microcontroller has two network controllers. One acts as a fake
   engine computer, so the whole system can be developed and tested on a desk.
 - **Tested to safety-critical standards.** The core logic is unit-tested to 100% MC/DC coverage,
-  the coverage standard used for flight-control and automotive safety software, and every change
-  is built and tested automatically before it can be merged. Results are published as a
-  [live quality report](https://ka5j.github.io/obd2-sniffer/).
+  the coverage standard used for flight-control and automotive safety software, and all C code
+  follows the **MISRA C:2012** coding rules used in the automotive industry, with every exception
+  documented. Every change is built, tested and checked automatically before it can be merged.
+  Results are published as a [live quality report](https://ka5j.github.io/obd2-sniffer/).
 
 ## How it works
 
@@ -77,6 +78,7 @@ flowchart LR
 | Automotive protocols | CAN, OBD2 (SAE J1979), ISO-TP multi-frame transport |
 | Reliability and safety | Watchdog, crash capture, fault injection, failure-mode analysis (FMEA) |
 | Python | Desktop app (PySide6), command-line tool, serial communication |
+| Code quality | MISRA C:2012 compliance with documented deviations, static analysis (cppcheck) |
 | Testing and tooling | Unit tests in C (Unity) and Python, 100% MC/DC coverage, sanitizers, CMake, GitHub Actions CI, Git branching workflow |
 | Hardware | Bench wiring, logic analyzer debugging, custom PCB in KiCad |
 
@@ -89,6 +91,7 @@ flowchart LR
 | Interactive console, watchdog, crash reporting | In progress |
 | Laptop tool: command line, desktop app, simulated device | In progress |
 | Unit tests with 100% MC/DC coverage gate, published test and coverage reports | Done |
+| MISRA C:2012 compliance check in CI, published compliance report | Done |
 | Capturing CAN messages and streaming them to the laptop | Not started |
 | OBD2 requests: live data, VIN, trouble codes | Not started |
 | Two-controller test bus on the desk, performance measurements | Not started |
@@ -141,6 +144,7 @@ Each document starts with a short plain-language summary, followed by the engine
 - [Hardware and wiring](docs/design/hardware.md)
 - [Build system and start-up sequence](docs/design/build-and-boot.md)
 - [Testing and code coverage](docs/design/testing.md)
+- [MISRA C coding standard](docs/design/misra.md)
 
 ## License
 

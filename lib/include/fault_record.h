@@ -23,20 +23,29 @@
 
 #define FAULT_RECORD_MAGIC 0xFA017C0DU
 
-typedef enum {
-    FAULT_TYPE_HARD = 1,
-    FAULT_TYPE_MEMMANAGE,
-    FAULT_TYPE_BUS,
-    FAULT_TYPE_USAGE,
-} fault_type_t;
+/* Values of fault_record_t.type */
+#define FAULT_TYPE_HARD      1U
+#define FAULT_TYPE_MEMMANAGE 2U
+#define FAULT_TYPE_BUS       3U
+#define FAULT_TYPE_USAGE     4U
 
 typedef struct {
     uint32_t magic;
-    uint32_t type; /* fault_type_t */
+    uint32_t type; /* FAULT_TYPE_* */
     /* Registers stacked by the CPU on exception entry. */
-    uint32_t r0, r1, r2, r3, r12, lr, pc, xpsr;
+    uint32_t r0;
+    uint32_t r1;
+    uint32_t r2;
+    uint32_t r3;
+    uint32_t r12;
+    uint32_t lr;
+    uint32_t pc;
+    uint32_t xpsr;
     /* System Control Block fault status and address registers. */
-    uint32_t cfsr, hfsr, mmfar, bfar;
+    uint32_t cfsr;
+    uint32_t hfsr;
+    uint32_t mmfar;
+    uint32_t bfar;
     uint32_t uptime_ms; /* time since boot when the fault happened */
     uint16_t crc;       /* over everything above */
     uint16_t reserved;
@@ -65,32 +74,33 @@ typedef enum {
 /* Which address register, if any, holds a valid faulting address. */
 fault_addr_kind_t fault_address_kind(uint32_t cfsr);
 
-/* ---- Cortex-M4 fault status bits (ARMv7-M ARM, B3.2.15 and B3.2.16) ---- */
+/* ---- Cortex-M4 fault status bits (ARMv7-M ARM, B3.2.15 and B3.2.16) ----
+ * Written as full 32-bit constants so every value has the same width. */
 /* MemManage (CFSR bits 0-7) */
-#define CFSR_IACCVIOL  (1U << 0)
-#define CFSR_DACCVIOL  (1U << 1)
-#define CFSR_MUNSTKERR (1U << 3)
-#define CFSR_MSTKERR   (1U << 4)
-#define CFSR_MLSPERR   (1U << 5)
-#define CFSR_MMARVALID (1U << 7)
+#define CFSR_IACCVIOL  0x00000001U
+#define CFSR_DACCVIOL  0x00000002U
+#define CFSR_MUNSTKERR 0x00000008U
+#define CFSR_MSTKERR   0x00000010U
+#define CFSR_MLSPERR   0x00000020U
+#define CFSR_MMARVALID 0x00000080U
 /* BusFault (CFSR bits 8-15) */
-#define CFSR_IBUSERR     (1U << 8)
-#define CFSR_PRECISERR   (1U << 9)
-#define CFSR_IMPRECISERR (1U << 10)
-#define CFSR_UNSTKERR    (1U << 11)
-#define CFSR_STKERR      (1U << 12)
-#define CFSR_LSPERR      (1U << 13)
-#define CFSR_BFARVALID   (1U << 15)
+#define CFSR_IBUSERR     0x00000100U
+#define CFSR_PRECISERR   0x00000200U
+#define CFSR_IMPRECISERR 0x00000400U
+#define CFSR_UNSTKERR    0x00000800U
+#define CFSR_STKERR      0x00001000U
+#define CFSR_LSPERR      0x00002000U
+#define CFSR_BFARVALID   0x00008000U
 /* UsageFault (CFSR bits 16-31) */
-#define CFSR_UNDEFINSTR (1U << 16)
-#define CFSR_INVSTATE   (1U << 17)
-#define CFSR_INVPC      (1U << 18)
-#define CFSR_NOCP       (1U << 19)
-#define CFSR_UNALIGNED  (1U << 24)
-#define CFSR_DIVBYZERO  (1U << 25)
+#define CFSR_UNDEFINSTR 0x00010000U
+#define CFSR_INVSTATE   0x00020000U
+#define CFSR_INVPC      0x00040000U
+#define CFSR_NOCP       0x00080000U
+#define CFSR_UNALIGNED  0x01000000U
+#define CFSR_DIVBYZERO  0x02000000U
 /* HardFault status */
-#define HFSR_VECTTBL  (1U << 1)
-#define HFSR_FORCED   (1U << 30)
-#define HFSR_DEBUGEVT (1U << 31)
+#define HFSR_VECTTBL  0x00000002U
+#define HFSR_FORCED   0x40000000U
+#define HFSR_DEBUGEVT 0x80000000U
 
 #endif /* FAULT_RECORD_H */

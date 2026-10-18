@@ -1,27 +1,28 @@
 #include "reset_cause.h"
 
-#include "stm32f4xx_hal.h"
+#include "stm32f4xx.h"
 
 reset_cause_t reset_cause_read(void)
 {
+    const uint32_t csr = RCC->CSR;
     reset_cause_t cause;
 
     /* Several flags can be set at once: a power-on also sets BOR and PIN, and
      * every internal reset also drives NRST low and sets PIN. Check the most
      * specific causes first. */
-    if (__HAL_RCC_GET_FLAG(RCC_FLAG_LPWRRST)) {
+    if ((csr & RCC_CSR_LPWRRSTF) != 0U) {
         cause = RESET_CAUSE_LOW_POWER;
-    } else if (__HAL_RCC_GET_FLAG(RCC_FLAG_WWDGRST)) {
+    } else if ((csr & RCC_CSR_WWDGRSTF) != 0U) {
         cause = RESET_CAUSE_WWDG;
-    } else if (__HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST)) {
+    } else if ((csr & RCC_CSR_IWDGRSTF) != 0U) {
         cause = RESET_CAUSE_IWDG;
-    } else if (__HAL_RCC_GET_FLAG(RCC_FLAG_SFTRST)) {
+    } else if ((csr & RCC_CSR_SFTRSTF) != 0U) {
         cause = RESET_CAUSE_SOFTWARE;
-    } else if (__HAL_RCC_GET_FLAG(RCC_FLAG_PORRST)) {
+    } else if ((csr & RCC_CSR_PORRSTF) != 0U) {
         cause = RESET_CAUSE_POWER_ON;
-    } else if (__HAL_RCC_GET_FLAG(RCC_FLAG_BORRST)) {
+    } else if ((csr & RCC_CSR_BORRSTF) != 0U) {
         cause = RESET_CAUSE_BROWN_OUT;
-    } else if (__HAL_RCC_GET_FLAG(RCC_FLAG_PINRST)) {
+    } else if ((csr & RCC_CSR_PINRSTF) != 0U) {
         cause = RESET_CAUSE_PIN;
     } else {
         cause = RESET_CAUSE_UNKNOWN;
@@ -29,7 +30,7 @@ reset_cause_t reset_cause_read(void)
 
     /* Flags are sticky until cleared; clear them so the next boot reports
      * only its own cause. */
-    __HAL_RCC_CLEAR_RESET_FLAGS();
+    RCC->CSR |= RCC_CSR_RMVF;
     return cause;
 }
 

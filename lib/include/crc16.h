@@ -14,10 +14,10 @@
 #define CRC16_INIT 0xFFFFU
 
 /* CRC of a whole buffer. */
-uint16_t crc16(const void *data, size_t len);
+uint16_t crc16(const uint8_t *data, size_t len);
 
 /* Continue a CRC over more data: crc16_update(CRC16_INIT, ...) for the first
  * chunk, then feed each result into the next call. */
-uint16_t crc16_update(uint16_t crc, const void *data, size_t len);
+uint16_t crc16_update(uint16_t crc, const uint8_t *data, size_t len);
 
 #endif /* CRC16_H */
