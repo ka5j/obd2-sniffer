@@ -73,8 +73,9 @@ every check is actually needed and actually works.
 A test suite is only useful if it can fail, so each guard was verified by breaking the code on
 purpose:
 
-- **Coverage gate:** skipping the one test of `ring_init`'s argument checks drops MC/DC to 0% and
-  branch coverage to 80%, and the gate fails.
+- **Coverage gate:** when it was introduced (the library then held only the ring buffer), skipping
+  the one test of `ring_init`'s argument checks dropped MC/DC to 0% and branch coverage to 80%, and
+  the gate failed.
 - **ThreadSanitizer:** weakening the ring buffer's memory ordering from release/acquire to relaxed
   makes the CI run report `data race ... in memcpy`.
 - **Name filter:** a test name that matches nothing makes Unity report "0 Tests", which CTest
@@ -86,8 +87,8 @@ local pass there is not taken as evidence.
 ### Running locally
 
 ```sh
-# Unit tests with AddressSanitizer + UndefinedBehaviorSanitizer
-cmake --preset host-tests && cmake --build --preset host-tests && ctest --preset host-tests
+# Unit tests with AddressSanitizer + UndefinedBehaviorSanitizer (configure, build, run)
+cmake --workflow --preset host-tests
 
 # Coverage report (Clang 18+), opens build/host-coverage/report/coverage/index.html
 cmake --preset host-coverage && cmake --build --preset host-coverage

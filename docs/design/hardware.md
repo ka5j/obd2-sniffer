@@ -46,8 +46,8 @@ Rules for the car connection:
 
 ## Pin assignments
 
-These are the microcontroller pins the firmware uses. They are also listed in
-`firmware/include/board.h`.
+These are the microcontroller pins the project uses. The LED, button and serial pins are defined
+in `firmware/include/board.h`; the CAN pins are assigned for the CAN driver.
 
 | Function | Pin | Board header | Notes |
 |---|---|---|---|

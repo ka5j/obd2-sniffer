@@ -129,8 +129,16 @@ FLASH 0x0800_0000 (512 KiB)            RAM 0x2000_0000 (128 KiB)
    4. `clock_init()` brings the system to 180 MHz (below). On total failure it calls
       `board_panic()`, which blinks the LED with a busy-wait loop that needs no timers or
       interrupts.
-   5. `console_init()` starts USART2 and the boot banner is printed.
-   6. The super-loop starts.
+   5. `fault_init()` picks up a crash record left by the previous run, if any, and enables the
+      separate fault handlers ([fault-handling.md](fault-handling.md)).
+   6. `console_init()` sets up USART2 with its receive interrupt and transmit DMA
+      ([serial-console.md](serial-console.md)).
+   7. The start-up report is printed, including a crash summary if there was one, followed by
+      the `obd> ` prompt.
+   8. `watchdog_init()` starts the independent watchdog. It is started last, once nothing left
+      in start-up can take long.
+   9. The super-loop starts: refresh the watchdog, process console input, update the LED, check
+      the button, and restart if `reset` was requested.
 
 ## Clock tree
 
