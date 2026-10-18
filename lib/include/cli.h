@@ -19,12 +19,12 @@
 
 typedef enum {
     CLI_OK = 0,
-    CLI_ERR_EMPTY,     /* blank line: nothing to do */
-    CLI_ERR_UNKNOWN,   /* no such command */
-    CLI_ERR_ARGS,      /* wrong number of arguments */
-    CLI_ERR_TOO_MANY,  /* more words than CLI_MAX_ARGS */
-    CLI_ERR_INVALID,   /* handler rejected an argument value */
-    CLI_ERR_FAILED,    /* handler could not carry out the command */
+    CLI_ERR_EMPTY,    /* blank line: nothing to do */
+    CLI_ERR_UNKNOWN,  /* no such command */
+    CLI_ERR_ARGS,     /* wrong number of arguments */
+    CLI_ERR_TOO_MANY, /* more words than CLI_MAX_ARGS */
+    CLI_ERR_INVALID,  /* handler rejected an argument value */
+    CLI_ERR_FAILED,   /* handler could not carry out the command */
 } cli_status_t;
 
 typedef cli_status_t (*cli_handler_t)(int argc, char *argv[], void *ctx);

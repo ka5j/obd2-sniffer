@@ -5,7 +5,8 @@ set -eu
 
 cd "$(dirname "$0")/.."
 
-files=$(git ls-files '*.c' '*.h' | grep -v '^firmware/third_party/' || true)
+# --others: include new files not yet committed, so local runs match CI.
+files=$(git ls-files --cached --others --exclude-standard '*.c' '*.h' | grep -v '^firmware/third_party/' || true)
 [ -z "$files" ] && exit 0
 
 if [ "${1:-}" = "--fix" ]; then

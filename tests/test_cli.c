@@ -100,9 +100,9 @@ static void test_streq_is_case_insensitive(void)
     TEST_ASSERT_TRUE(cli_streq("", ""));
     TEST_ASSERT_TRUE(cli_streq("a1[", "A1[")); /* non-letters compare as-is */
     TEST_ASSERT_FALSE(cli_streq("led", "les"));
-    TEST_ASSERT_FALSE(cli_streq("le", "led"));  /* first is a prefix */
-    TEST_ASSERT_FALSE(cli_streq("led", "le"));  /* second is a prefix */
-    TEST_ASSERT_FALSE(cli_streq("[", "{"));     /* outside A-Z: not folded */
+    TEST_ASSERT_FALSE(cli_streq("le", "led")); /* first is a prefix */
+    TEST_ASSERT_FALSE(cli_streq("led", "le")); /* second is a prefix */
+    TEST_ASSERT_FALSE(cli_streq("[", "{"));    /* outside A-Z: not folded */
 }
 
 static void test_find_returns_entry_or_null(void)
