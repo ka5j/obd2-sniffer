@@ -1,0 +1,18 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build firmware",
+      "type": "shell",
+      "command": "cmake --preset firmware && cmake --build --preset firmware",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "Flash firmware",
+      "type": "shell",
+      "command": "cmake --build --preset firmware --target flash",
+      "problemMatcher": []
+    }
+  ]
+}

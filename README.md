@@ -93,7 +93,8 @@ with no hardware dependencies and is unit-tested on the host.
 The 8 MHz clock from the on-board ST-LINK feeds the PLL in HSE bypass mode
 (8 MHz / 4 x 180 / 2 = 180 MHz). APB1 runs at 45 MHz, which clocks bxCAN, USART2 and TIM2. If the
 external clock fails to start, the firmware falls back to the internal 16 MHz HSI with the same
-PLL output and reports it at boot, since HSI tolerance is marginal for CAN timing.
+PLL output and reports it at boot, since HSI drifts too much over temperature for reliable CAN
+timing.
 
 At 500 kbit/s the CAN bit time is 18 time quanta (prescaler 5, BS1 = 15, BS2 = 2), giving an
 88.9% sample point.
@@ -122,7 +123,7 @@ At 500 kbit/s the CAN bit time is 18 time quanta (prescaler 5, BS1 = 15, BS2 = 2
 | CMake cross-build, pinned HAL/CMSIS submodules, custom linker script | Implemented |
 | 180 MHz clock tree with HSE to HSI fallback | Implemented |
 | UART console, boot banner, reset-cause reporting | Implemented |
-| CI (firmware build and size report) | In progress |
+| CI: Debug and Release firmware builds, size report, formatting check | Implemented |
 | Interrupt/DMA UART, command line interface, watchdog, fault capture | Not started |
 | CAN driver, ring buffer, binary link, Python monitor | Not started |
 | ISO-TP, OBD2 client, ECU simulator | Not started |
@@ -145,6 +146,9 @@ cmake --build --preset firmware --target flash   # program the Nucleo over ST-LI
 
 Use the `firmware-release` preset for a size-optimised build.
 
+For source-level debugging over SWD, open the folder in VS Code with the Cortex-Debug extension
+and run the "Debug (OpenOCD, ST-LINK)" configuration. It builds, flashes and stops at `main`.
+
 Open the ST-LINK virtual COM port at 115200 baud 8N1 (for example
 `screen /dev/tty.usbmodem* 115200`) and press the black reset button to see the boot banner:
 
@@ -161,15 +165,24 @@ Open the ST-LINK virtual COM port at 115200 baud 8N1 (for example
 ========================================
 ```
 
+## Documentation
+
+- [Build system and boot sequence](docs/design/build-and-boot.md): toolchain, memory layout,
+  startup, clock tree, reset-cause decoding
+
 ## Repository layout
 
 ```
+.github/workflows/   CI pipeline
+.vscode/             debug (Cortex-Debug + OpenOCD) and build tasks
 cmake/               toolchain file and build helper scripts
+docs/design/         design notes
 firmware/
   include/           board, clock, console headers; HAL configuration
   src/               application sources
   linker/            STM32F446RE linker script
   third_party/       ST HAL, CMSIS device and CMSIS core (git submodules)
+scripts/             developer scripts (formatting check)
 CMakePresets.json    configure and build presets
 ```
 
