@@ -66,7 +66,7 @@ replies, shows events as they arrive, and reconnects automatically after `reset`
 ```python
 from obdsniff import open_device
 
-with open_device("sim") as board:          # or a port path, or None to find the board
+with open_device("sim") as board:  # or a port path, or None to find the board
     print(board.status()["uptime_ms"])
     board.set_led("on")
     print(board.poll_events(timeout=1.0))  # e.g. ['button pressed']
