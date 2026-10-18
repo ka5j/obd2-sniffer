@@ -74,8 +74,12 @@ add_executable(${FW_NAME}
     ${DEVICE_DIR}/Source/Templates/gcc/startup_stm32f446xx.s
     src/main.c
     src/board.c
+    src/clock.c
+    src/console.c
+    src/reset_cause.c
     src/stm32f4xx_it.c
-    src/stm32f4xx_hal_msp.c)
+    src/stm32f4xx_hal_msp.c
+    src/syscalls.c)
 set_target_properties(${FW_NAME} PROPERTIES SUFFIX .elf)
 add_dependencies(${FW_NAME} version_header)
 

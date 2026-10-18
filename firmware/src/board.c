@@ -38,3 +38,13 @@ bool board_button_pressed(void)
 {
     return HAL_GPIO_ReadPin(BOARD_BTN_PORT, BOARD_BTN_PIN) == GPIO_PIN_RESET;
 }
+
+void board_panic(void)
+{
+    __disable_irq();
+    for (;;) {
+        board_led_toggle();
+        for (volatile uint32_t i = 0; i < 200000U; i++) {
+        }
+    }
+}

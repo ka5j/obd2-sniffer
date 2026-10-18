@@ -1,9 +1,8 @@
 /*
  * Cortex-M exception handlers and peripheral IRQ handlers.
  *
- * Fault handlers currently park the CPU in a loop so a debugger can inspect
- * the stacked registers. Phase 2 replaces this with fault capture that
- * survives a reset and is reported on the next boot.
+ * Fault handlers park the CPU in a loop so a debugger attached over SWD can
+ * inspect the stacked registers and fault status registers.
  */
 #include "stm32f4xx_hal.h"
 

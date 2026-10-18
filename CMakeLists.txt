@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.25)
 
 # The same tree builds two very different things:
 #   * the firmware image, when cross-compiling with cmake/arm-none-eabi.cmake
-#   * host-side unit tests for the portable code in lib/ (added in phase 2)
-# Use the CMake presets ("firmware", "host-tests") rather than configuring by hand.
+#   * host-side builds (unit tests for hardware-independent code)
+# Use the CMake presets rather than configuring by hand.
 
 project(obd2_sniffer
     VERSION 0.1.0
@@ -19,5 +19,5 @@ if(CMAKE_CROSSCOMPILING)
     enable_language(ASM)
     add_subdirectory(firmware)
 else()
-    message(STATUS "Host build: no host targets yet (unit tests arrive in phase 2)")
+    message(STATUS "Host build: no host targets defined")
 endif()

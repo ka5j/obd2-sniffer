@@ -34,4 +34,8 @@ void board_led_toggle(void);
 /* Raw level of B1, true while held down. Not debounced. */
 bool board_button_pressed(void);
 
+/* Unrecoverable error before the console is usable: blink LD2 rapidly
+ * forever. Uses a busy-wait so it works at any clock and with IRQs off. */
+__attribute__((noreturn)) void board_panic(void);
+
 #endif /* BOARD_H */
