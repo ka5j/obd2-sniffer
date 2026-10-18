@@ -8,8 +8,9 @@
  *
  * If HSE does not start (e.g. solder bridges changed, or a custom board with
  * no external clock) the PLL falls back to HSI 16 MHz with M=8, giving the
- * same 180 MHz tree. HSI is less accurate (+-1% over temperature) which is
- * marginal for CAN, so the fallback is reported in the boot banner.
+ * same 180 MHz tree. HSI is factory-trimmed to +-1% only at 25 C and drifts
+ * several percent over temperature, more than CAN bit timing tolerates, so
+ * the fallback is reported in the boot banner.
  */
 #ifndef CLOCK_H
 #define CLOCK_H

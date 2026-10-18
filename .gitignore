@@ -29,6 +29,7 @@ captures/
 .vscode/*
 !.vscode/launch.json
 !.vscode/extensions.json
+!.vscode/tasks.json
 *.swp
 
 # KiCad backups

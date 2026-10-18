@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  firmware:
+    name: Firmware (${{ matrix.preset }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [firmware, firmware-release]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0 # full history + tags for `git describe`
+
+      - name: Install Arm GNU Toolchain
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: '15.2.Rel1'
+
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build
+
+      - name: Configure
+        run: cmake --preset ${{ matrix.preset }}
+
+      - name: Build
+        run: cmake --build --preset ${{ matrix.preset }}
+
+      - name: Size report
+        run: |
+          elf=build/${{ matrix.preset }}/firmware/obd2_sniffer.elf
+          {
+            echo "### Firmware size (${{ matrix.preset }})"
+            echo '```'
+            arm-none-eabi-size --format=berkeley "$elf"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: obd2_sniffer-${{ matrix.preset }}
+          path: |
+            build/${{ matrix.preset }}/firmware/obd2_sniffer.elf
+            build/${{ matrix.preset }}/firmware/obd2_sniffer.bin
+            build/${{ matrix.preset }}/firmware/obd2_sniffer.hex
+            build/${{ matrix.preset }}/firmware/obd2_sniffer.map
+          if-no-files-found: error
+
+  format:
+    name: Formatting
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format
+        # Pinned so CI and local formatting agree exactly.
+        run: pipx install clang-format==23.1.1
+
+      - name: Check formatting
+        run: ./scripts/check-format.sh

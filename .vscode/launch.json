@@ -1,0 +1,28 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug (OpenOCD, ST-LINK)",
+      "type": "cortex-debug",
+      "request": "launch",
+      "servertype": "openocd",
+      "cwd": "${workspaceFolder}",
+      "executable": "${workspaceFolder}/build/firmware/firmware/obd2_sniffer.elf",
+      "configFiles": ["board/st_nucleo_f4.cfg"],
+      "device": "STM32F446RE",
+      "runToEntryPoint": "main",
+      "preLaunchTask": "Build firmware",
+      "showDevDebugOutput": "none"
+    },
+    {
+      "name": "Attach (OpenOCD, ST-LINK)",
+      "type": "cortex-debug",
+      "request": "attach",
+      "servertype": "openocd",
+      "cwd": "${workspaceFolder}",
+      "executable": "${workspaceFolder}/build/firmware/firmware/obd2_sniffer.elf",
+      "configFiles": ["board/st_nucleo_f4.cfg"],
+      "device": "STM32F446RE"
+    }
+  ]
+}
