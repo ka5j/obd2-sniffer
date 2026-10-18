@@ -191,7 +191,23 @@ per second, and pressing the blue **USER** button prints `button pressed`.
 At the `obd>` prompt, try `help`, `status`, `version` or `led on`. All commands are described in
 [protocol.md](protocol.md).
 
-## 7. Run the tests (optional, no board needed)
+## 7. Use the laptop tool
+
+The `obdsniff` tool talks to the board from your computer. It needs Python 3.10 or newer:
+
+```sh
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -e host
+
+obdsniff info                      # finds the board automatically
+obdsniff shell                     # interactive session
+obdsniff --port sim shell          # the same, against the built-in simulator
+```
+
+All commands are listed in [host/README.md](../host/README.md).
+
+## 8. Run the tests (optional, no board needed)
 
 The hardware-independent code has unit tests that run on your computer:
 
@@ -199,11 +215,12 @@ The hardware-independent code has unit tests that run on your computer:
 cmake --workflow --preset host-tests
 ```
 
-This builds the tests with memory and undefined-behaviour checkers and runs all of them. Coverage
+This builds the tests with memory and undefined-behaviour checkers and runs all of them. The laptop
+tool's tests run with `cd host && pip install -e ".[dev]" && python -m pytest --cov`. Coverage
 measurement and the MISRA C check are described in [testing.md](design/testing.md) and
 [misra.md](design/misra.md).
 
-## 8. Debugging (optional)
+## 9. Debugging (optional)
 
 With VS Code, install the recommended extensions (**Cortex-Debug**, **CMake Tools**), then run
 **Debug (OpenOCD, ST-LINK)** from the Run and Debug panel. It builds, flashes, and stops at the
