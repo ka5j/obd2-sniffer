@@ -38,6 +38,7 @@ function(add_unit_test name)
 endfunction()
 
 add_unit_test(test_cli)
+add_unit_test(test_console_core)
 add_unit_test(test_crc16)
 add_unit_test(test_fault_record)
 add_unit_test(test_line_editor)

@@ -3,6 +3,7 @@
 
 add_library(core STATIC
     src/cli.c
+    src/console_core.c
     src/crc16.c
     src/fault_record.c
     src/line_editor.c
