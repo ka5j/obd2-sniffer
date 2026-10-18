@@ -88,7 +88,8 @@ flowchart LR
 |---|---|
 | Build system, project structure, automated builds (CI) | Done |
 | Microcontroller start-up: 180 MHz clock, serial console, start-up report | Done, awaiting hardware check |
-| Interactive console, watchdog, crash reporting | In progress |
+| Serial console: interrupt and DMA driven, interactive and host modes, board commands | Done, awaiting hardware check |
+| Watchdog and crash reporting | In progress |
 | Laptop tool: command line, desktop app, simulated device | In progress |
 | Unit tests with 100% MC/DC coverage gate, published test and coverage reports | Done |
 | MISRA C:2012 compliance check in CI, published compliance report | Done |
@@ -150,10 +151,12 @@ detectors. CI also measures coverage and rejects any change that drops below 100
 
 Each document starts with a short plain-language summary, followed by the engineering detail.
 
+- [Serial console and protocol](docs/protocol.md): commands, and how programs talk to the board
 - [Hardware and wiring](docs/design/hardware.md)
 - [Build system and start-up sequence](docs/design/build-and-boot.md)
 - [Testing and code coverage](docs/design/testing.md)
 - [MISRA C coding standard](docs/design/misra.md)
+- [Serial console internals](docs/design/serial-console.md): interrupts, DMA and ring buffers
 
 ## License
 

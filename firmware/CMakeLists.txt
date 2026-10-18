@@ -75,8 +75,11 @@ add_executable(${FW_NAME}
     src/main.c
     src/board.c
     src/clock.c
+    src/commands.c
     src/console.c
     src/reset_cause.c
+    src/status_led.c
+    src/uart_link.c
     src/stm32f4xx_it.c
     src/stm32f4xx_hal_msp.c
     src/syscalls.c)

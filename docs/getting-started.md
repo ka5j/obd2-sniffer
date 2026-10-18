@@ -181,10 +181,15 @@ Press the black **RESET** button on the board. You should see the start-up repor
  PCLK1    45 MHz   PCLK2 90 MHz
  Reset    reset pin
 ========================================
+Type 'help' for a list of commands.
+obd>
 ```
 
 The silicon revision and unique ID differ from board to board. The green **LD2** LED blinks once
 per second, and pressing the blue **USER** button prints `button pressed`.
+
+At the `obd>` prompt, try `help`, `status`, `version` or `led on`. All commands are described in
+[protocol.md](protocol.md).
 
 ## 7. Run the tests (optional, no board needed)
 
