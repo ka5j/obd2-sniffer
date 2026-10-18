@@ -114,5 +114,53 @@
         "outputJUnitFile": "${sourceDir}/build/host-coverage/junit-c.xml"
       }
     }
+  ],
+  "workflowPresets": [
+    {
+      "name": "firmware",
+      "displayName": "Configure and build the firmware (Debug)",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "firmware"
+        },
+        {
+          "type": "build",
+          "name": "firmware"
+        }
+      ]
+    },
+    {
+      "name": "firmware-release",
+      "displayName": "Configure and build the firmware (Release)",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "firmware-release"
+        },
+        {
+          "type": "build",
+          "name": "firmware-release"
+        }
+      ]
+    },
+    {
+      "name": "host-tests",
+      "displayName": "Configure, build and run the unit tests",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "host-tests"
+        },
+        {
+          "type": "build",
+          "name": "host-tests"
+        },
+        {
+          "type": "test",
+          "name": "host-tests"
+        }
+      ]
+    }
   ]
 }

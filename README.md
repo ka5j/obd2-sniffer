@@ -112,19 +112,28 @@ Wiring and pin assignments are in [docs/design/hardware.md](docs/design/hardware
 
 ## Getting started
 
-You need the [Arm GNU Toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads),
-CMake, Ninja and OpenOCD.
+All you need to run the firmware is a **NUCLEO-F446RE** board and a USB cable. On the computer,
+install the [Arm GNU Toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads),
+CMake (3.25+), Ninja and Git.
 
 ```sh
 git clone --recurse-submodules https://github.com/ka5j/obd2-sniffer.git
 cd obd2-sniffer
-cmake --preset firmware
-cmake --build --preset firmware                  # build the firmware
-cmake --build --preset firmware --target flash   # load it onto the board over USB
+cmake --workflow --preset firmware        # configure and build in one step
 ```
 
+Load the firmware with either method:
+
+- **Drag and drop:** copy `build/firmware/firmware/obd2_sniffer.bin` onto the **NODE_F446RE** USB
+  drive that appears when the board is plugged in.
+- **Command line:** `cmake --build --preset firmware --target flash` (uses OpenOCD).
+
 Then open the board's serial port at 115200 baud (for example
-`screen /dev/tty.usbmodem* 115200`) and press the reset button to see the start-up report.
+`screen /dev/tty.usbmodem* 115200`) and press the black reset button to see the start-up report.
+
+The **[full getting-started guide](docs/getting-started.md)** covers installation on macOS, Linux
+and Windows, the other ways to flash the board, ready-made firmware downloads, debugging, and
+troubleshooting.
 
 ## Testing
 
