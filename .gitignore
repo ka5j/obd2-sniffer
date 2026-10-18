@@ -39,3 +39,8 @@ hardware/**/fp-info-cache
 
 # Private notes (interview prep), never committed
 notes/
+
+# Coverage data and generated report site
+*.profraw
+*.profdata
+site/

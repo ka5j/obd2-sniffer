@@ -11,6 +11,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   firmware:
     name: Firmware (${{ matrix.preset }})
@@ -59,6 +62,107 @@ jobs:
             build/${{ matrix.preset }}/firmware/obd2_sniffer.hex
             build/${{ matrix.preset }}/firmware/obd2_sniffer.map
           if-no-files-found: error
+
+  unit-tests:
+    name: Unit tests (${{ matrix.preset }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # host-tests: AddressSanitizer + UndefinedBehaviorSanitizer
+        # host-tests-tsan: ThreadSanitizer, for the lock-free code
+        preset: [host-tests, host-tests-tsan]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build
+
+      - name: Allow ThreadSanitizer's memory layout
+        # TSan fails to start under the high ASLR entropy of recent kernels.
+        if: matrix.preset == 'host-tests-tsan'
+        run: sudo sysctl vm.mmap_rnd_bits=28
+
+      - name: Configure
+        run: cmake --preset ${{ matrix.preset }}
+
+      - name: Build
+        run: cmake --build --preset ${{ matrix.preset }}
+
+      - name: Test
+        run: ctest --preset ${{ matrix.preset }}
+
+  coverage:
+    name: Coverage (MC/DC)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      checks: write # publish per-test results to the PR checks
+    env:
+      LLVM_COV: llvm-cov-18
+      LLVM_PROFDATA: llvm-profdata-18
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ninja and LLVM 18
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build clang-18 llvm-18
+
+      - name: Configure
+        run: cmake --preset host-coverage -DCMAKE_C_COMPILER=clang-18
+
+      - name: Build
+        run: cmake --build --preset host-coverage
+
+      - name: Test
+        run: ctest --preset host-coverage
+
+      - name: Coverage gate (100% lines, functions, regions, branches, MC/DC)
+        run: python3 scripts/coverage.py --summary-md "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish test results
+        if: ${{ !cancelled() }}
+        uses: mikepenz/action-junit-report@v5
+        with:
+          report_paths: build/host-coverage/junit-c.xml
+          check_name: Test results
+          include_passed: true
+          detailed_summary: true
+
+      - name: Build report site
+        if: ${{ !cancelled() }}
+        run: >
+          python3 scripts/build_report_site.py --out site
+          --junit "C unit tests=build/host-coverage/junit-c.xml"
+          --coverage "C core library=build/host-coverage/report"
+
+      - name: Upload report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-report
+          path: site
+
+      - name: Upload report for GitHub Pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  publish-report:
+    name: Publish report to GitHub Pages
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    needs: coverage
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deploy
+        uses: actions/deploy-pages@v4
 
   format:
     name: Formatting

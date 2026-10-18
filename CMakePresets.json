@@ -1,6 +1,10 @@
 {
   "version": 6,
-  "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
   "configurePresets": [
     {
       "name": "firmware",
@@ -9,7 +13,9 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/firmware",
       "toolchainFile": "${sourceDir}/cmake/arm-none-eabi.cmake",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
     },
     {
       "name": "firmware-release",
@@ -17,11 +23,96 @@
       "description": "Cross-compile the firmware optimised for size, debug info kept in the ELF",
       "inherits": "firmware",
       "binaryDir": "${sourceDir}/build/firmware-release",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "MinSizeRel" }
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "MinSizeRel"
+      }
+    },
+    {
+      "name": "host-tests",
+      "displayName": "Host unit tests",
+      "description": "Build the portable core and its unit tests natively, with AddressSanitizer and UndefinedBehaviorSanitizer",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/host-tests",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "SANITIZE": "address,undefined"
+      }
+    },
+    {
+      "name": "host-tests-tsan",
+      "displayName": "Host unit tests (ThreadSanitizer)",
+      "description": "Unit tests under ThreadSanitizer, to check the lock-free code for data races",
+      "inherits": "host-tests",
+      "binaryDir": "${sourceDir}/build/host-tests-tsan",
+      "cacheVariables": {
+        "SANITIZE": "thread"
+      }
+    },
+    {
+      "name": "host-coverage",
+      "displayName": "Host unit tests (coverage)",
+      "description": "Unit tests instrumented for line, branch and MC/DC coverage (requires Clang 18+)",
+      "inherits": "host-tests",
+      "binaryDir": "${sourceDir}/build/host-coverage",
+      "cacheVariables": {
+        "SANITIZE": "",
+        "COVERAGE": "ON",
+        "CMAKE_C_COMPILER": "clang"
+      }
     }
   ],
   "buildPresets": [
-    { "name": "firmware", "configurePreset": "firmware" },
-    { "name": "firmware-release", "configurePreset": "firmware-release" }
+    {
+      "name": "firmware",
+      "configurePreset": "firmware"
+    },
+    {
+      "name": "firmware-release",
+      "configurePreset": "firmware-release"
+    },
+    {
+      "name": "host-tests",
+      "configurePreset": "host-tests"
+    },
+    {
+      "name": "host-tests-tsan",
+      "configurePreset": "host-tests-tsan"
+    },
+    {
+      "name": "host-coverage",
+      "configurePreset": "host-coverage"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "host-tests",
+      "configurePreset": "host-tests",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      },
+      "environment": {
+        "TSAN_OPTIONS": "halt_on_error=1",
+        "UBSAN_OPTIONS": "print_stacktrace=1"
+      }
+    },
+    {
+      "name": "host-tests-tsan",
+      "configurePreset": "host-tests-tsan",
+      "inherits": "host-tests"
+    },
+    {
+      "name": "host-coverage",
+      "configurePreset": "host-coverage",
+      "inherits": "host-tests",
+      "environment": {
+        "LLVM_PROFILE_FILE": "${sourceDir}/build/host-coverage/profiles/%p.profraw"
+      },
+      "output": {
+        "outputJUnitFile": "${sourceDir}/build/host-coverage/junit-c.xml"
+      }
+    }
   ]
 }
