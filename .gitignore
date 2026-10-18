@@ -1,0 +1,37 @@
+# Build output
+build/
+out/
+*.o
+*.d
+*.su
+*.map
+*.elf
+*.bin
+*.hex
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Captures / logs (keep curated samples under docs/ or host/samples/)
+captures/
+*.log
+!host/samples/*.log
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/launch.json
+!.vscode/extensions.json
+*.swp
+
+# KiCad backups
+hardware/**/*-backups/
+hardware/**/*.lck
+hardware/**/fp-info-cache
