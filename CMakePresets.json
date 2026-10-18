@@ -1,0 +1,27 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "firmware",
+      "displayName": "Firmware (Debug)",
+      "description": "Cross-compile the STM32F446RE firmware, -Og with full debug info",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/firmware",
+      "toolchainFile": "${sourceDir}/cmake/arm-none-eabi.cmake",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "firmware-release",
+      "displayName": "Firmware (Release)",
+      "description": "Cross-compile the firmware optimised for size, debug info kept in the ELF",
+      "inherits": "firmware",
+      "binaryDir": "${sourceDir}/build/firmware-release",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "MinSizeRel" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "firmware", "configurePreset": "firmware" },
+    { "name": "firmware-release", "configurePreset": "firmware-release" }
+  ]
+}
