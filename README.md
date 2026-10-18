@@ -3,7 +3,7 @@
 A CAN bus sniffer and OBD2 diagnostic tool built on the STM32F446RE (Nucleo-64),
 with a Python host tool and live dashboard.
 
-> 🚧 Work in progress — built in incremental, releasable phases. See the roadmap below.
+> Work in progress. Built in incremental, releasable phases. See the roadmap below.
 
 ## Planned features
 - **Passive CAN sniffer** — listen-only mode, µs timestamps, hardware filters, binary COBS/CRC16 link to the PC
@@ -16,17 +16,17 @@ with a Python host tool and live dashboard.
 ## Roadmap
 | Release | Phase | Status |
 |---|---|---|
-| v0.1.0 | Bring-up: toolchain, clocks, LED, UART | ⏳ |
-| v0.2.0 | Console + board services (CLI, watchdog, fault capture) | ⏳ |
-| v0.3.0 | CAN loopback + binary link to PC | ⏳ |
-| v0.4.0 | OBD2 over loopback (ISO-TP, PIDs, VIN, DTCs) | ⏳ |
-| v0.5.0 | Two-node single-wire CAN bus + throughput benchmark | ⏳ |
-| v0.6.0 | Safety-by-design + fault injection | ⏳ |
-| v0.7.0 | Python dashboard | ⏳ |
-| v0.8.0 | Low power (STOP + wake-on-CAN) | ⏳ |
-| v0.9.0 | Transceivers + real vehicle | ⏳ |
-| v1.0.0 | Portfolio polish | ⏳ |
-| v1.1.0 | Custom PCB | ⏳ |
+| v0.1.0 | Bring-up: toolchain, clocks, LED, UART | Planned |
+| v0.2.0 | Console + board services (CLI, watchdog, fault capture) | Planned |
+| v0.3.0 | CAN loopback + binary link to PC | Planned |
+| v0.4.0 | OBD2 over loopback (ISO-TP, PIDs, VIN, DTCs) | Planned |
+| v0.5.0 | Two-node single-wire CAN bus + throughput benchmark | Planned |
+| v0.6.0 | Safety-by-design + fault injection | Planned |
+| v0.7.0 | Python dashboard | Planned |
+| v0.8.0 | Low power (STOP + wake-on-CAN) | Planned |
+| v0.9.0 | Transceivers + real vehicle | Planned |
+| v1.0.0 | Portfolio polish | Planned |
+| v1.1.0 | Custom PCB | Planned |
 
 ## License
 MIT
