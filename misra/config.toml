@@ -148,3 +148,23 @@ and the return convention are fixed by the C library."""
 mitigation = """\
 Confined to firmware/src/syscalls.c. _sbrk always fails, which enforces the \
 no-heap policy instead of providing a heap."""
+where = "firmware/src/syscalls.c"
+
+[[deviation]]
+id = "DEV-04"
+rules = ["1.3"]
+category = "required"
+title = "Deliberate faults for testing crash capture"
+reason = """\
+To prove that crash capture works, the debug-only `crash` command makes the \
+CPU fault on purpose: an integer division by zero and a read from an \
+unmapped address. Both are undefined behaviour in C (Rule 1.3). They are \
+written with volatile operands so the compiler emits the faulting \
+instruction instead of optimising it away. Not detected by the tool, so no \
+source tags; the code is identified below."""
+mitigation = """\
+Compiled only into debug builds (#ifndef NDEBUG around the command), never \
+into release firmware. Reachable only by typing `crash <kind>` on the \
+console. The CPU traps each case (divide-by-zero trap, bus error), so the \
+behaviour on this target is defined and is exactly what is being tested."""
+where = "firmware/src/fault.c: fault_trigger(), called only from cmd_crash() in firmware/src/commands.c (debug builds)"

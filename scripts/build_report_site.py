@@ -165,6 +165,8 @@ def misra_page(summary: dict, meta: str, repo: str) -> str:
                           if with_mitigation and r.get("mitigation") else "")
             where = (f"<dd><b>Locations ({r['instances']}):</b> {locations(r[key])}</dd>"
                      if key == "id" else f"<dd><b>Findings covered:</b> {r['instances']}</dd>")
+            if r.get("where"):
+                where += f"<dd><b>Applies to:</b> <code>{html.escape(r['where'])}</code></dd>"
             head = (f"{html.escape(r[key])}: Rule {html.escape(rules)}" if key == "id"
                     else html.escape(r[key]))
             out.append(f"<dt>{head}{category}: "
