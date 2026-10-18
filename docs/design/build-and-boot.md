@@ -1,7 +1,35 @@
-# Build system and boot sequence
+# Build system and start-up sequence
 
-This document covers how the firmware is built, how it is laid out in memory, and what happens
-between power-on and the first line of `main()`.
+## In short
+
+**Building.** The firmware is compiled from the command line with free, standard tools (GCC for
+Arm, CMake). There's no dependency on a vendor IDE, so the exact same build runs on my laptop and
+on GitHub's servers for every change. ST's driver library is included as a pinned, unmodified
+dependency, and my own code is compiled with strict settings that turn every warning into an
+error.
+
+**Memory layout.** I wrote the linker script, the file that decides where code and data live in
+the chip's memory, rather than using a generated one. It reserves a small area of memory that
+survives a reset, so the device can report what went wrong after a crash. It also makes the build
+fail if the program ever leaves too little room for the stack. The firmware never allocates
+memory at runtime, which removes a whole class of hard-to-find bugs.
+
+**Start-up.** On power-up, the chip runs a short start-up routine, then my code configures the
+clock to 180 MHz, starts the serial port, and prints a start-up report: firmware version, chip ID,
+clock speeds, and why the chip last restarted (power-on, reset button, watchdog, crash). That last
+item is the first tool for diagnosing problems in the field.
+
+| Term | Meaning |
+|---|---|
+| Firmware | The program that runs on the microcontroller |
+| Toolchain | The compiler, linker and related tools that turn source code into firmware |
+| Flash / RAM | Flash keeps the program when power is off; RAM holds working data and is cleared at power-off |
+| Linker script | Instructions telling the linker where each part of the program goes in memory |
+| Stack | Memory used for function calls and local variables; overflowing it corrupts other data |
+| HAL | Hardware Abstraction Layer: ST's library of functions for configuring the chip's peripherals |
+| CI | Continuous Integration: GitHub automatically builds and checks every change |
+
+The rest of this document is the engineering detail.
 
 ## Build
 
