@@ -96,6 +96,24 @@ def test_events_received_during_a_command_are_kept(device, board) -> None:
     assert device.poll_events() == []
 
 
+def test_event_interleaved_with_a_reply_is_kept() -> None:
+    dev = Device(ScriptedTransport([b"led=auto\r\n!button pressed\r\nOK\r\n"]), timeout=0.05)
+    assert dev.status() == {"led": "auto"}
+    assert dev.poll_events() == ["button pressed"]
+
+
+def test_poll_events_without_waiting_reads_new_events(device, board) -> None:
+    board.press_button()  # arrives with no command in progress
+    assert device.poll_events() == ["button pressed"]
+
+
+def test_stale_reply_lines_are_discarded_before_a_command(device, board) -> None:
+    # Leftovers from an earlier command that timed out, plus an event.
+    device._buffer += b"uptime_ms=1\r\nOK\r\n!button pressed\r\n"
+    assert device.status()["led"] == "auto"  # its own reply, not the stale OK
+    assert device.poll_events() == ["button pressed"]
+
+
 def test_poll_events_waits_for_new_events(device, board) -> None:
     board.press_button()
     assert device.poll_events(timeout=0.05) == ["button pressed"]

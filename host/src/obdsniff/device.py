@@ -80,12 +80,15 @@ class Device:
     # ---- low-level reading -----------------------------------------------
 
     def _fill(self, deadline: float) -> bool:
-        """Read more bytes into the buffer. False once the deadline has passed."""
+        """Read more bytes into the buffer.
+
+        Always reads at least once, without waiting if the deadline has
+        passed, so a zero timeout still picks up data that has already
+        arrived. Returns False when there is nothing more to wait for."""
         remaining = deadline - self._clock()
-        if remaining <= 0:
-            return False
-        self._buffer += self._transport.read(min(remaining, READ_SLICE))
-        return True
+        data = self._transport.read(max(0.0, min(remaining, READ_SLICE)))
+        self._buffer += data
+        return bool(data) or remaining > 0
 
     def _read_line(self, deadline: float) -> str | None:
         """Next complete line without its line ending, or None on timeout."""
@@ -107,6 +110,17 @@ class Device:
                 return True
             if not self._fill(deadline):
                 return False
+
+    def _discard_stale_lines(self) -> None:
+        """Drop complete lines left over from an earlier command (e.g. a reply
+        that arrived after its command timed out), so they can't be taken
+        as the reply to the next one. Events among them are kept."""
+        while True:
+            line = self._read_line(self._clock())
+            if line is None:
+                return
+            if line.startswith("!"):
+                self._events.append(line[1:])
 
     # ---- protocol --------------------------------------------------------
 
@@ -138,6 +152,7 @@ class Device:
         Raises CommandError if the board replies ERR, ProtocolError on timeout."""
         if "\r" in line or "\n" in line:
             raise ValueError("command must be a single line")
+        self._discard_stale_lines()
         self._transport.write(line.encode("ascii") + b"\r")
         data: list[str] = []
         deadline = self._clock() + self._timeout
