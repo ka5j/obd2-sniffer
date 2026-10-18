@@ -37,8 +37,8 @@ static bool pll_start(clock_source_t source)
 bool clock_init(clock_source_t *source_out)
 {
     /* 180 MHz requires voltage scale 1 plus over-drive mode (DS10693 6.3.1). */
-    __HAL_RCC_PWR_CLK_ENABLE();
-    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+    __HAL_RCC_PWR_CLK_ENABLE();                                    /* MISRA DEV-02 */
+    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1); /* MISRA DEV-02 */
 
     clock_source_t source = CLOCK_SRC_HSE;
     if (!pll_start(source)) {

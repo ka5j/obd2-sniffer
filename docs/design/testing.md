@@ -13,6 +13,8 @@ of automotive software (ISO 26262 ASIL D). It means that for every decision in t
 condition in it was shown to change the outcome on its own. The tests also run under tools that
 detect memory errors, undefined behaviour and race conditions between threads.
 
+All C code is also checked against the MISRA C:2012 coding standard; see [misra.md](misra.md).
+
 Results are published automatically:
 
 - **Live report:** <https://ka5j.github.io/obd2-sniffer/>, with every test and the line-by-line

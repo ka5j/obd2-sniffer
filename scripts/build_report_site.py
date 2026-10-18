@@ -20,6 +20,7 @@ import json
 import os
 import re
 import shutil
+import sys
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -113,6 +114,92 @@ def page(title: str, body: str) -> str:
             f"<body><main>{body}</main></body></html>")
 
 
+def misra_page(summary: dict, meta: str, repo: str) -> str:
+    """Compliance page for the MISRA C:2012 check (scripts/misra.py output)."""
+    counts = summary["counts"]
+    blob = f"https://github.com/{repo}/blob/{os.environ.get('GITHUB_SHA', 'develop')}"
+
+    def locations(resolution: str) -> str:
+        refs = [f for f in summary["findings"] if f["resolution"] == resolution]
+        if not refs:
+            return "<span class=\"muted\">none</span>"
+        return ", ".join(
+            f"<a href=\"{blob}/{html.escape(f['file'])}#L{f['line']}\"><code>"
+            f"{html.escape(f['file'])}:{f['line']}</code></a> (Rule {html.escape(f['rule'])})"
+            for f in refs)
+
+    verdict = ("<span class=\"pass\">Compliant: no open findings</span>" if summary["passed"]
+               else f"<span class=\"fail\">{counts['open']} open "
+                    f"finding{'' if counts['open'] == 1 else 's'}</span>")
+    result_rows = "".join(f"<tr><td>{label}</td><td class=\"num\">{counts[key]}</td></tr>" for key, label in [
+        ("open", "Open: must be fixed before merging"),
+        ("deviated", "Covered by a documented deviation"),
+        ("disapplied", "Advisory rule not applied, with a recorded reason"),
+        ("false_positive", "Tool false positive, with evidence"),
+    ])
+
+    def describe(resolution: str) -> str:
+        if not resolution:
+            return "open"
+        if resolution.startswith("Rule "):
+            return "advisory rule not applied"
+        return resolution
+
+    resolution_of = {}
+    for f in summary["findings"]:
+        resolution_of.setdefault(f["rule"], set()).add(describe(f["resolution"]))
+    rule_rows = "".join(
+        f"<tr><td>{html.escape(rule)}</td><td class=\"num\">{n}</td>"
+        f"<td>{html.escape(', '.join(sorted(resolution_of.get(rule, []))))}</td></tr>"
+        for rule, n in sorted(summary["by_rule"].items(),
+                              key=lambda kv: [int(x) if x.isdigit() else x for x in kv[0].split(".")]))
+
+    def items(rows: list[dict], key: str, with_mitigation: bool) -> str:
+        out = []
+        for r in rows:
+            rules = ", ".join(r["rules"])
+            category = f" ({html.escape(r['category'])})" if r["category"] else ""
+            scope = (f"<dd><b>Applies to:</b> <code>{html.escape(', '.join(r['paths']))}</code></dd>"
+                     if r.get("paths") else "")
+            mitigation = (f"<dd><b>Risk control:</b> {html.escape(r['mitigation'])}</dd>"
+                          if with_mitigation and r.get("mitigation") else "")
+            where = (f"<dd><b>Locations ({r['instances']}):</b> {locations(r[key])}</dd>"
+                     if key == "id" else f"<dd><b>Findings covered:</b> {r['instances']}</dd>")
+            head = (f"{html.escape(r[key])}: Rule {html.escape(rules)}" if key == "id"
+                    else html.escape(r[key]))
+            out.append(f"<dt>{head}{category}: "
+                       f"{html.escape(r['title'])}</dt><dd>{html.escape(r['reason'])}</dd>"
+                       f"{mitigation}{scope}{where}")
+        return "<dl>" + "".join(out) + "</dl>" if out else "<p class=\"muted\">None.</p>"
+
+    files = "".join(f"<li><code>{html.escape(f)}</code></li>" for f in summary["files"])
+    return page("MISRA C:2012 compliance", (
+        "<p><a href=\"index.html\">Back to report</a></p><h1>MISRA C:2012 compliance</h1>"
+        f"<p class=\"meta\">{meta}</p>"
+        "<p><b>MISRA C</b> is a set of coding rules for C, written for the automotive industry and "
+        "now used across safety-critical software. The rules ban constructs that are easy to get "
+        "wrong or behave differently between compilers, such as unchecked type conversions, "
+        "hidden side effects and unclear operator precedence. Each rule is <i>mandatory</i> "
+        "(never broken), <i>required</i> (broken only with a documented, reviewed deviation) or "
+        "<i>advisory</i> (a project may choose not to apply it, with a recorded reason).</p>"
+        f"<h2>Result: {verdict}</h2>"
+        f"<p>Checked with {html.escape(summary['tool'])}, which has automated checks for "
+        f"{summary['rules_checked']} rules, analysing for the target's 32-bit Arm type sizes. "
+        "Every change is checked in CI; any finding that is not fixed or covered below blocks "
+        "the merge. Rules that no tool can decide on its own are covered by code review.</p>"
+        f"<div class=\"table-wrap\"><table><tr><th>Findings</th><th>Count</th></tr>{result_rows}</table></div>"
+        "<h2>Deviations from required rules</h2>"
+        "<p>Places where a required rule is broken on purpose. Each one is tagged in the source "
+        "(<code>/* MISRA DEV-xx */</code>) and only covers the rules listed for it.</p>"
+        + items(summary["deviations"], "id", True)
+        + "<h2>Advisory rules not applied</h2>" + items(summary["disapplied"], "rule", False)
+        + "<h2>Tool false positives</h2>" + items(summary.get("false_positives", []), "id", False)
+        + "<h2>Findings by rule</h2><div class=\"table-wrap\"><table><tr><th>Rule</th><th>Findings</th>"
+        f"<th>Resolved by</th></tr>{rule_rows}</table></div>"
+        f"<h2>Files analysed</h2><p>Project code only; ST's HAL and CMSIS (third-party) are excluded.</p>"
+        f"<ul>{files}</ul>"))
+
+
 def readable(case_name: str) -> str:
     return re.sub(r"^test_", "", case_name).replace("_", " ")
 
@@ -123,21 +210,30 @@ def main() -> None:
     parser.add_argument("--junit", action="append", default=[], metavar="LABEL=FILE")
     parser.add_argument("--coverage", action="append", default=[], metavar="LABEL=DIR",
                         help="directory with coverage-summary.json and a coverage/ HTML report")
+    parser.add_argument("--misra", type=Path, metavar="DIR",
+                        help="directory with misra-summary.json from scripts/misra.py")
     args = parser.parse_args()
 
     if args.out.exists():
         shutil.rmtree(args.out)
     args.out.mkdir(parents=True)
 
+    # Inputs from a failed job may be missing; build what is available.
     suites = []
     for item in args.junit:
         label, _, path = item.partition("=")
+        if not Path(path).exists():
+            print(f"warning: {path} not found, skipping", file=sys.stderr)
+            continue
         suites.append(parse_junit(label, Path(path)))
 
     coverages = []
     for i, item in enumerate(args.coverage):
         label, _, path = item.partition("=")
         src = Path(path)
+        if not (src / "coverage-summary.json").exists():
+            print(f"warning: {src} has no coverage summary, skipping", file=sys.stderr)
+            continue
         summary = json.loads((src / "coverage-summary.json").read_text())
         dest = f"coverage-{i}"
         shutil.copytree(src / "coverage", args.out / dest)
@@ -191,16 +287,36 @@ def main() -> None:
             f"<a href=\"{dest}/index.html\">Open the line-by-line coverage report</a>.</p>"
             f"<div class=\"table-wrap\"><table><tr><th>Measure</th><th>Covered</th><th>Percent</th></tr>{rows}</table></div>")
 
+    misra_section = ""
+    misra_file = args.misra / "misra-summary.json" if args.misra else None
+    if misra_file is not None and misra_file.exists():
+        misra = json.loads(misra_file.read_text())
+        (args.out / "misra.html").write_text(misra_page(misra, meta, repo))
+        open_n = misra["counts"]["open"]
+        cards.append(f"<div class=\"card\"><div class=\"muted\">MISRA C:2012 open findings</div>"
+                     f"<div class=\"value {'pass' if misra['passed'] else 'fail'}\">{open_n}</div></div>")
+        misra_section = (
+            "<h2>Coding standard: MISRA C:2012</h2>"
+            "<p>All project C code is checked against MISRA C, the coding rules used for "
+            f"automotive and other safety-critical software. Open findings: {open_n}. "
+            f"{misra['counts']['deviated']} findings are covered by "
+            f"{len(misra['deviations'])} documented deviations. "
+            "<a href=\"misra.html\">See the full compliance report</a>.</p>")
+    elif args.misra:
+        print(f"warning: {misra_file} not found, skipping MISRA section", file=sys.stderr)
+
     help_items = "".join(f"<dt>{html.escape(k)}</dt><dd>{html.escape(v)}</dd>" for k, v in COVERAGE_HELP)
     body = (
         "<h1>OBD2 CAN Sniffer: quality report</h1>"
         f"<p class=\"meta\">{meta}. <a href=\"https://github.com/{repo}\">Source on GitHub</a></p>"
         "<p>This page is rebuilt automatically every time code is merged. It shows the results of the "
-        "automated tests and how much of the code those tests exercise.</p>"
+        "automated tests, how much of the code those tests exercise, and compliance with the "
+        "MISRA C coding standard.</p>"
         f"<div class=\"cards\">{''.join(cards)}</div>"
         f"<h2>Tests</h2><p>{passed} of {total} automated tests passed. "
         "<a href=\"tests.html\">See every test and its result</a>.</p>"
         + "".join(cov_sections)
+        + misra_section
         + f"<h2>What the coverage measures mean</h2><dl>{help_items}</dl>"
         "<p class=\"muted\">Coverage is measured on the hardware-independent code, which runs on a "
         "normal computer. Code that drives the microcontroller's hardware directly is tested on "

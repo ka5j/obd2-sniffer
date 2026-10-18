@@ -4,13 +4,15 @@
 
 bool ring_init(ring_buffer_t *rb, uint8_t *storage, uint32_t capacity)
 {
-    if (rb == NULL || storage == NULL || capacity < 2U || (capacity & (capacity - 1U)) != 0U) {
+    if ((rb == NULL) || (storage == NULL) || (capacity < 2U) ||
+        ((capacity & (capacity - 1U)) != 0U)) {
         return false;
     }
     rb->buf = storage;
     rb->mask = capacity - 1U;
-    atomic_init(&rb->head, 0U);
-    atomic_init(&rb->tail, 0U);
+    /* Not yet shared with another context, so relaxed stores suffice. */
+    atomic_store_explicit(&rb->head, 0U, memory_order_relaxed);
+    atomic_store_explicit(&rb->tail, 0U, memory_order_relaxed);
     return true;
 }
 
@@ -50,24 +52,21 @@ size_t ring_write(ring_buffer_t *rb, const uint8_t *data, size_t len)
     uint32_t head = atomic_load_explicit(&rb->head, memory_order_relaxed);
     uint32_t tail = atomic_load_explicit(&rb->tail, memory_order_acquire);
     uint32_t space = ring_capacity(rb) - (head - tail);
-
-    if (len > space) {
-        len = space;
-    }
+    size_t count = (len > space) ? (size_t)space : len;
 
     /* Copy in at most two pieces: up to the end of storage, then from the
      * start. */
     uint32_t start = head & rb->mask;
-    size_t first = ring_capacity(rb) - start;
-    if (first > len) {
-        first = len;
+    size_t first = (size_t)ring_capacity(rb) - (size_t)start;
+    if (first > count) {
+        first = count;
     }
-    memcpy(&rb->buf[start], data, first);
-    memcpy(&rb->buf[0], data + first, len - first);
+    (void)memcpy(&rb->buf[start], data, first);
+    (void)memcpy(&rb->buf[0], &data[first], count - first);
 
     /* Publish: data must be visible before the new head. */
-    atomic_store_explicit(&rb->head, head + (uint32_t)len, memory_order_release);
-    return len;
+    atomic_store_explicit(&rb->head, head + (uint32_t)count, memory_order_release);
+    return count;
 }
 
 bool ring_get(ring_buffer_t *rb, uint8_t *byte)
@@ -81,22 +80,19 @@ size_t ring_read(ring_buffer_t *rb, uint8_t *out, size_t len)
     uint32_t tail = atomic_load_explicit(&rb->tail, memory_order_relaxed);
     uint32_t head = atomic_load_explicit(&rb->head, memory_order_acquire);
     uint32_t avail = head - tail;
-
-    if (len > avail) {
-        len = avail;
-    }
+    size_t count = (len > avail) ? (size_t)avail : len;
 
     uint32_t start = tail & rb->mask;
-    size_t first = ring_capacity(rb) - start;
-    if (first > len) {
-        first = len;
+    size_t first = (size_t)ring_capacity(rb) - (size_t)start;
+    if (first > count) {
+        first = count;
     }
-    memcpy(out, &rb->buf[start], first);
-    memcpy(out + first, &rb->buf[0], len - first);
+    (void)memcpy(out, &rb->buf[start], first);
+    (void)memcpy(&out[first], &rb->buf[0], count - first);
 
     /* Release the space only after the data has been copied out. */
-    atomic_store_explicit(&rb->tail, tail + (uint32_t)len, memory_order_release);
-    return len;
+    atomic_store_explicit(&rb->tail, tail + (uint32_t)count, memory_order_release);
+    return count;
 }
 
 size_t ring_peek_contiguous(const ring_buffer_t *rb, const uint8_t **data)
@@ -108,7 +104,7 @@ size_t ring_peek_contiguous(const ring_buffer_t *rb, const uint8_t **data)
     uint32_t to_end = ring_capacity(rb) - start;
 
     *data = &rb->buf[start];
-    return (avail < to_end) ? avail : to_end;
+    return (avail < to_end) ? (size_t)avail : (size_t)to_end;
 }
 
 void ring_consume(ring_buffer_t *rb, size_t len)
@@ -116,9 +112,8 @@ void ring_consume(ring_buffer_t *rb, size_t len)
     uint32_t tail = atomic_load_explicit(&rb->tail, memory_order_relaxed);
     uint32_t head = atomic_load_explicit(&rb->head, memory_order_acquire);
     uint32_t avail = head - tail;
+    /* Never move tail past head. */
+    size_t count = (len > avail) ? (size_t)avail : len;
 
-    if (len > avail) {
-        len = avail; /* never move tail past head */
-    }
-    atomic_store_explicit(&rb->tail, tail + (uint32_t)len, memory_order_release);
+    atomic_store_explicit(&rb->tail, tail + (uint32_t)count, memory_order_release);
 }

@@ -38,7 +38,8 @@ void line_editor_init(line_editor_t *le);
 /* Feed one received byte and get what the caller should do about it. */
 line_event_t line_editor_feed(line_editor_t *le, char c);
 
-/* After LE_LINE_READY: the NUL-terminated line. Valid until the next feed. */
-char *line_editor_line(line_editor_t *le);
+/* After LE_LINE_READY: the NUL-terminated line. Valid until the next feed.
+ * Copy it before parsing in place (the command parser modifies its input). */
+const char *line_editor_line(const line_editor_t *le);
 
 #endif /* LINE_EDITOR_H */

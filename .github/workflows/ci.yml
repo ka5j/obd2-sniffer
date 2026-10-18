@@ -128,15 +128,77 @@ jobs:
           include_passed: true
           detailed_summary: true
 
-      - name: Build report site
+      - name: Upload coverage results
         if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-results
+          path: |
+            build/host-coverage/junit-c.xml
+            build/host-coverage/report
+
+  misra:
+    name: MISRA C:2012
+    runs-on: ubuntu-24.04
+    env:
+      # Must match misra/config.toml so CI and local results are identical.
+      CPPCHECK_VERSION: "2.21.0"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive # HAL/CMSIS headers are needed to analyse firmware code
+
+      - name: Restore cppcheck from cache
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ~/cppcheck
+          key: cppcheck-${{ env.CPPCHECK_VERSION }}-ubuntu-24.04
+
+      - name: Build cppcheck ${{ env.CPPCHECK_VERSION }}
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build
+          git clone --depth 1 --branch "$CPPCHECK_VERSION" https://github.com/danmar/cppcheck.git /tmp/cppcheck-src
+          cmake -S /tmp/cppcheck-src -B /tmp/cppcheck-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DUSE_MATCHCOMPILER=ON -DCMAKE_INSTALL_PREFIX="$HOME/cppcheck"
+          cmake --build /tmp/cppcheck-build
+          cmake --install /tmp/cppcheck-build
+
+      - name: Add cppcheck to PATH
+        run: echo "$HOME/cppcheck/bin" >> "$GITHUB_PATH"
+
+      - name: MISRA check (fails on any finding not fixed or documented)
+        run: python3 scripts/misra.py --summary-md "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload MISRA results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: misra-results
+          path: build/misra
+
+  report:
+    name: Quality report
+    needs: [coverage, misra]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download results
+        uses: actions/download-artifact@v4
+        with:
+          path: results
+
+      - name: Build report site
         run: >
           python3 scripts/build_report_site.py --out site
-          --junit "C unit tests=build/host-coverage/junit-c.xml"
-          --coverage "C core library=build/host-coverage/report"
+          --junit "C unit tests=results/coverage-results/junit-c.xml"
+          --coverage "C core library=results/coverage-results/report"
+          --misra results/misra-results
 
       - name: Upload report
-        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: quality-report
@@ -151,7 +213,7 @@ jobs:
   publish-report:
     name: Publish report to GitHub Pages
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
-    needs: coverage
+    needs: report
     runs-on: ubuntu-24.04
     permissions:
       pages: write

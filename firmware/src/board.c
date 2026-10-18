@@ -2,8 +2,8 @@
 
 void board_init(void)
 {
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-    __HAL_RCC_GPIOC_CLK_ENABLE();
+    __HAL_RCC_GPIOA_CLK_ENABLE(); /* MISRA DEV-02 */
+    __HAL_RCC_GPIOC_CLK_ENABLE(); /* MISRA DEV-02 */
 
     HAL_GPIO_WritePin(BOARD_LED_PORT, BOARD_LED_PIN, GPIO_PIN_RESET);
 

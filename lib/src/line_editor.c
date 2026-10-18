@@ -2,17 +2,26 @@
 
 #include <string.h>
 
-#define CHAR_CTRL_C    '\x03'
-#define CHAR_BACKSPACE '\x08'
-#define CHAR_DELETE    '\x7f'
+/* ASCII codes the editor reacts to. Bytes are compared as unsigned char:
+ * plain char is signed on x86/macOS hosts but unsigned on Arm, and the
+ * behaviour must not depend on which. */
+#define ASCII_CTRL_C          0x03U
+#define ASCII_BACKSPACE       0x08U
+#define ASCII_LF              0x0AU
+#define ASCII_CR              0x0DU
+#define ASCII_FIRST_PRINTABLE 0x20U /* space */
+#define ASCII_LAST_PRINTABLE  0x7EU /* '~' */
+#define ASCII_DELETE          0x7FU
 
 void line_editor_init(line_editor_t *le)
 {
-    memset(le, 0, sizeof *le);
+    (void)memset(le, 0, sizeof(*le));
 }
 
 line_event_t line_editor_feed(line_editor_t *le, char c)
 {
+    unsigned char uc = (unsigned char)c;
+
     /* A completed line is consumed by the time the next byte arrives. */
     if (le->ready) {
         le->ready = false;
@@ -20,41 +29,39 @@ line_event_t line_editor_feed(line_editor_t *le, char c)
     }
 
     bool after_cr = le->last_was_cr;
-    le->last_was_cr = (c == '\r');
+    le->last_was_cr = (uc == ASCII_CR);
 
-    if (c == '\r' || c == '\n') {
-        if (c == '\n' && after_cr) {
+    if ((uc == ASCII_CR) || (uc == ASCII_LF)) {
+        if ((uc == ASCII_LF) && after_cr) {
             return LE_NONE; /* second half of CR LF */
         }
         le->buf[le->len] = '\0';
         le->ready = true;
         return LE_LINE_READY;
     }
-    if (c == CHAR_CTRL_C) {
+    if (uc == ASCII_CTRL_C) {
         le->len = 0U;
         return LE_CANCEL;
     }
-    if (c == CHAR_BACKSPACE || c == CHAR_DELETE) {
+    if ((uc == ASCII_BACKSPACE) || (uc == ASCII_DELETE)) {
         if (le->len == 0U) {
             return LE_NONE;
         }
         le->len--;
         return LE_ERASE;
     }
-    /* Compare as unsigned: plain char is signed on x86/macOS hosts but
-     * unsigned on Arm, and the result must not depend on which. */
-    unsigned char uc = (unsigned char)c;
-    if (uc < (unsigned char)' ' || uc > (unsigned char)'~') {
+    if ((uc < ASCII_FIRST_PRINTABLE) || (uc > ASCII_LAST_PRINTABLE)) {
         return LE_NONE; /* other control or non-ASCII bytes */
     }
     if (le->len >= LINE_EDITOR_MAX) {
         return LE_OVERFLOW;
     }
-    le->buf[le->len++] = c;
+    le->buf[le->len] = c;
+    le->len++;
     return LE_ECHO;
 }
 
-char *line_editor_line(line_editor_t *le)
+const char *line_editor_line(const line_editor_t *le)
 {
     return le->buf;
 }

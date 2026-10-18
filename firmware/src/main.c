@@ -32,8 +32,11 @@ int main(void)
     /* Read the reset flags before anything else can disturb them. */
     reset_cause_t cause = reset_cause_read();
 
-    HAL_Init();
+    HAL_StatusTypeDef hal = HAL_Init();
     board_init();
+    if (hal != HAL_OK) {
+        board_panic();
+    }
 
     clock_source_t clk_src;
     if (!clock_init(&clk_src)) {
@@ -52,7 +55,7 @@ int main(void)
 
         /* Non-blocking 1 Hz heartbeat: the super-loop never stalls in
          * HAL_Delay(), so every task in it keeps running. */
-        if (now - last_toggle >= HEARTBEAT_HALF_PERIOD_MS) {
+        if ((now - last_toggle) >= HEARTBEAT_HALF_PERIOD_MS) {
             last_toggle += HEARTBEAT_HALF_PERIOD_MS;
             board_led_toggle();
         }
@@ -60,7 +63,7 @@ int main(void)
         /* Lockout debounce on B1: act on the first edge immediately, then
          * ignore further edges for BUTTON_DEBOUNCE_MS while contacts bounce. */
         bool raw = board_button_pressed();
-        if (raw != btn_state && now - last_btn_change >= BUTTON_DEBOUNCE_MS) {
+        if ((raw != btn_state) && ((now - last_btn_change) >= BUTTON_DEBOUNCE_MS)) {
             btn_state = raw;
             last_btn_change = now;
             if (btn_state) {
