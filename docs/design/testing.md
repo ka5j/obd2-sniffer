@@ -47,7 +47,7 @@ NUCLEO-F446RE board. Where possible the checks are scripted: a Python script typ
 board's serial console and checks what comes back, and the laptop tool is run against the board
 as well as the simulator. Each release is checked this way before it is tagged.
 
-**Latest check:** 18 October 2026, Debug and Release builds.
+**Latest check:** 19 October 2026, Debug and Release builds, serial link at 1.5 Mbaud.
 
 | Area | Check | Result |
 |---|---|---|
@@ -63,6 +63,11 @@ as well as the simulator. Each release is checked this way before it is tagged.
 | Release build | The `crash` test command is absent; everything else works | Pass |
 | Laptop tool | Board found by its USB IDs; `info`, `--json status`, `led`, `shell` reconnecting after `reset` and `crash` | Pass |
 | Desktop app | Connect, board details, console commands, `crash bus` then clear the record; the window keeps responding while the board restarts; the board is handed back in interactive mode on exit | Pass |
+| Serial link | Stress test at 921,600, 1,000,000, 1,500,000 and 2,250,000 baud: every reply intact, about 99% of the line rate, no errors; 1.5 Mbaud chosen ([serial-console.md](serial-console.md#speed)) | Pass |
+| CAN capture | Silent loopback, every frame checked by number and content: 100,000 frames at 500 kbit/s (4,230 frames/s, 100% load) and 10,000 at 250 kbit/s, none lost or damaged; frame spacing matches the frame length on the bus | Pass |
+| CAN capture | 1 Mbit/s overload: frames dropped on the board when the serial link can't keep up, and the laptop sees exactly that many gaps in the capture numbers | Pass |
+| CAN capture | Longest receive interrupt: 7 µs | Pass |
+| CAN tools | `can test`, `monitor --log` (candump file), shell; desktop-app CAN tab: 4,000 test frames shown, none lost; a second program can't open the port | Pass |
 
 The checks found problems that the unit tests and the simulator had not, all fixed:
 
@@ -77,6 +82,15 @@ The checks found problems that the unit tests and the simulator had not, all fix
   that fixed, replies were partly dropped because the transmit buffer freed space only in large
   steps. Commands now run one per pass, only when their reply fits, and DMA transfers are capped at
   256 bytes ([#24](https://github.com/ka5j/obd2-sniffer/pull/24)).
+- At 1.5 Mbaud the laptop tool got no replies, although a hand-written test worked. Changing any
+  serial setting makes pyserial re-apply them all, and on macOS 1.5 Mbaud is applied through a
+  placeholder speed, so every read briefly switched the ST-LINK's speed and lost bytes. The port is
+  now configured once ([#26](https://github.com/ka5j/obd2-sniffer/pull/26)).
+- Frame sequence numbers were first given when frames were sent, so frames dropped on the board
+  left no gap. The overload test showed no gaps while thousands of frames were lost. They are now
+  numbered on arrival ([#29](https://github.com/ka5j/obd2-sniffer/pull/29)).
+- Two programs could open the board's port at once and split its output between them. The laptop
+  tool now opens it exclusively ([#30](https://github.com/ka5j/obd2-sniffer/pull/30)).
 
 ## Coverage measures
 

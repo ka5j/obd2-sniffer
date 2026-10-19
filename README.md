@@ -36,6 +36,7 @@ This project is a scan tool and network analyzer I am building myself:
   or plain typed commands in any serial terminal with nothing to install.
 - **Built to keep up with a busy network.** Messages are captured the moment they arrive and moved
   to the laptop in a compact, error-checked format, so none are lost when traffic is heavy.
+  Measured on the board: 100,000 messages in a row at 100% network load, none lost.
 - **Battery friendly.** When the car is off and the network goes quiet, the device sleeps and
   wakes up automatically when traffic resumes.
 - **Testable without a car.** The microcontroller has two network controllers. One acts as a fake
@@ -67,10 +68,10 @@ flowchart LR
 | Interface | What it looks like | Good for |
 |---|---|---|
 | Desktop app | `obdsniff gui`: a window with connection controls, board status and a console | Watching live data, demos |
-| Command-line tool | `obdsniff info`, `obdsniff shell`, ... | Quick checks, scripting, logging |
+| Command-line tool | `obdsniff monitor`, `obdsniff can test`, `obdsniff shell`, ... | Watching and logging traffic, scripting, automated checks |
 | Serial terminal | Open the board's USB serial port and type `help` | Using the device with no software installed |
 
-![The desktop app connected to the board, after a deliberate crash](docs/images/desktop-app.png)
+![The desktop app's CAN tab: 4,000 test frames captured on the board, none lost](docs/images/desktop-app-can.png)
 
 Try the laptop tool without a board: `pip install -e "host[gui]"`, then `obdsniff --port sim shell`
 or `obdsniff --port sim gui`. See [host/README.md](host/README.md).
@@ -101,7 +102,7 @@ or `obdsniff --port sim gui`. See [host/README.md](host/README.md).
 | Laptop tool: desktop app with board status, controls and console | Done, verified on hardware |
 | Unit tests with 100% MC/DC coverage gate, published test and coverage reports | Done |
 | MISRA C:2012 compliance check in CI, published compliance report | Done |
-| Capturing CAN messages and streaming them to the laptop | Not started |
+| Capturing CAN messages and streaming them to the laptop | Done (tested in loopback), verified on hardware |
 | OBD2 requests: live data, VIN, trouble codes | Not started |
 | Two-controller test bus on the desk, performance measurements | Not started |
 | Safety layer with failure-mode analysis and fault-injection tests | Not started |
@@ -164,6 +165,7 @@ port. See [docs/design/testing.md](docs/design/testing.md) (including the
 
 Each document starts with a short plain-language summary, followed by the engineering detail.
 
+- [CAN capture](docs/design/can-capture.md): from the bus to the laptop, with measured results
 - [Serial console and protocol](docs/protocol.md): commands, and how programs talk to the board
 - [Laptop tool](host/README.md): desktop app, command line, shell, simulator, Python library
 - [Hardware and wiring](docs/design/hardware.md)
