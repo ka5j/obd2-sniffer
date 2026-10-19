@@ -91,10 +91,10 @@ See [host/README.md](host/README.md).
 | Part | Status |
 |---|---|
 | Build system, project structure, automated builds (CI) | Done |
-| Microcontroller start-up: 180 MHz clock, start-up report, reset-cause reporting | Done, awaiting hardware check |
-| Serial console: interrupt and DMA driven, interactive and host modes, board commands | Done, awaiting hardware check |
-| Watchdog and crash capture with reports after restart | Done, awaiting hardware check |
-| Laptop tool: command line, interactive shell, board simulator | Done |
+| Microcontroller start-up: 180 MHz clock, start-up report, reset-cause reporting | Done, verified on hardware |
+| Serial console: interrupt and DMA driven, interactive and host modes, board commands | Done, verified on hardware |
+| Watchdog and crash capture with reports after restart | Done, verified on hardware |
+| Laptop tool: command line, interactive shell, board simulator | Done, verified on hardware |
 | Laptop tool: desktop app | In progress |
 | Unit tests with 100% MC/DC coverage gate, published test and coverage reports | Done |
 | MISRA C:2012 compliance check in CI, published compliance report | Done |
@@ -148,8 +148,10 @@ cmake --workflow --preset host-tests      # configure, build and run the unit te
 ```
 
 The unit tests run on a normal computer under memory-error, undefined-behaviour and race
-detectors. CI also measures coverage and rejects any change that drops below 100% MC/DC. See
-[docs/design/testing.md](docs/design/testing.md) and the
+detectors. CI also measures coverage and rejects any change that drops below 100% MC/DC. Code
+that drives the hardware is checked on the board itself, with scripted checks over the serial
+port. See [docs/design/testing.md](docs/design/testing.md) (including the
+[latest board check](docs/design/testing.md#checks-on-the-board)) and the
 [live quality report](https://ka5j.github.io/obd2-sniffer/).
 
 ## Documentation
