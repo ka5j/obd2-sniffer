@@ -35,8 +35,10 @@ core, is what makes the high coverage target practical.
 
 The laptop tool is tested against a software model of the board's console (`host/src/obdsniff/simulator.py`)
 and against scripted fake connections for the failure cases: no reply, malformed replies, a
-board that doesn't come back after a restart, a release build that rejects test commands. Python
-has no MC/DC tooling, so it is held to 100% line and branch coverage instead.
+board that doesn't come back after a restart, a release build that rejects test commands. The
+desktop app is tested the same way with pytest-qt: the real window is clicked through against the
+simulator, drawing offscreen so it runs in CI without a display. Python has no MC/DC tooling, so
+it is held to 100% line and branch coverage instead.
 
 ## Checks on the board
 
@@ -59,6 +61,7 @@ as well as the simulator. Each release is checked this way before it is tagged.
 | Reset causes | Software reset, watchdog and reset pin each reported correctly | Pass |
 | Release build | The `crash` test command is absent; everything else works | Pass |
 | Laptop tool | Board found by its USB IDs; `info`, `--json status`, `led`, `shell` reconnecting after `reset` and `crash` | Pass |
+| Desktop app | Connect, board details, console commands, `crash bus` then clear the record; the window keeps responding while the board restarts; the board is handed back in interactive mode on exit | Pass |
 
 The check found three problems that the unit tests and the simulator had not, all fixed:
 

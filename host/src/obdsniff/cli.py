@@ -46,6 +46,7 @@ def build_parser() -> argparse.ArgumentParser:
     monitor = sub.add_parser("monitor", help="print events (button presses) as they happen")
     monitor.add_argument("--duration", type=float, help="stop after this many seconds")
     sub.add_parser("shell", help="interactive session with the board")
+    sub.add_parser("gui", help="open the desktop app")
     return parser
 
 
@@ -162,10 +163,26 @@ def cmd_ports(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_gui(args: argparse.Namespace) -> int:
+    """The desktop app manages its own connections; --port preselects one."""
+    try:
+        from obdsniff import gui
+    except ImportError as exc:  # PySide6, or a library it needs, is missing
+        print(
+            f"error: the desktop app could not start ({exc}).\n"
+            'Install it with: pip install -e "host[gui]"',
+            file=sys.stderr,
+        )
+        return EXIT_NO_CONNECTION
+    return gui.run(args.port)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "ports":
         return cmd_ports(args)
+    if args.command == "gui":
+        return cmd_gui(args)
     try:
         with open_device(args.port) as device:
             return HANDLERS[args.command](device, args)

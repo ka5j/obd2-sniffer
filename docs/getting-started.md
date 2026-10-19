@@ -198,11 +198,12 @@ The `obdsniff` tool talks to the board from your computer. It needs Python 3.10 
 ```sh
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -e host
+pip install -e "host[gui]"         # without [gui] if you only want the command line
 
 obdsniff info                      # finds the board automatically
 obdsniff shell                     # interactive session
 obdsniff --port sim shell          # the same, against the built-in simulator
+obdsniff gui                       # desktop app
 ```
 
 All commands are listed in [host/README.md](../host/README.md).
