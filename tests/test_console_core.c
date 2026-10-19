@@ -172,6 +172,18 @@ static void test_host_mode_rejects_overlong_line(void)
     TEST_ASSERT_EQUAL_INT(-1, led_state);
 }
 
+static void test_feed_reports_when_a_line_has_ended(void)
+{
+    TEST_ASSERT_FALSE(console_core_feed(&con, 'l'));
+    feed("ed on");
+    TEST_ASSERT_TRUE(console_core_feed(&con, '\r')); /* command ran */
+    TEST_ASSERT_EQUAL_INT(1, led_state);
+    TEST_ASSERT_FALSE(console_core_feed(&con, '\n')); /* second half of CR LF */
+    TEST_ASSERT_FALSE(console_core_feed(&con, '\x03'));
+    feed_overlong_led_on();
+    TEST_ASSERT_TRUE(console_core_feed(&con, '\r')); /* rejected line */
+}
+
 static void test_empty_line_shows_prompt(void)
 {
     feed("\r");
@@ -345,6 +357,7 @@ int main(int argc, char **argv)
     UNIT_TEST(test_ctrl_c_cancels_line);
     UNIT_TEST(test_overflow_rings_bell_and_rejects_line);
     UNIT_TEST(test_host_mode_rejects_overlong_line);
+    UNIT_TEST(test_feed_reports_when_a_line_has_ended);
     UNIT_TEST(test_empty_line_shows_prompt);
     UNIT_TEST(test_interactive_unknown_command_suggests_help);
     UNIT_TEST(test_interactive_wrong_args_shows_usage);

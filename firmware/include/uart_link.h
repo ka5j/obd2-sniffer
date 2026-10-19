@@ -46,6 +46,9 @@ size_t uart_link_write(const uint8_t *data, size_t len, uint32_t timeout_ms);
 /* Wait until everything queued has left the UART. False on timeout. */
 bool uart_link_flush(uint32_t timeout_ms);
 
+/* Bytes that can be queued right now without waiting. */
+size_t uart_link_tx_free(void);
+
 void uart_link_get_stats(uart_link_stats_t *out);
 
 #endif /* UART_LINK_H */

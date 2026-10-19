@@ -14,7 +14,8 @@
 
 bool console_init(void);
 
-/* Process all received bytes: echo, editing, running commands. */
+/* Process received bytes: echo, editing, running commands. Runs at most one
+ * command per call, so the main loop stays responsive. */
 void console_poll(void);
 
 void console_write(const char *data, size_t len);

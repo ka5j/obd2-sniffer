@@ -69,8 +69,9 @@ Crash testing (debug builds only):
 - Independent watchdog (IWDG), clocked by the internal low-speed oscillator (LSI, nominally
   32 kHz). Prescaler 64 gives a 2 ms tick; a reload value of 250 gives 500 ms nominal.
 - The LSI is only specified to 17-47 kHz, so the real timeout is 340-940 ms. The main loop
-  refreshes it every pass, and no pass is allowed to take longer than a few tens of milliseconds:
-  serial output waits at most 50 ms for buffer space.
+  refreshes it every pass, and every pass is kept short: the console runs at most one command
+  per pass, and only when its reply fits in the transmit buffer without waiting
+  ([serial-console.md](serial-console.md#transmit-path-dma1-stream-6-channel-4)).
 - Started at the end of start-up, after the steps that can legitimately take a while.
 - `DBGMCU_APB1_FZ_DBG_IWDG_STOP` pauses it while a debugger has the core halted, so stepping
   through code doesn't trigger resets.
