@@ -107,14 +107,47 @@ static void test_control_and_non_ascii_bytes_are_ignored(void)
     TEST_ASSERT_EQUAL_size_t(0U, le.len);
 }
 
-static void test_overflow_drops_extra_bytes_but_keeps_line(void)
+static void fill_line(void)
 {
     for (size_t i = 0; i < LINE_EDITOR_MAX; i++) {
         TEST_ASSERT_EQUAL(LE_ECHO, line_editor_feed(&le, 'a'));
     }
-    TEST_ASSERT_EQUAL(LE_OVERFLOW, line_editor_feed(&le, 'b'));
+}
+
+static void test_full_line_is_kept(void)
+{
+    fill_line();
     TEST_ASSERT_EQUAL(LE_LINE_READY, line_editor_feed(&le, '\r'));
     TEST_ASSERT_EQUAL_size_t(LINE_EDITOR_MAX, strlen(line_editor_line(&le)));
+}
+
+static void test_overflowed_line_is_rejected_when_it_ends(void)
+{
+    fill_line();
+    TEST_ASSERT_EQUAL(LE_OVERFLOW, line_editor_feed(&le, 'b'));
+    TEST_ASSERT_EQUAL(LE_TOO_LONG, line_editor_feed(&le, '\r'));
+    TEST_ASSERT_EQUAL(LE_NONE, line_editor_feed(&le, '\n')); /* CR LF still counts once */
+    (void)feed("ok");
+    TEST_ASSERT_EQUAL(LE_LINE_READY, line_editor_feed(&le, '\r'));
+    TEST_ASSERT_EQUAL_STRING("ok", line_editor_line(&le));
+}
+
+static void test_backspace_does_not_rescue_an_overflowed_line(void)
+{
+    fill_line();
+    TEST_ASSERT_EQUAL(LE_OVERFLOW, line_editor_feed(&le, 'b'));
+    TEST_ASSERT_EQUAL(LE_ERASE, line_editor_feed(&le, '\b'));
+    TEST_ASSERT_EQUAL(LE_TOO_LONG, line_editor_feed(&le, '\r'));
+}
+
+static void test_ctrl_c_clears_overflow(void)
+{
+    fill_line();
+    TEST_ASSERT_EQUAL(LE_OVERFLOW, line_editor_feed(&le, 'b'));
+    TEST_ASSERT_EQUAL(LE_CANCEL, line_editor_feed(&le, '\x03'));
+    (void)feed("ok");
+    TEST_ASSERT_EQUAL(LE_LINE_READY, line_editor_feed(&le, '\r'));
+    TEST_ASSERT_EQUAL_STRING("ok", line_editor_line(&le));
 }
 
 int main(int argc, char **argv)
@@ -134,6 +167,9 @@ int main(int argc, char **argv)
     UNIT_TEST(test_backspace_on_empty_line_does_nothing);
     UNIT_TEST(test_ctrl_c_discards_line);
     UNIT_TEST(test_control_and_non_ascii_bytes_are_ignored);
-    UNIT_TEST(test_overflow_drops_extra_bytes_but_keeps_line);
+    UNIT_TEST(test_full_line_is_kept);
+    UNIT_TEST(test_overflowed_line_is_rejected_when_it_ends);
+    UNIT_TEST(test_backspace_does_not_rescue_an_overflowed_line);
+    UNIT_TEST(test_ctrl_c_clears_overflow);
     return UNITY_END();
 }

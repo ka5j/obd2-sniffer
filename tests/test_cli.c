@@ -177,6 +177,7 @@ static void test_status_strings(void)
     TEST_ASSERT_EQUAL_STRING("too many arguments", cli_status_str(CLI_ERR_TOO_MANY));
     TEST_ASSERT_EQUAL_STRING("invalid argument", cli_status_str(CLI_ERR_INVALID));
     TEST_ASSERT_EQUAL_STRING("command failed", cli_status_str(CLI_ERR_FAILED));
+    TEST_ASSERT_EQUAL_STRING("line too long", cli_status_str(CLI_ERR_TOO_LONG));
     TEST_ASSERT_EQUAL_STRING("unknown error", cli_status_str((cli_status_t)99));
 }
 

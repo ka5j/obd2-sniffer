@@ -119,11 +119,18 @@ cli_status_t console_core_help(console_core_t *con, const char *name)
 
     for (size_t i = 0U; i < con->command_count; i++) {
         const cli_command_t *cmd = &con->commands[i];
+        size_t used = strlen(cmd->name) + 1U + strlen(cmd->usage);
         out(con, "  ");
         out(con, cmd->name);
         out(con, " ");
         out(con, cmd->usage);
-        out_pad(con, strlen(cmd->name) + 1U + strlen(cmd->usage), HELP_USAGE_WIDTH);
+        if (used < HELP_USAGE_WIDTH) {
+            out_spaces(con, HELP_USAGE_WIDTH - used);
+        } else {
+            /* Too wide for the column: the text goes below, still aligned. */
+            out(con, "\r\n  ");
+            out_spaces(con, HELP_USAGE_WIDTH);
+        }
         out(con, cmd->help);
         out(con, "\r\n");
     }
@@ -209,6 +216,13 @@ void console_core_feed(console_core_t *con, char byte)
             out(con, "\r\n");
         }
         run_line(con);
+        break;
+    case LE_TOO_LONG:
+        /* Rejected whole: running it cut short could do something else. */
+        if (echo) {
+            out(con, "\r\n");
+        }
+        report(con, CLI_ERR_TOO_LONG, NULL);
         break;
     default:
         /* LE_NONE: the byte needs no response (e.g. the LF of a CR LF). */

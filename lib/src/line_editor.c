@@ -35,12 +35,18 @@ line_event_t line_editor_feed(line_editor_t *le, char c)
         if ((uc == ASCII_LF) && after_cr) {
             return LE_NONE; /* second half of CR LF */
         }
+        if (le->overflowed) {
+            le->overflowed = false;
+            le->len = 0U;
+            return LE_TOO_LONG;
+        }
         le->buf[le->len] = '\0';
         le->ready = true;
         return LE_LINE_READY;
     }
     if (uc == ASCII_CTRL_C) {
         le->len = 0U;
+        le->overflowed = false;
         return LE_CANCEL;
     }
     if ((uc == ASCII_BACKSPACE) || (uc == ASCII_DELETE)) {
@@ -54,6 +60,7 @@ line_event_t line_editor_feed(line_editor_t *le, char c)
         return LE_NONE; /* other control or non-ASCII bytes */
     }
     if (le->len >= LINE_EDITOR_MAX) {
+        le->overflowed = true;
         return LE_OVERFLOW;
     }
     le->buf[le->len] = c;

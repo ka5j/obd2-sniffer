@@ -103,6 +103,8 @@ const char *cli_status_str(cli_status_t status)
         return "invalid argument";
     case CLI_ERR_FAILED:
         return "command failed";
+    case CLI_ERR_TOO_LONG:
+        return "line too long";
     default:
         return "unknown error";
     }

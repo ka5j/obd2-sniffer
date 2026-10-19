@@ -14,9 +14,10 @@ from pathlib import Path
 
 import pytest
 
-from obdsniff.simulator import COMMANDS, SimulatedBoard
+from obdsniff.simulator import COMMANDS, HELP_WIDTH, LABEL_WIDTH, LINE_MAX, SimulatedBoard
 
-COMMANDS_C = Path(__file__).resolve().parents[2] / "firmware" / "src" / "commands.c"
+REPO = Path(__file__).resolve().parents[2]
+COMMANDS_C = REPO / "firmware" / "src" / "commands.c"
 
 pytestmark = pytest.mark.skipif(
     not COMMANDS_C.exists(), reason="firmware sources not available (installed outside the repo)"
@@ -90,3 +91,26 @@ def test_fault_fields_match() -> None:
     board.run_pending()
     sim += [pair for pair in simulator_fields("fault", board) if pair not in sim]
     assert sim == firmware_fields("fault")
+
+
+def c_define(path: Path, name: str) -> int:
+    """Value of `#define NAME 123U` in a C source file."""
+    match = re.search(rf"#define {name}\s+(\d+)U", path.read_text())
+    assert match, f"{name} not found in {path.name}"
+    return int(match[1])
+
+
+def test_layout_and_limits_match() -> None:
+    lib = REPO / "lib"
+    assert c_define(lib / "include" / "console_core.h", "CONSOLE_LABEL_WIDTH") == LABEL_WIDTH
+    assert c_define(lib / "src" / "console_core.c", "HELP_USAGE_WIDTH") == HELP_WIDTH
+    assert c_define(lib / "include" / "line_editor.h", "LINE_EDITOR_MAX") == LINE_MAX
+
+
+def test_every_firmware_label_fits_the_column() -> None:
+    # A label as wide as the column gets a single space and its value ends
+    # up one column right of all the others.
+    too_wide = [
+        m["label"] for m in FIELD.finditer(firmware_source()) if len(m["label"]) >= LABEL_WIDTH
+    ]
+    assert too_wide == []
