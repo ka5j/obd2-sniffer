@@ -156,8 +156,9 @@ cmake --workflow --preset host-tests      # configure, build and run the unit te
 
 The unit tests run on a normal computer under memory-error, undefined-behaviour and race
 detectors. CI also measures coverage and rejects any change that drops below 100% MC/DC. Code
-that drives the hardware is checked on the board itself, with scripted checks over the serial
-port. See [docs/design/testing.md](docs/design/testing.md) (including the
+that drives the hardware is checked on the board itself: `scripts/board_check.py` runs the checks
+over the serial port and prints what it measured. See
+[docs/design/testing.md](docs/design/testing.md) (including the
 [latest board check](docs/design/testing.md#checks-on-the-board)) and the
 [live quality report](https://ka5j.github.io/obd2-sniffer/).
 
