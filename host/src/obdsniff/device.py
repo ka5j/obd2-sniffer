@@ -9,6 +9,7 @@ Protocol summary (full description in docs/protocol.md):
 
 from __future__ import annotations
 
+import contextlib
 import time
 from collections import deque
 from collections.abc import Callable
@@ -20,6 +21,7 @@ from obdsniff.transport import SerialTransport, Transport
 PROMPT = b"obd> "
 DEFAULT_TIMEOUT = 2.0  # seconds to wait for a reply
 BOOT_TIMEOUT = 5.0  # seconds to wait for the board to restart
+RESTORE_TIMEOUT = 0.5  # seconds to wait for the prompt when handing the console back
 READ_SLICE = 0.05  # longest single blocking read, keeps loops responsive
 
 
@@ -65,6 +67,7 @@ class Device:
         self._clock = clock
         self._buffer = bytearray()
         self._events: deque[str] = deque()
+        self._connected = False
 
     # ---- context manager -------------------------------------------------
 
@@ -75,7 +78,21 @@ class Device:
         self.close()
 
     def close(self) -> None:
-        self._transport.close()
+        """Hand the console back to people, then release the port.
+
+        Switches the board to interactive mode, so a serial terminal opened
+        afterwards gets a prompt and echo instead of silent host mode. The
+        reply comes in the new mode: the prompt, not OK. Nothing is sent if
+        connect() never succeeded (it may not be the board), and a board
+        that has gone away doesn't stop the port being closed."""
+        try:
+            if self._connected:
+                self._connected = False
+                with contextlib.suppress(OSError):  # port already gone, e.g. unplugged
+                    self._transport.write(b"mode interactive\r")
+                    self._wait_for(PROMPT, self._clock() + RESTORE_TIMEOUT)
+        finally:
+            self._transport.close()
 
     # ---- low-level reading -----------------------------------------------
 
@@ -142,6 +159,7 @@ class Device:
                     "no reply from the board: is this the right port, and is the firmware running?"
                 )
             if line == "OK":
+                self._connected = True
                 return
             if line.startswith("!"):
                 self._events.append(line[1:])

@@ -40,7 +40,11 @@ $ obdsniff --port sim --json status
 }
 ```
 
-Exit codes: `0` success, `1` the board rejected the command, `2` no connection.
+Exit codes: `0` success, `1` the board rejected the command, `2` no connection or invalid
+arguments.
+
+When it finishes, the tool switches the board back to interactive mode, so a serial terminal
+opened afterwards works as usual.
 
 ### Interactive shell
 

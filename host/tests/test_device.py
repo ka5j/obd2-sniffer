@@ -172,6 +172,27 @@ def test_context_manager_closes_transport() -> None:
     with Device(transport):
         pass
     assert transport.closed
+    assert transport.written == []  # never connected: maybe not the board, send nothing
+
+
+def test_close_hands_the_console_back_in_interactive_mode(device, board) -> None:
+    assert board.mode == "host"
+    device.close()
+    assert board.mode == "interactive"  # a serial terminal opened next gets prompt and echo
+
+
+def test_close_still_closes_the_port_if_the_board_was_unplugged() -> None:
+    class UnpluggedTransport(ScriptedTransport):
+        def write(self, data: bytes) -> None:
+            if self.closed or data == b"mode interactive\r":
+                raise serial.SerialException("device disconnected")
+            super().write(data)
+
+    transport = UnpluggedTransport([b"", b"OK\r\n"])
+    dev = Device(transport, timeout=0.05)
+    dev.connect()
+    dev.close()
+    assert transport.closed
 
 
 def test_open_simulator() -> None:
