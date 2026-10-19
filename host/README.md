@@ -1,9 +1,9 @@
 # obdsniff: laptop tool
 
 `obdsniff` is the laptop side of the OBD2 CAN Sniffer. It connects to the board over USB and lets
-you check its status, control it, watch events as they happen, and work with it interactively, all
-from the command line. A built-in **simulator** (`--port sim`) behaves like the real board, so
-everything can be tried without hardware.
+you check its status, control it, watch events as they happen, and work with it interactively,
+from the command line or from a desktop app. A built-in **simulator** (`--port sim`) behaves like
+the real board, so everything can be tried without hardware.
 
 ## Install
 
@@ -65,6 +65,24 @@ Board restarted after the crash. What it recorded:
 Commands are passed to the board. The shell keeps the board in host mode underneath, formats the
 replies, shows events as they arrive, and reconnects automatically after `reset` or `crash`.
 
+## Desktop app
+
+```sh
+pip install -e "host[gui]"         # adds PySide6 (Qt)
+obdsniff gui                       # or: obdsniff --port sim gui
+```
+
+![The desktop app connected to the board, after a deliberate crash](../docs/images/desktop-app.png)
+
+Pick the port (the Nucleo is found and selected automatically; the simulator is always listed)
+and press **Connect**. The left side shows the board's version, status and last crash, and has
+buttons for the LED, restarting the board and clearing the crash record. The console on the right
+takes the same commands as the shell, and events such as button presses appear there as they
+happen.
+
+The connection to the board runs on its own thread, so the window stays responsive even while the
+board restarts. When the app closes, the board is handed back in interactive mode.
+
 ## As a library
 
 ```python
@@ -92,5 +110,7 @@ python -m pytest --cov            # 100% line and branch coverage is required
 | `simulator.py` | Software model of the board's console, used by `--port sim` and the tests |
 | `ports.py` | Finds the board by its ST-LINK USB IDs |
 | `cli.py`, `shell.py`, `output.py` | Command line, interactive shell, formatting |
+| `gui/window.py` | Desktop app window: displays results, turns clicks into requests |
+| `gui/worker.py` | Desktop app's board connection, run on its own thread; talks to the window only through Qt signals |
 
 The serial protocol is described in [docs/protocol.md](../docs/protocol.md).

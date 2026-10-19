@@ -65,12 +65,14 @@ flowchart LR
 
 | Interface | What it looks like | Good for |
 |---|---|---|
-| Desktop app | `obdsniff gui`: a window with connection controls, live data and a console | Watching live data, demos |
+| Desktop app | `obdsniff gui`: a window with connection controls, board status and a console | Watching live data, demos |
 | Command-line tool | `obdsniff info`, `obdsniff shell`, ... | Quick checks, scripting, logging |
 | Serial terminal | Open the board's USB serial port and type `help` | Using the device with no software installed |
 
-Try the laptop tool without a board: `pip install -e host`, then `obdsniff --port sim shell`.
-See [host/README.md](host/README.md).
+![The desktop app connected to the board, after a deliberate crash](docs/images/desktop-app.png)
+
+Try the laptop tool without a board: `pip install -e "host[gui]"`, then `obdsniff --port sim shell`
+or `obdsniff --port sim gui`. See [host/README.md](host/README.md).
 
 
 ## Skills demonstrated
@@ -95,7 +97,7 @@ See [host/README.md](host/README.md).
 | Serial console: interrupt and DMA driven, interactive and host modes, board commands | Done, verified on hardware |
 | Watchdog and crash capture with reports after restart | Done, verified on hardware |
 | Laptop tool: command line, interactive shell, board simulator | Done, verified on hardware |
-| Laptop tool: desktop app | In progress |
+| Laptop tool: desktop app with board status, controls and console | Done, verified on hardware |
 | Unit tests with 100% MC/DC coverage gate, published test and coverage reports | Done |
 | MISRA C:2012 compliance check in CI, published compliance report | Done |
 | Capturing CAN messages and streaming them to the laptop | Not started |
