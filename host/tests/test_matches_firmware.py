@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from obdsniff.simulator import COMMANDS, HELP_WIDTH, LABEL_WIDTH, LINE_MAX, SimulatedBoard
+from obdsniff.transport import BAUD_RATE
 
 REPO = Path(__file__).resolve().parents[2]
 COMMANDS_C = REPO / "firmware" / "src" / "commands.c"
@@ -133,3 +134,8 @@ def test_every_reply_fits_the_space_the_firmware_reserves() -> None:
         for command in ("help", "version", "status", "fault"):
             board.feed(f"{command}\r".encode())
             assert len(board.take_output()) + margin <= space, f"{command} ({mode})"
+
+
+def test_serial_speed_matches() -> None:
+    uart_link_h = REPO / "firmware" / "include" / "uart_link.h"
+    assert c_define(uart_link_h, "UART_LINK_BAUD") == BAUD_RATE
