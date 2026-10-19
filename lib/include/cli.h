@@ -58,6 +58,14 @@ const char *cli_status_str(cli_status_t status);
  * Rejects empty strings, signs, stray characters and overflow. */
 bool cli_parse_u32(const char *s, uint32_t *out);
 
+/* Parse 1-8 hex digits with no prefix, e.g. "7DF" or "18daf110", the way CAN
+ * identifiers are usually written. */
+bool cli_parse_hex_u32(const char *s, uint32_t *out);
+
+/* Parse pairs of hex digits as bytes, e.g. "0201050000" gives 02 01 05 00 00.
+ * False if empty, odd in length, not hex, or more than `max` bytes. */
+bool cli_parse_hex_bytes(const char *s, uint8_t *out, size_t max, size_t *len);
+
 /* Case-insensitive string equality (ASCII). */
 bool cli_streq(const char *a, const char *b);
 

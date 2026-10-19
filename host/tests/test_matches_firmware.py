@@ -36,10 +36,15 @@ def firmware_source() -> str:
     return COMMANDS_C.read_text()
 
 
+# Commands whose fields are printed by a helper rather than cmd_<name>().
+FIELD_FUNCTIONS = {"can": "can_status"}
+
+
 def handler_body(name: str) -> str:
-    """Source of the firmware's cmd_<name>() function."""
+    """Source of the firmware function that prints a command's fields."""
     source = firmware_source()
-    start = source.index(f"static cli_status_t cmd_{name}(")
+    function = FIELD_FUNCTIONS.get(name, f"cmd_{name}")
+    start = source.index(f"static cli_status_t {function}(")
     end = source.index("\n}\n", start)
     return source[start:end]
 
@@ -80,7 +85,7 @@ def test_command_table_matches() -> None:
     assert firmware == COMMANDS
 
 
-@pytest.mark.parametrize("command", ["version", "status"])
+@pytest.mark.parametrize("command", ["version", "status", "can"])
 def test_fields_match(command: str) -> None:
     assert simulator_fields(command, SimulatedBoard()) == firmware_fields(command)
 
@@ -122,7 +127,7 @@ def test_every_reply_fits_the_space_the_firmware_reserves() -> None:
     transmit buffer are free, so that the whole reply fits without waiting.
     Values on the real board (version string, compiler) can be longer than the
     simulator's, hence the margin."""
-    space = c_define(REPO / "firmware" / "src" / "console.c", "CONSOLE_REPLY_SPACE")
+    space = c_define(REPO / "firmware" / "include" / "console.h", "CONSOLE_REPLY_SPACE")
     margin = 128
     board = SimulatedBoard()
     board.feed(b"crash bus\r")  # so that `fault` gives its longest reply
@@ -131,7 +136,7 @@ def test_every_reply_fits_the_space_the_firmware_reserves() -> None:
     for mode in ("interactive", "host"):
         board.feed(f"mode {mode}\r".encode())
         board.take_output()
-        for command in ("help", "version", "status", "fault"):
+        for command in ("help", "version", "status", "fault", "can"):
             board.feed(f"{command}\r".encode())
             assert len(board.take_output()) + margin <= space, f"{command} ({mode})"
 

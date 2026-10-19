@@ -10,11 +10,6 @@
 
 #define CONSOLE_FORMAT_BUF    160U
 #define CONSOLE_TX_TIMEOUT_MS 50U /* longest wait for transmit buffer space */
-/* Free transmit space needed before the next command starts: more than the
- * longest reply (interactive `help`, 570 bytes), so a reply never has
- * to wait for space or be cut short. Checked against the simulator's replies
- * by host/tests/test_matches_firmware.py. */
-#define CONSOLE_REPLY_SPACE 1024U
 
 static console_core_t core;
 
@@ -65,6 +60,16 @@ void console_puts(const char *text)
 void console_prompt(void)
 {
     console_core_prompt(&core);
+}
+
+void console_redraw_prompt(void)
+{
+    console_core_redraw(&core);
+}
+
+bool console_is_interactive(void)
+{
+    return console_core_mode(&core) == CONSOLE_MODE_INTERACTIVE;
 }
 
 void console_event(const char *text)

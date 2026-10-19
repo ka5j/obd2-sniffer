@@ -11,7 +11,9 @@
 
 #include <stdint.h>
 
-#define CAN_MAX_DLC 8U
+#define CAN_MAX_DLC    8U
+#define CAN_ID_STD_MAX 0x7FFU      /* 11-bit identifier */
+#define CAN_ID_EXT_MAX 0x1FFFFFFFU /* 29-bit identifier */
 
 /* can_frame_t.flags */
 #define CAN_FLAG_EXTENDED 0x01U /* 29-bit identifier */
@@ -23,6 +25,10 @@ typedef struct {
     uint8_t dlc; /* 0-8 */
     uint8_t flags;
     uint8_t data[CAN_MAX_DLC];
+    /* Capture number: counts every frame the controller delivered, including
+     * any the board then had to drop, so a gap means a lost frame. Wraps at
+     * 65536. Fits in what would otherwise be padding. */
+    uint16_t seq;
 } can_frame_t;
 
 #endif /* CAN_FRAME_H */

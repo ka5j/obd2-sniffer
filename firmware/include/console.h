@@ -12,6 +12,12 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+/* Free transmit space needed before the next command starts: more than the
+ * longest reply, so a reply never has to wait for space or be cut short.
+ * Other output (such as streamed CAN frames) leaves this much free. Checked
+ * against the simulator's replies by host/tests/test_matches_firmware.py. */
+#define CONSOLE_REPLY_SPACE 1024U
+
 bool console_init(void);
 
 /* Process received bytes: echo, editing, running commands. Runs at most one
@@ -33,6 +39,12 @@ void console_fieldf(void *ctx, const char *key, const char *label, const char *f
 
 /* Show the prompt (interactive mode only). */
 void console_prompt(void);
+
+/* Show the prompt again with whatever has been typed so far (interactive
+ * mode only), after other output interrupted the input line. */
+void console_redraw_prompt(void);
+
+bool console_is_interactive(void);
 
 /* Report something that happened outside a command, e.g. a button press. */
 void console_event(const char *text);

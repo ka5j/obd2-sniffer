@@ -297,6 +297,24 @@ static void test_event_in_host_mode(void)
     TEST_ASSERT_EQUAL_STRING("!button\r\n", output);
 }
 
+static void test_redraw_shows_prompt_and_typed_text(void)
+{
+    feed("le");
+    clear_output();
+    console_core_redraw(&con);
+    TEST_ASSERT_EQUAL_STRING("obd> le", output);
+
+    feed("d on\r"); /* completed line: nothing typed since */
+    clear_output();
+    console_core_redraw(&con);
+    TEST_ASSERT_EQUAL_STRING("obd> ", output);
+
+    console_core_set_mode(&con, CONSOLE_MODE_HOST);
+    clear_output();
+    console_core_redraw(&con);
+    TEST_ASSERT_EQUAL_STRING("", output);
+}
+
 static void test_event_restores_partial_line(void)
 {
     feed("le");
@@ -371,6 +389,7 @@ int main(int argc, char **argv)
     UNIT_TEST(test_field_formats);
     UNIT_TEST(test_text_is_written_verbatim);
     UNIT_TEST(test_event_in_host_mode);
+    UNIT_TEST(test_redraw_shows_prompt_and_typed_text);
     UNIT_TEST(test_event_restores_partial_line);
     UNIT_TEST(test_event_after_completed_line_shows_bare_prompt);
     UNIT_TEST(test_event_during_command_is_inline);

@@ -74,6 +74,9 @@ add_executable(${FW_NAME}
     ${DEVICE_DIR}/Source/Templates/gcc/startup_stm32f446xx.s
     src/main.c
     src/board.c
+    src/can_drv.c
+    src/can_gen.c
+    src/can_stream.c
     src/clock.c
     src/commands.c
     src/console.c
@@ -81,6 +84,7 @@ add_executable(${FW_NAME}
     src/fault_entry.S
     src/reset_cause.c
     src/status_led.c
+    src/timebase.c
     src/uart_link.c
     src/watchdog.c
     src/stm32f4xx_it.c

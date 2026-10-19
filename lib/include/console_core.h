@@ -66,6 +66,10 @@ void console_core_set_mode(console_core_t *con, console_mode_t mode);
 /* Show the prompt (interactive mode only), e.g. after the start-up report. */
 void console_core_prompt(console_core_t *con);
 
+/* Show the prompt again with whatever has been typed so far (interactive
+ * mode only), after other output has interrupted the input line. */
+void console_core_redraw(console_core_t *con);
+
 /* ---- Output for command handlers ---- */
 
 /* Raw text, written as-is. */
