@@ -66,14 +66,20 @@ def percent(entry: dict) -> float:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--build-dir", type=Path, default=Path("build/host-coverage"))
-    parser.add_argument("--output", type=Path, help="report directory (default: <build-dir>/report)")
+    parser.add_argument(
+        "--output", type=Path, help="report directory (default: <build-dir>/report)"
+    )
     parser.add_argument("--fail-under", type=float, default=100.0)
-    parser.add_argument("--summary-md", type=Path, help="append a Markdown summary (e.g. $GITHUB_STEP_SUMMARY)")
+    parser.add_argument(
+        "--summary-md", type=Path, help="append a Markdown summary (e.g. $GITHUB_STEP_SUMMARY)"
+    )
     args = parser.parse_args()
 
     build = args.build_dir
     out = args.output or build / "report"
-    binaries = sorted(p for p in (build / "tests").glob("test_*") if p.is_file() and os.access(p, os.X_OK))
+    binaries = sorted(
+        p for p in (build / "tests").glob("test_*") if p.is_file() and os.access(p, os.X_OK)
+    )
     if not binaries:
         sys.exit(f"error: no test executables in {build / 'tests'}")
 
@@ -86,10 +92,14 @@ def main() -> int:
     all_profiles = sorted((build / "profiles").glob("*.profraw"))
     profiles = [p for p in all_profiles if p.stat().st_mtime >= newest_build]
     if not profiles:
-        sys.exit(f"error: no coverage profiles from the current build in {build / 'profiles'}; "
-                 "run `ctest --preset host-coverage` first")
+        sys.exit(
+            f"error: no coverage profiles from the current build in {build / 'profiles'}; "
+            "run `ctest --preset host-coverage` first"
+        )
     if len(profiles) < len(all_profiles):
-        print(f"note: ignored {len(all_profiles) - len(profiles)} profile(s) from older test builds")
+        print(
+            f"note: ignored {len(all_profiles) - len(profiles)} profile(s) from older test builds"
+        )
 
     llvm_profdata = find_tool("llvm-profdata")
     llvm_cov = find_tool("llvm-cov")
@@ -105,16 +115,30 @@ def main() -> int:
     html_dir = out / "coverage"
     if html_dir.exists():
         shutil.rmtree(html_dir)
-    run([llvm_cov, "show", *objects, *common, "-format=html", f"-output-dir={html_dir}",
-         "-show-mcdc", "-show-branches=count", "-show-line-counts-or-regions",
-         "-project-title=OBD2 CAN Sniffer: portable core library"])
+    run(
+        [
+            llvm_cov,
+            "show",
+            *objects,
+            *common,
+            "-format=html",
+            f"-output-dir={html_dir}",
+            "-show-mcdc",
+            "-show-branches=count",
+            "-show-line-counts-or-regions",
+            "-project-title=OBD2 CAN Sniffer: portable core library",
+        ]
+    )
 
-    text = run([llvm_cov, "report", *objects, *common, "-show-mcdc-summary", "-show-branch-summary"],
-               capture_output=True).stdout
+    text = run(
+        [llvm_cov, "report", *objects, *common, "-show-mcdc-summary", "-show-branch-summary"],
+        capture_output=True,
+    ).stdout
     (out / "coverage.txt").write_text(text)
 
-    exported = json.loads(run([llvm_cov, "export", *objects, *common, "-summary-only"],
-                              capture_output=True).stdout)
+    exported = json.loads(
+        run([llvm_cov, "export", *objects, *common, "-summary-only"], capture_output=True).stdout
+    )
     totals = exported["data"][0]["totals"]
 
     summary = {}
@@ -122,16 +146,22 @@ def main() -> int:
     for key, label in METRICS:
         entry = totals.get(key, {"count": 0, "covered": 0})
         pct = percent(entry)
-        summary[key] = {"label": label, "covered": entry.get("covered", 0),
-                        "count": entry.get("count", 0), "percent": pct}
+        summary[key] = {
+            "label": label,
+            "covered": entry.get("covered", 0),
+            "count": entry.get("count", 0),
+            "percent": pct,
+        }
         if pct < args.fail_under:
             failed.append(label)
     summary["threshold"] = args.fail_under
     summary["passed"] = not failed
     (out / "coverage-summary.json").write_text(json.dumps(summary, indent=2))
 
-    rows = [f"| {s['label']} | {s['covered']} / {s['count']} | {s['percent']:.2f}% |"
-            for s in (summary[k] for k, _ in METRICS)]
+    rows = [
+        f"| {s['label']} | {s['covered']} / {s['count']} | {s['percent']:.2f}% |"
+        for s in (summary[k] for k, _ in METRICS)
+    ]
     table = "\n".join(["| Metric | Covered | Percent |", "|---|---|---|", *rows])
 
     print(text)
@@ -141,7 +171,9 @@ def main() -> int:
     if args.summary_md:
         verdict = "passed" if not failed else "FAILED: " + ", ".join(failed)
         with args.summary_md.open("a") as f:
-            f.write(f"### C coverage (lib/), threshold {args.fail_under:g}%: {verdict}\n\n{table}\n\n")
+            f.write(
+                f"### C coverage (lib/), threshold {args.fail_under:g}%: {verdict}\n\n{table}\n\n"
+            )
 
     if failed:
         print(f"\nCoverage below {args.fail_under:g}% for: {', '.join(failed)}", file=sys.stderr)
