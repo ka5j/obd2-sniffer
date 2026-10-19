@@ -28,10 +28,15 @@ Results are published automatically:
 |---|---|---|
 | Portable core (`lib/`): buffers, encoding, protocol logic, safety rules | Laptop and CI | Unit tests, 100% MC/DC required |
 | Hardware drivers (`firmware/`): clocks, UART, CAN, watchdog | The STM32 board | On the board: serial output, logic analyzer, fault injection |
-| Laptop tool (`host/`) | Laptop and CI | Python tests (pytest) |
+| Laptop tool (`host/`) | Laptop and CI (Python 3.10 and 3.12) | Python tests (pytest), 100% line and branch coverage required, plus lint (ruff) |
 
 Keeping hardware-specific code thin, and moving every decision that can be moved into the portable
 core, is what makes the high coverage target practical.
+
+The laptop tool is tested against a software model of the board's console (`host/src/obdsniff/simulator.py`)
+and against scripted fake connections for the failure cases: no reply, malformed replies, a
+board that doesn't come back after a restart, a release build that rejects test commands. Python
+has no MC/DC tooling, so it is held to 100% line and branch coverage instead.
 
 ## Coverage measures
 

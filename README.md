@@ -69,6 +69,10 @@ flowchart LR
 | Command-line tool | `obdsniff info`, `obdsniff shell`, ... | Quick checks, scripting, logging |
 | Serial terminal | Open the board's USB serial port and type `help` | Using the device with no software installed |
 
+Try the laptop tool without a board: `pip install -e host`, then `obdsniff --port sim shell`.
+See [host/README.md](host/README.md).
+
+
 ## Skills demonstrated
 
 | Area | Details |
@@ -90,7 +94,8 @@ flowchart LR
 | Microcontroller start-up: 180 MHz clock, start-up report, reset-cause reporting | Done, awaiting hardware check |
 | Serial console: interrupt and DMA driven, interactive and host modes, board commands | Done, awaiting hardware check |
 | Watchdog and crash capture with reports after restart | Done, awaiting hardware check |
-| Laptop tool: command line, desktop app, simulated device | In progress |
+| Laptop tool: command line, interactive shell, board simulator | Done |
+| Laptop tool: desktop app | In progress |
 | Unit tests with 100% MC/DC coverage gate, published test and coverage reports | Done |
 | MISRA C:2012 compliance check in CI, published compliance report | Done |
 | Capturing CAN messages and streaming them to the laptop | Not started |
@@ -152,6 +157,7 @@ detectors. CI also measures coverage and rejects any change that drops below 100
 Each document starts with a short plain-language summary, followed by the engineering detail.
 
 - [Serial console and protocol](docs/protocol.md): commands, and how programs talk to the board
+- [Laptop tool](host/README.md): command line, shell, simulator, Python library
 - [Hardware and wiring](docs/design/hardware.md)
 - [Build system and start-up sequence](docs/design/build-and-boot.md)
 - [Testing and code coverage](docs/design/testing.md)

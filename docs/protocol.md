@@ -113,6 +113,10 @@ state:
 After `reset`, the board restarts and prints its start-up report in interactive mode. Wait for the
 `obd> ` prompt, then repeat the steps above.
 
+When finished, send `mode interactive\r` so that a person opening a serial terminal next gets the
+prompt and echo. A reply always uses the mode that is active once the command has run, so this
+one ends with the `obd> ` prompt, not `OK`. (The same rule is why `mode host` answers `OK`.)
+
 ## Engineering detail
 
 The console logic (line editing, modes, command dispatch and reply formatting) lives in the

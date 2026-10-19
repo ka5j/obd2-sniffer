@@ -59,7 +59,9 @@ COVERAGE_HELP = [
     ("Branches", "Every decision (if/else, loop condition) went both ways in some test."),
     ("MC/DC", "Modified Condition/Decision Coverage, the standard used for safety-critical "
               "aviation and automotive software: for a decision like `if (a || b)`, each "
-              "condition was shown, on its own, to change the outcome."),
+              "condition was shown, on its own, to change the outcome. Measured for the C code; "
+              "Python has no MC/DC tooling, so the laptop tool is held to 100% line and branch "
+              "coverage instead."),
 ]
 
 
@@ -276,9 +278,13 @@ def main() -> None:
              f"<div class=\"value {'pass' if failed == 0 else 'fail'}\">{passed} / {total}</div></div>"]
     cov_sections = []
     for label, summary, dest in coverages:
-        mcdc = summary.get("mcdc", {}).get("percent", 0.0)
-        cards.append(f"<div class=\"card\"><div class=\"muted\">{html.escape(label)}: MC/DC coverage</div>"
-                     f"<div class=\"value {'pass' if summary.get('passed') else 'fail'}\">{mcdc:.0f}%</div></div>")
+        # Headline the strongest measure available: MC/DC for C, branch
+        # coverage for Python (which has no MC/DC tooling).
+        headline = "mcdc" if "mcdc" in summary else "branches"
+        name = "MC/DC" if headline == "mcdc" else "branch"
+        pct = summary[headline]["percent"]
+        cards.append(f"<div class=\"card\"><div class=\"muted\">{html.escape(label)}: {name} coverage</div>"
+                     f"<div class=\"value {'pass' if summary.get('passed') else 'fail'}\">{pct:.0f}%</div></div>")
         rows = "".join(
             f"<tr><td>{html.escape(v['label'])}</td><td class=\"num\">{v['covered']} / {v['count']}</td>"
             f"<td class=\"num {'pass' if v['percent'] >= summary['threshold'] else 'fail'}\">{v['percent']:.1f}%</td></tr>"
@@ -320,9 +326,9 @@ def main() -> None:
         + "".join(cov_sections)
         + misra_section
         + f"<h2>What the coverage measures mean</h2><dl>{help_items}</dl>"
-        "<p class=\"muted\">Coverage is measured on the hardware-independent code, which runs on a "
-        "normal computer. Code that drives the microcontroller's hardware directly is tested on "
-        "the board itself.</p>")
+        "<p class=\"muted\">C coverage is measured on the hardware-independent firmware code, which "
+        "runs on a normal computer. Code that drives the microcontroller's hardware directly is "
+        "tested on the board itself.</p>")
     (args.out / "index.html").write_text(page("OBD2 CAN Sniffer: quality report", body))
     (args.out / ".nojekyll").write_text("")
     print(f"Report site written to {args.out / 'index.html'}")
