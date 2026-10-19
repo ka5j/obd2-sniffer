@@ -1,0 +1,304 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  firmware:
+    name: Firmware (${{ matrix.preset }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [firmware, firmware-release]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0 # full history + tags for `git describe`
+
+      - name: Install Arm GNU Toolchain
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: '15.2.Rel1'
+
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build
+
+      - name: Configure
+        run: cmake --preset ${{ matrix.preset }}
+
+      - name: Build
+        run: cmake --build --preset ${{ matrix.preset }}
+
+      - name: Size report
+        run: |
+          elf=build/${{ matrix.preset }}/firmware/obd2_sniffer.elf
+          {
+            echo "### Firmware size (${{ matrix.preset }})"
+            echo '```'
+            arm-none-eabi-size --format=berkeley "$elf"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: obd2_sniffer-${{ matrix.preset }}
+          path: |
+            build/${{ matrix.preset }}/firmware/obd2_sniffer.elf
+            build/${{ matrix.preset }}/firmware/obd2_sniffer.bin
+            build/${{ matrix.preset }}/firmware/obd2_sniffer.hex
+            build/${{ matrix.preset }}/firmware/obd2_sniffer.map
+          if-no-files-found: error
+
+  unit-tests:
+    name: Unit tests (${{ matrix.preset }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # host-tests: AddressSanitizer + UndefinedBehaviorSanitizer
+        # host-tests-tsan: ThreadSanitizer, for the lock-free code
+        preset: [host-tests, host-tests-tsan]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build
+
+      - name: Allow ThreadSanitizer's memory layout
+        # TSan fails to start under the high ASLR entropy of recent kernels.
+        if: matrix.preset == 'host-tests-tsan'
+        run: sudo sysctl vm.mmap_rnd_bits=28
+
+      - name: Configure
+        run: cmake --preset ${{ matrix.preset }}
+
+      - name: Build
+        run: cmake --build --preset ${{ matrix.preset }}
+
+      - name: Test
+        run: ctest --preset ${{ matrix.preset }}
+
+  coverage:
+    name: Coverage (MC/DC)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      checks: write # publish per-test results to the PR checks
+    env:
+      LLVM_COV: llvm-cov-18
+      LLVM_PROFDATA: llvm-profdata-18
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ninja and LLVM 18
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build clang-18 llvm-18
+
+      - name: Configure
+        run: cmake --preset host-coverage -DCMAKE_C_COMPILER=clang-18
+
+      - name: Build
+        run: cmake --build --preset host-coverage
+
+      - name: Test
+        run: ctest --preset host-coverage
+
+      - name: Coverage gate (100% lines, functions, regions, branches, MC/DC)
+        run: python3 scripts/coverage.py --summary-md "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish test results
+        if: ${{ !cancelled() }}
+        uses: mikepenz/action-junit-report@v5
+        with:
+          report_paths: build/host-coverage/junit-c.xml
+          check_name: Test results
+          include_passed: true
+          detailed_summary: true
+
+      - name: Upload coverage results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-results
+          path: |
+            build/host-coverage/junit-c.xml
+            build/host-coverage/report
+
+  host-tool:
+    name: Host tool (Python ${{ matrix.python }})
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      checks: write # publish per-test results to the PR checks
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.12"] # oldest supported and current
+    defaults:
+      run:
+        working-directory: host
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: host/pyproject.toml
+
+      - name: Install Qt runtime libraries
+        # The desktop-app tests draw offscreen, but Qt still loads these.
+        run: >
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends
+          libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3
+
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check . && ruff format --check .
+
+      - name: Test (100% line and branch coverage required)
+        run: >
+          python -m pytest --cov --cov-report=term-missing
+          --cov-report=json:coverage.json --cov-report=html:htmlcov
+          --junitxml=junit-python.xml
+
+      - name: Publish test results
+        if: ${{ !cancelled() && matrix.python == '3.12' }}
+        uses: mikepenz/action-junit-report@v5
+        with:
+          report_paths: host/junit-python.xml
+          check_name: Python test results
+          include_passed: true
+          detailed_summary: true
+
+      - name: Prepare report data
+        if: ${{ !cancelled() && matrix.python == '3.12' }}
+        run: >
+          python ../scripts/py_coverage_summary.py --json coverage.json --html htmlcov
+          --out ../build/python-results/coverage && cp junit-python.xml ../build/python-results/
+
+      - name: Upload results
+        if: ${{ !cancelled() && matrix.python == '3.12' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-results
+          path: build/python-results
+
+  misra:
+    name: MISRA C:2012
+    runs-on: ubuntu-24.04
+    env:
+      # Must match misra/config.toml so CI and local results are identical.
+      CPPCHECK_VERSION: "2.21.0"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive # HAL/CMSIS headers are needed to analyse firmware code
+
+      - name: Restore cppcheck from cache
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ~/cppcheck
+          key: cppcheck-${{ env.CPPCHECK_VERSION }}-ubuntu-24.04
+
+      - name: Build cppcheck ${{ env.CPPCHECK_VERSION }}
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build
+          git clone --depth 1 --branch "$CPPCHECK_VERSION" https://github.com/danmar/cppcheck.git /tmp/cppcheck-src
+          cmake -S /tmp/cppcheck-src -B /tmp/cppcheck-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DUSE_MATCHCOMPILER=ON -DCMAKE_INSTALL_PREFIX="$HOME/cppcheck"
+          cmake --build /tmp/cppcheck-build
+          cmake --install /tmp/cppcheck-build
+
+      - name: Add cppcheck to PATH
+        run: echo "$HOME/cppcheck/bin" >> "$GITHUB_PATH"
+
+      - name: MISRA check (fails on any finding not fixed or documented)
+        run: python3 scripts/misra.py --summary-md "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload MISRA results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: misra-results
+          path: build/misra
+
+  report:
+    name: Quality report
+    needs: [coverage, misra, host-tool]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download results
+        uses: actions/download-artifact@v4
+        with:
+          path: results
+
+      - name: Build report site
+        run: >
+          python3 scripts/build_report_site.py --out site
+          --junit "C unit tests=results/coverage-results/junit-c.xml"
+          --junit "Laptop tool (Python)=results/python-results/junit-python.xml"
+          --coverage "C core library=results/coverage-results/report"
+          --coverage "Laptop tool (Python)=results/python-results/coverage"
+          --misra results/misra-results
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-report
+          path: site
+
+      - name: Upload report for GitHub Pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  publish-report:
+    name: Publish report to GitHub Pages
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    needs: report
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deploy
+        uses: actions/deploy-pages@v4
+
+  format:
+    name: Formatting
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format
+        # Pinned so CI and local formatting agree exactly.
+        run: pipx install clang-format==23.1.1
+
+      - name: Check formatting
+        run: ./scripts/check-format.sh

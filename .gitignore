@@ -29,9 +29,24 @@ captures/
 .vscode/*
 !.vscode/launch.json
 !.vscode/extensions.json
+!.vscode/tasks.json
 *.swp
 
 # KiCad backups
 hardware/**/*-backups/
 hardware/**/*.lck
 hardware/**/fp-info-cache
+
+# Private notes (interview prep), never committed
+notes/
+
+# Coverage data and generated report site
+*.profraw
+*.profdata
+site/
+
+# Python test outputs
+.coverage
+coverage.json
+htmlcov/
+junit-*.xml

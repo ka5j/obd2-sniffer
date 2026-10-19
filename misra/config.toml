@@ -1,0 +1,170 @@
+# MISRA C:2012 compliance configuration, read by scripts/misra.py.
+#
+# How a finding is resolved:
+#   * Fixed in the code (the default; any unresolved finding fails CI).
+#   * "disapplied": an advisory rule this project does not apply, in the
+#     listed paths, with the reason recorded below.
+#   * "false_positive": the tool reports something that is not a violation.
+#     Matched narrowly by rule, path and the text of the flagged source line,
+#     with the evidence recorded.
+#   * "deviation": a required rule broken on purpose at specific places.
+#     Each place carries a comment naming the deviation, e.g. /* MISRA DEV-01 */,
+#     on the same line or the line above. A deviation only covers the rules it
+#     lists, and mandatory rules can never be deviated.
+#
+# See docs/design/misra.md for the plain-language explanation.
+
+[tool]
+cppcheck_version = "2.21.0"  # results are reproducible only with this version
+platform = "arm32-wchar_t4"  # analyse with the target's type sizes (32-bit Arm)
+std = "c11"
+
+[scope]
+# Project code only. ST's HAL and CMSIS are third-party code and are excluded.
+sources = ["lib/src", "firmware/src"]
+include = [
+    "lib/include",
+    "firmware/include",
+    "firmware/third_party/stm32f4xx-hal-driver/Inc",
+    "firmware/third_party/cmsis-device-f4/Include",
+    "firmware/third_party/cmsis-core/Include",
+]
+defines = ["STM32F446xx", "USE_HAL_DRIVER", "HSE_VALUE=8000000U", "__GNUC__"]
+exclude = ["firmware/third_party/"]
+
+# ---------------------------------------------------------------------------
+# Advisory rules not applied
+# ---------------------------------------------------------------------------
+
+[[disapplied]]
+rule = "15.5"
+category = "advisory"
+paths = ["*"]
+title = "A function should have a single point of exit at the end"
+reason = """\
+Functions validate their inputs first and return early on failure (guard \
+clauses). Forcing a single exit would add flag variables and nesting, which \
+makes the code harder to review, not safer. Every function remains short and \
+every exit path is covered by unit tests (100% MC/DC on lib/)."""
+
+[[disapplied]]
+rule = "8.7"
+category = "advisory"
+paths = ["*"]
+title = "Functions and objects should not have external linkage if referenced in only one translation unit"
+reason = """\
+lib/ is a library: its functions are the public API used by the firmware and \
+by the unit tests, which are outside the analysed set, so the tool sees only \
+one user. Interrupt handlers and HAL callbacks are called from the startup \
+code and the HAL, which are also outside the analysed set."""
+
+[[disapplied]]
+rule = "11.4"
+category = "advisory"
+paths = ["firmware/src/*"]
+title = "A conversion should not be performed between a pointer to object and an integer type"
+reason = """\
+Peripheral registers are memory-mapped at fixed addresses. The CMSIS device \
+header reaches them through macros such as GPIOA, defined as a cast from an \
+address to a register-block pointer. This is the standard, intended way to \
+access hardware on Cortex-M and cannot be avoided in driver code. The rule \
+is applied in full to the hardware-independent library (lib/)."""
+
+[[disapplied]]
+rule = "2.5"
+category = "advisory"
+paths = ["firmware/include/stm32f4xx_hal_conf.h"]
+title = "A project should not contain unused macro declarations"
+reason = """\
+stm32f4xx_hal_conf.h is the configuration interface of ST's HAL: every macro \
+in it (oscillator values, enabled modules, callback options) is read by the \
+HAL sources, which are outside the analysed set."""
+
+# ---------------------------------------------------------------------------
+# Tool false positives
+# ---------------------------------------------------------------------------
+
+[[false_positive]]
+id = "FP-01"
+rule = "7.3"
+paths = ["firmware/src/*"]
+match = '\.Pull\b'
+title = "Identifier Pull reported as a lowercase literal suffix"
+reason = """\
+Rule 7.3 forbids a lowercase 'l' in integer literal suffixes (12l). The \
+cppcheck 2.21 addon also reports any identifier ending in a lowercase 'l'. \
+Here it flags the field Pull of ST's GPIO_InitTypeDef; no literal is \
+involved. Reproduced in isolation: a struct with a field named Pull triggers \
+the same report at the declaration and every use."""
+
+# ---------------------------------------------------------------------------
+# Deviations from required rules
+# ---------------------------------------------------------------------------
+
+[[deviation]]
+id = "DEV-01"
+rules = ["17.1", "21.6"]
+category = "required"
+title = "Formatted text output on the diagnostic console"
+reason = """\
+The serial console prints human-readable status (start-up report, command \
+replies) with printf-style formatting, which needs <stdarg.h> (Rule 17.1) \
+and vsnprintf from <stdio.h> (Rule 21.6). It is confined to two functions \
+in firmware/src/console.c, console_printf() and console_fieldf(), used only \
+for diagnostic text and never in interrupt handlers or the CAN data path."""
+mitigation = """\
+Format strings are compile-time literals checked against their arguments by \
+the compiler (format attribute with -Wformat=2 -Werror). Output goes through \
+vsnprintf into a fixed-size stack buffer, so it can truncate but never \
+overflow. No heap is used (_sbrk always fails)."""
+
+[[deviation]]
+id = "DEV-02"
+rules = ["10.8", "14.4"]
+category = "required"
+title = "Expansion of ST HAL and CMSIS macros"
+reason = """\
+Some vendor macros used as intended by ST break rules at the point of use: \
+peripheral clock enables are written as do { ... } while (0U) (Rule 14.4) \
+and some option values are composite expressions cast to uint32_t \
+(Rule 10.8). \
+The macros are third-party code and are not modified."""
+mitigation = """\
+Only ST's released HAL/CMSIS macros are covered, never project macros. The \
+HAL version is pinned as a git submodule. The values involved are \
+compile-time constants and the firmware is built with -Wall -Wextra -Werror."""
+
+[[deviation]]
+id = "DEV-03"
+rules = ["11.6", "21.2"]
+category = "required"
+title = "C library system-call interface"
+reason = """\
+newlib, the C library used on the target, requires the application to \
+provide functions with reserved names such as _write and _sbrk (Rule 21.2, \
+not detected by the tool but listed here because it applies), \
+and _sbrk must report failure by returning (void *)-1 (Rule 11.6). The names \
+and the return convention are fixed by the C library."""
+mitigation = """\
+Confined to firmware/src/syscalls.c. _sbrk always fails, which enforces the \
+no-heap policy instead of providing a heap."""
+where = "firmware/src/syscalls.c"
+
+[[deviation]]
+id = "DEV-04"
+rules = ["1.3"]
+category = "required"
+title = "Deliberate faults for testing crash capture"
+reason = """\
+To prove that crash capture works, the debug-only `crash` command makes the \
+CPU fault on purpose: an integer division by zero and a read from an \
+unmapped address. Both are undefined behaviour in C (Rule 1.3). They are \
+written with volatile operands so the compiler emits the faulting \
+instruction instead of optimising it away. Not detected by the tool, so no \
+source tags; the code is identified below."""
+mitigation = """\
+Compiled only into debug builds (#ifndef NDEBUG around the command), never \
+into release firmware. Reachable only by typing `crash <kind>` on the \
+console. The CPU traps each case (divide-by-zero trap, bus error), so the \
+behaviour on this target is defined and is exactly what is being tested."""
+where = "firmware/src/fault.c: fault_trigger(), called only from cmd_crash() in firmware/src/commands.c (debug builds)"
