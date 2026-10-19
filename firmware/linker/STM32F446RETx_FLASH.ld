@@ -132,7 +132,8 @@ SECTIONS
         . = ALIGN(4);
     } > RAM
 
-    /* newlib's _sbrk (from nosys.specs) uses `end` as the heap start. */
+    /* Heap start symbol that newlib expects. Unused: syscalls.c supplies an
+     * _sbrk that always fails, because the firmware has no heap. */
     PROVIDE(end = .);
     PROVIDE(_end = .);
 

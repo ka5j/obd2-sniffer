@@ -23,7 +23,7 @@ with CR, LF or CR LF.
 | `status` | Uptime, reason for the last reset, clock source and speed, LED mode, serial statistics |
 | `led on\|off\|auto` | Green LED on, off, or blinking once per second (`auto`, the default) |
 | `mode interactive\|host` | Switch the console mode |
-| `fault [clear]` | Details of the last crash (type, cause, code address, bad memory address), or forget it |
+| `fault [clear]` | Details of the last crash (type, cause, code address, bad memory address), or forget it. A crash is reported after the restart it caused; any later restart forgets it |
 | `reset` | Restart the board (the reply is sent before it restarts) |
 | `crash bus\|usage\|divzero\|hard\|watchdog` | Debug builds only: crash on purpose to test crash capture. See [fault-handling.md](design/fault-handling.md) |
 
@@ -125,7 +125,7 @@ one ends with the `obd> ` prompt, not `OK`. (The same rule is why `mode host` an
 ## Engineering detail
 
 The console logic (line editing, modes, command dispatch and reply formatting) lives in the
-portable library (`lib/console_core.c`, `lib/cli.c`, `lib/line_editor.c`) and is unit-tested to
+portable library (`lib/src/console_core.c`, `lib/src/cli.c`, `lib/src/line_editor.c`) and is unit-tested to
 100% MC/DC coverage. The firmware side (`firmware/src/console.c`, `firmware/src/commands.c`) only
 moves bytes and supplies the command table. How the bytes move is described in
 [design/serial-console.md](design/serial-console.md).

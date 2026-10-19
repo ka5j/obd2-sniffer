@@ -174,7 +174,7 @@ Press the black **RESET** button on the board. You should see the start-up repor
 
 ```
 ========================================
- OBD2 CAN Sniffer  v0.1.0
+ OBD2 CAN Sniffer  v0.2.0
 ----------------------------------------
  MCU      STM32F446RE  rev 0x....
  UID      ........-........-........
@@ -240,5 +240,6 @@ start of `main()`, so you can step through the code and inspect variables and re
 | OpenOCD or CubeProgrammer report old ST-LINK firmware | Update it with STM32CubeProgrammer (Firmware upgrade) or ST's [ST-LINK upgrade tool](https://www.st.com/en/development-tools/stsw-link007.html) |
 | Serial terminal shows nothing | Press RESET after connecting. Check the speed is 115200 and that no other program has the port open |
 | Garbled characters | Wrong speed: use 115200, 8 data bits, no parity, 1 stop bit |
+| Typing shows nothing, but commands answer `OK` | A program left the console in host mode (for example the laptop tool was killed). Type `mode interactive` and press Enter, or press RESET |
 | Linux: "Permission denied" on `/dev/ttyACM0` | Add yourself to the `dialout` group (above), then log out and in |
 | Start-up report says `HSI 16 MHz (fallback)` | The board isn't receiving the 8 MHz clock from the ST-LINK (solder bridges changed, or a different board). The firmware still runs, but CAN timing may be unreliable. See [hardware.md](design/hardware.md#clock-configuration) |

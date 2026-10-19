@@ -1,7 +1,8 @@
 /*
  * Cortex-M system exception handlers. The fault handlers (HardFault,
- * MemManage, BusFault, UsageFault) are in fault.c; peripheral interrupt
- * handlers live with their drivers.
+ * MemManage, BusFault, UsageFault) are in fault_entry.S, which hands over to
+ * fault_capture() in fault.c; peripheral interrupt handlers live with their
+ * drivers.
  */
 #include "stm32f4xx_hal.h"
 
