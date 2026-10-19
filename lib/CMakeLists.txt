@@ -10,6 +10,7 @@ add_library(core STATIC
     src/crc16.c
     src/fault_record.c
     src/frame_queue.c
+    src/isotp.c
     src/line_editor.c
     src/packet.c
     src/ring_buffer.c)
