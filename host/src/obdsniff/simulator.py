@@ -74,7 +74,10 @@ class SimulatedBoard:
     def __init__(self, clock: Callable[[], float] = time.monotonic) -> None:
         self._clock = clock
         self._output = bytearray()
-        self.fault: SimulatedFault | None = None
+        self.fault: SimulatedFault | None = None  # what `fault` reports
+        # Left by a crash for the next start-up, like the firmware's record in
+        # RAM that survives a reset.
+        self._surviving_record: SimulatedFault | None = None
         self._fault_uptime_ms = 0
         self._after_reply: Callable[[], None] | None = None
         self.boot("power-on")
@@ -82,7 +85,12 @@ class SimulatedBoard:
     # ---- board life cycle ---------------------------------------------------
 
     def boot(self, reset_cause: str) -> None:
-        """Restart: interactive mode, start-up report, prompt."""
+        """Restart: interactive mode, start-up report, prompt.
+
+        A crash is reported by the start-up right after it and then forgotten,
+        as in the firmware (fault_init() clears the record once read): any
+        later restart reports no crash."""
+        self.fault, self._surviving_record = self._surviving_record, None
         self.reset_cause = reset_cause
         self.mode = "interactive"
         self.led = "auto"
@@ -319,7 +327,7 @@ class SimulatedBoard:
         if kind not in CRASHES:
             return "invalid argument"
         self._fault_uptime_ms = self.uptime_ms()
-        self.fault = CRASHES[kind]
+        self._surviving_record = CRASHES[kind]
         self._after_reply = lambda: self.boot("software")
         return None
 
