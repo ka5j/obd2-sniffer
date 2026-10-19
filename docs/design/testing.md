@@ -55,6 +55,7 @@ as well as the simulator. Each release is checked this way before it is tagged.
 | Clocks | Board uptime against the laptop's clock over 30 s | Pass: -19 ppm, within the 1 ms resolution of the measurement. The internal oscillator would be off by up to 1% (10,000 ppm) |
 | Serial console | Every command and error message; Backspace, Ctrl-C, the 96-character limit | Pass |
 | Serial console | The reply to `reset` arrives complete before the board restarts | Pass |
+| Serial console | Bursts of 20 and 50 commands sent without waiting, at 115200 baud: every reply intact (28 KB at 100% of the line rate), nothing dropped, no restart | Pass |
 | Button and LED | Button presses reported in both modes, with a half-typed line shown again; LED heartbeat | Pass |
 | Crash capture | `crash bus`, `usage`, `divzero`, `hard`: right fault type and cause after the restart; the saved code address points at the faulting line (`fault.c:87` for `bus`); bad address `0x08080000` | Pass |
 | Watchdog | Main loop stopped on purpose: reset after 535 ms (allowed: 340 to 940 ms), reported as a watchdog reset | Pass |
@@ -63,7 +64,7 @@ as well as the simulator. Each release is checked this way before it is tagged.
 | Laptop tool | Board found by its USB IDs; `info`, `--json status`, `led`, `shell` reconnecting after `reset` and `crash` | Pass |
 | Desktop app | Connect, board details, console commands, `crash bus` then clear the record; the window keeps responding while the board restarts; the board is handed back in interactive mode on exit | Pass |
 
-The check found three problems that the unit tests and the simulator had not, all fixed:
+The checks found problems that the unit tests and the simulator had not, all fixed:
 
 - A line longer than 96 characters was cut short and then run as a command. It is now rejected
   whole ([#16](https://github.com/ka5j/obd2-sniffer/pull/16)).
@@ -71,6 +72,11 @@ The check found three problems that the unit tests and the simulator had not, al
   prompt or echo ([#15](https://github.com/ka5j/obd2-sniffer/pull/15)).
 - In `help` and `fault` output, the longest entries were out of alignment
   ([#16](https://github.com/ka5j/obd2-sniffer/pull/16)).
+- A burst of commands (for example pasted into a terminal) ran in a single pass of the main loop.
+  At 115200 baud the replies took over a second to send, so the watchdog restarted the board; with
+  that fixed, replies were partly dropped because the transmit buffer freed space only in large
+  steps. Commands now run one per pass, only when their reply fits, and DMA transfers are capped at
+  256 bytes ([#24](https://github.com/ka5j/obd2-sniffer/pull/24)).
 
 ## Coverage measures
 

@@ -114,3 +114,22 @@ def test_every_firmware_label_fits_the_column() -> None:
         m["label"] for m in FIELD.finditer(firmware_source()) if len(m["label"]) >= LABEL_WIDTH
     ]
     assert too_wide == []
+
+
+def test_every_reply_fits_the_space_the_firmware_reserves() -> None:
+    """The firmware starts a command only when CONSOLE_REPLY_SPACE bytes of its
+    transmit buffer are free, so that the whole reply fits without waiting.
+    Values on the real board (version string, compiler) can be longer than the
+    simulator's, hence the margin."""
+    space = c_define(REPO / "firmware" / "src" / "console.c", "CONSOLE_REPLY_SPACE")
+    margin = 128
+    board = SimulatedBoard()
+    board.feed(b"crash bus\r")  # so that `fault` gives its longest reply
+    board.run_pending()
+    board.take_output()
+    for mode in ("interactive", "host"):
+        board.feed(f"mode {mode}\r".encode())
+        board.take_output()
+        for command in ("help", "version", "status", "fault"):
+            board.feed(f"{command}\r".encode())
+            assert len(board.take_output()) + margin <= space, f"{command} ({mode})"

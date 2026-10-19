@@ -53,8 +53,11 @@ ThreadSanitizer.
 ### Transmit path (DMA1 stream 6, channel 4)
 
 - `uart_link_write()` copies data into the transmit ring (the producer side) and then "kicks" the
-  DMA. If the DMA is idle, the kick starts a transfer of the longest **contiguous** block from
-  the ring, using `ring_peek_contiguous()`, so no intermediate copy is needed.
+  DMA. If the DMA is idle, the kick starts a transfer of the next **contiguous** block from the
+  ring, using `ring_peek_contiguous()`, so no intermediate copy is needed. Blocks are at most
+  256 bytes. Space in the ring is only released when a transfer completes, so short transfers
+  free it in small steps. A full 2 KB transfer would take about 180 ms at 115200 baud, and a
+  writer waiting for space would give up first.
 - On transfer complete, the DMA interrupt (priority 6) releases exactly the bytes that were sent
   (`ring_consume()`) and immediately starts the next block, so a long message streams out as a
   chain of transfers with no processor involvement in between.
@@ -68,6 +71,13 @@ ThreadSanitizer.
 - **Back-pressure:** if the ring is full, `uart_link_write()` waits up to 50 ms for space, then
   drops the rest and counts it (`uart_tx_dropped`). Output is never allowed to block the firmware
   indefinitely.
+- **Flow control for commands:** `console_poll()` runs at most one command per pass of the main
+  loop, and only when at least 1 KB of the transmit ring is free, more than the longest reply
+  (570 bytes). A reply therefore never waits for space. Commands sent in a burst (pasted into a
+  terminal, or from a program that doesn't wait for replies) queue up in the receive ring and run
+  one per pass. Without this, a burst ran entirely in one pass: its replies took longer to send
+  than the watchdog allows, and the board restarted. A test on the laptop side checks every reply
+  fits.
 - Transfer errors are counted (`uart_tx_dma_errors`). The block is released and sending
   continues.
 

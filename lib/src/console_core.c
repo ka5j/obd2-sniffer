@@ -184,7 +184,7 @@ static void run_line(console_core_t *con)
     report(con, status, cmd);
 }
 
-void console_core_feed(console_core_t *con, char byte)
+bool console_core_feed(console_core_t *con, char byte)
 {
     line_event_t event = line_editor_feed(&con->editor, byte);
     bool echo = interactive(con);
@@ -228,4 +228,5 @@ void console_core_feed(console_core_t *con, char byte)
         /* LE_NONE: the byte needs no response (e.g. the LF of a CR LF). */
         break;
     }
+    return (event == LE_LINE_READY) || (event == LE_TOO_LONG);
 }

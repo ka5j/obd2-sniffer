@@ -54,8 +54,11 @@ typedef struct {
 void console_core_init(console_core_t *con, const cli_command_t *commands, size_t command_count,
                        console_write_fn write, void *user);
 
-/* Process one received byte (echo, editing, and running complete lines). */
-void console_core_feed(console_core_t *con, char byte);
+/* Process one received byte (echo, editing, and running complete lines).
+ * Returns true when the byte ended a line: its command has run (or the line
+ * was rejected) and its reply is out. Callers use this to bound the work
+ * done at a time. */
+bool console_core_feed(console_core_t *con, char byte);
 
 console_mode_t console_core_mode(const console_core_t *con);
 void console_core_set_mode(console_core_t *con, console_mode_t mode);
