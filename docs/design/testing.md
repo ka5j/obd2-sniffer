@@ -38,6 +38,37 @@ and against scripted fake connections for the failure cases: no reply, malformed
 board that doesn't come back after a restart, a release build that rejects test commands. Python
 has no MC/DC tooling, so it is held to 100% line and branch coverage instead.
 
+## Checks on the board
+
+Code that drives the hardware can only be proven on the hardware. It is checked on a real
+NUCLEO-F446RE board. Where possible the checks are scripted: a Python script types into the
+board's serial console and checks what comes back, and the laptop tool is run against the board
+as well as the simulator. Each release is checked this way before it is tagged.
+
+**Latest check:** 18 October 2026, Debug and Release builds.
+
+| Area | Check | Result |
+|---|---|---|
+| Clocks | Start-up report shows the external 8 MHz clock, 180 MHz CPU, 45 and 90 MHz buses | Pass |
+| Clocks | Board uptime against the laptop's clock over 30 s | Pass: -19 ppm, within the 1 ms resolution of the measurement. The internal oscillator would be off by up to 1% (10,000 ppm) |
+| Serial console | Every command and error message; Backspace, Ctrl-C, the 96-character limit | Pass |
+| Serial console | The reply to `reset` arrives complete before the board restarts | Pass |
+| Button and LED | Button presses reported in both modes, with a half-typed line shown again; LED heartbeat | Pass |
+| Crash capture | `crash bus`, `usage`, `divzero`, `hard`: right fault type and cause after the restart; the saved code address points at the faulting line (`fault.c:87` for `bus`); bad address `0x08080000` | Pass |
+| Watchdog | Main loop stopped on purpose: reset after 535 ms (allowed: 340 to 940 ms), reported as a watchdog reset | Pass |
+| Reset causes | Software reset, watchdog and reset pin each reported correctly | Pass |
+| Release build | The `crash` test command is absent; everything else works | Pass |
+| Laptop tool | Board found by its USB IDs; `info`, `--json status`, `led`, `shell` reconnecting after `reset` and `crash` | Pass |
+
+The check found three problems that the unit tests and the simulator had not, all fixed:
+
+- A line longer than 96 characters was cut short and then run as a command. It is now rejected
+  whole ([#16](https://github.com/ka5j/obd2-sniffer/pull/16)).
+- The laptop tool left the board in host mode, so a serial terminal opened afterwards showed no
+  prompt or echo ([#15](https://github.com/ka5j/obd2-sniffer/pull/15)).
+- In `help` and `fault` output, the longest entries were out of alignment
+  ([#16](https://github.com/ka5j/obd2-sniffer/pull/16)).
+
 ## Coverage measures
 
 | Measure | Meaning |
