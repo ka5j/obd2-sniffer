@@ -177,6 +177,10 @@ jobs:
           --cov-report=json:coverage.json --cov-report=html:htmlcov
           --junitxml=junit-python.xml
 
+      - name: Board check script, against the simulator
+        # Keeps scripts/board_check.py working as the library and simulator change.
+        run: python ../scripts/board_check.py --port sim --quick --crash
+
       - name: Publish test results
         if: ${{ !cancelled() && matrix.python == '3.12' }}
         uses: mikepenz/action-junit-report@v5

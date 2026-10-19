@@ -43,19 +43,40 @@ it is held to 100% line and branch coverage instead.
 ## Checks on the board
 
 Code that drives the hardware can only be proven on the hardware. It is checked on a real
-NUCLEO-F446RE board. Where possible the checks are scripted: a Python script types into the
-board's serial console and checks what comes back, and the laptop tool is run against the board
-as well as the simulator. Each release is checked this way before it is tagged.
+NUCLEO-F446RE board. Each release is checked this way before it is tagged.
+
+Most checks are scripted in `scripts/board_check.py`. It drives the board through the laptop
+tool's library and prints one line per check with the number it measured, so anyone with a board
+can repeat the results below:
+
+```sh
+python3 scripts/board_check.py            # finds the board; about 35 s
+python3 scripts/board_check.py --crash    # also the crash and watchdog checks (restarts the board)
+python3 scripts/board_check.py --quick    # fewer frames, about 10 s
+```
+
+```
+PASS  Clock accuracy  +15 ppm against the laptop over 20 s (limit 1000)
+PASS  Command burst   100 commands sent at once: 100 replies, 0 errors, nothing dropped; 27.8 KB in 187 ms (99% of the line rate)
+PASS  CAN capture     100,000 frames at 500 kbit/s: 0 lost, 0 wrong, 0 damaged; 4,230 frames/s (a full bus gives at least 3,704)
+PASS  CAN overload    20,000 frames at 1000 kbit/s: 2,744 lost; board counted 2,744 dropped and 0 overruns, laptop saw 2,744 missing capture numbers
+PASS  CAN interrupt   longest receive interrupt 7 us (limit 47)
+PASS  Crash capture   `crash bus`: BusFault (bus error on data access) at 0x08001822
+```
+
+CI runs the same script against the simulator (`--port sim`) on every change, so it keeps working
+as the code changes. The rest (the button, the LED, line editing in a terminal, the desktop app,
+timing the watchdog) is checked by hand.
 
 **Latest check:** 19 October 2026, Debug and Release builds, serial link at 1.5 Mbaud.
 
 | Area | Check | Result |
 |---|---|---|
 | Clocks | Start-up report shows the external 8 MHz clock, 180 MHz CPU, 45 and 90 MHz buses | Pass |
-| Clocks | Board uptime against the laptop's clock over 30 s | Pass: -19 ppm, within the 1 ms resolution of the measurement. The internal oscillator would be off by up to 1% (10,000 ppm) |
+| Clocks | Board uptime against the laptop's clock over 20 s | Pass: +15 ppm, within the resolution of the measurement (1 ms in 20 s, 50 ppm). The internal oscillator would be off by up to 1% (10,000 ppm) |
 | Serial console | Every command and error message; Backspace, Ctrl-C, the 96-character limit | Pass |
 | Serial console | The reply to `reset` arrives complete before the board restarts | Pass |
-| Serial console | Bursts of 20 and 50 commands sent without waiting, at 115200 baud: every reply intact (28 KB at 100% of the line rate), nothing dropped, no restart | Pass |
+| Serial console | Bursts of commands sent without waiting: 20 and 50 at 115200 baud, 100 at 1.5 Mbaud (28 KB at 99% of the line rate). Every reply intact, nothing dropped, no restart | Pass |
 | Button and LED | Button presses reported in both modes, with a half-typed line shown again; LED heartbeat | Pass |
 | Crash capture | `crash bus`, `usage`, `divzero`, `hard`: right fault type and cause after the restart; the saved code address points at the faulting line (`fault.c:87` for `bus`); bad address `0x08080000` | Pass |
 | Watchdog | Main loop stopped on purpose: reset after 535 ms (allowed: 340 to 940 ms), reported as a watchdog reset | Pass |

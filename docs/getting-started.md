@@ -223,6 +223,10 @@ tool's tests run with `cd host && pip install -e ".[dev]" && python -m pytest --
 measurement and the MISRA C check are described in [testing.md](design/testing.md) and
 [misra.md](design/misra.md).
 
+With a board connected and the laptop tool installed, `python3 scripts/board_check.py` checks the
+board itself: clocks, the serial console under a burst of commands, and CAN capture at full bus
+load. It prints what it measured; see [testing.md](design/testing.md#checks-on-the-board).
+
 ## 9. Debugging (optional)
 
 With VS Code, install the recommended extensions (**Cortex-Debug**, **CMake Tools**), then run
