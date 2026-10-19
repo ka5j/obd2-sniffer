@@ -2,11 +2,16 @@
 # sources are compiled into the firmware and into the host unit tests.
 
 add_library(core STATIC
+    src/can_text.c
+    src/can_timing.c
     src/cli.c
+    src/cobs.c
     src/console_core.c
     src/crc16.c
     src/fault_record.c
+    src/frame_queue.c
     src/line_editor.c
+    src/packet.c
     src/ring_buffer.c)
 target_include_directories(core PUBLIC include)
 target_link_libraries(core PRIVATE project_warnings)
