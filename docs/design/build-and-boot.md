@@ -162,7 +162,7 @@ HSE 8 MHz (bypass) --/M=4--> 2 MHz --xN=180--> VCO 360 MHz --/P=2--> SYSCLK 180 
 - **Flash wait states.** Flash needs 5 wait states at 180 MHz and 3.3 V. The ART accelerator
   (prefetch plus instruction and data caches) hides most of that latency.
 - **APB1 at 45 MHz** is its maximum, and 45 MHz divides cleanly into CAN bit rates: 500 kbit/s is
-  prescaler 5 with 18 time quanta per bit.
+  prescaler 6 with 15 time quanta per bit (see [hardware.md](hardware.md#can-bit-timing)).
 - **HSI fallback.** If HSE doesn't start within 100 ms, the PLL is rebuilt from HSI (M=8) for
   the same 180 MHz. The banner reports the source because HSI is trimmed to +-1% only at 25 C
   and drifts by several percent over temperature. That is more than CAN bit timing tolerates

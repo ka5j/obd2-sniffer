@@ -31,9 +31,9 @@ ThreadSanitizer.
 
 ```
                  USART2 RX interrupt                    main loop
- laptop  --->  [ store byte ] ---> rx ring (256 B) ---> console_poll() ---> console core ---> commands
+ laptop  --->  [ store byte ] ---> rx ring (1024 B) --> console_poll() ---> console core ---> commands
                                                                                  |
- laptop  <---  USART2 <--- DMA1 stream 6 <--- tx ring (2048 B) <--- uart_link_write() <-----+
+ laptop  <---  USART2 <--- DMA1 stream 6 <--- tx ring (4096 B) <--- uart_link_write() <-----+
                               |
                               +--> transfer-complete interrupt: release sent bytes, start next block
 ```
