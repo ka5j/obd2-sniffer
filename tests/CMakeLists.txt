@@ -21,7 +21,10 @@ function(add_unit_test name)
     add_executable(${name} ${name}.c)
     target_link_libraries(${name} PRIVATE core unity Threads::Threads project_warnings)
 
-    # Register one CTest test per UNIT_TEST(...) in the source file.
+    # Register one CTest test per UNIT_TEST(...) in the source file. The list
+    # is read when CMake configures, so re-configure whenever the file
+    # changes; otherwise a newly added test would silently not run.
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${name}.c)
     file(STRINGS ${name}.c run_lines REGEX "^[ \t]*UNIT_TEST\\([A-Za-z0-9_]+\\)")
     if(NOT run_lines)
         message(FATAL_ERROR "${name}.c has no UNIT_TEST(...) lines")
