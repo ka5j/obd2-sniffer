@@ -26,6 +26,7 @@ static can_frame_t make_frame(uint32_t n)
         .id = n & 0x7FFU,
         .dlc = (uint8_t)(n % 9U),
         .flags = (uint8_t)(n & 1U),
+        .seq = (uint16_t)n,
     };
     for (uint32_t i = 0U; i < CAN_MAX_DLC; i++) {
         f.data[i] = (uint8_t)(n + i);
@@ -38,7 +39,8 @@ static can_frame_t make_frame(uint32_t n)
 static bool same_frame(const can_frame_t *a, const can_frame_t *b)
 {
     return (a->timestamp_us == b->timestamp_us) && (a->id == b->id) && (a->dlc == b->dlc) &&
-           (a->flags == b->flags) && (memcmp(a->data, b->data, CAN_MAX_DLC) == 0);
+           (a->flags == b->flags) && (a->seq == b->seq) &&
+           (memcmp(a->data, b->data, CAN_MAX_DLC) == 0);
 }
 
 static void test_init_rejects_bad_arguments(void)

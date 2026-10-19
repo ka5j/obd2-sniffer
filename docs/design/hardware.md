@@ -46,8 +46,9 @@ Rules for the car connection:
 
 ## Pin assignments
 
-These are the microcontroller pins the project uses. The LED, button and serial pins are defined
-in `firmware/include/board.h`; the CAN pins are assigned for the CAN driver.
+These are the microcontroller pins the project uses. The LED, button, serial and CAN1 pins are
+defined in `firmware/include/board.h`; the CAN2 pins are reserved for the second controller (the
+test node).
 
 | Function | Pin | Board header | Notes |
 |---|---|---|---|
@@ -81,10 +82,21 @@ cause CAN errors, so the report helps explain them. Full detail is in
 ### CAN bit timing
 
 Cars use 500 kbit/s on the diagnostic CAN bus (some use 250 kbit/s). The CAN controller divides
-its 45 MHz clock to get there. Each bit is split into 18 small time slices; the controller samples
-the signal 16 slices in (an 88.9% sample point), late in the bit, after the signal has settled.
+its 45 MHz clock to get there. Each bit is split into small time slices (time quanta), and the
+controller samples the signal late in the bit, after it has settled along the whole bus.
+Automotive networks sample at about 87.5% of the bit (CiA 301, SAE J2284).
+
+The settings are not hard-coded. `lib/src/can_timing.c` searches every exact way to divide the
+clock (8 to 25 quanta per bit, within the controller's segment limits) and picks the sample point
+closest to 87.5%, preferring more quanta when two are equally close. It is unit-tested, and
+`can loopback <kbps>` refuses any rate it can't hit exactly.
 
 | Bit rate | Prescaler | Time quanta per bit | Sample point |
 |---|---|---|---|
-| 500 kbit/s | 5 | 18 (1 + 15 + 2) | 88.9% |
-| 250 kbit/s | 10 | 18 (1 + 15 + 2) | 88.9% |
+| 1000 kbit/s | 3 | 15 (1 + 12 + 2) | 86.7% |
+| 500 kbit/s | 6 | 15 (1 + 12 + 2) | 86.7% |
+| 250 kbit/s | 12 | 15 (1 + 12 + 2) | 86.7% |
+| 125 kbit/s | 45 | 8 (1 + 6 + 1) | 87.5% |
+
+At 500 kbit/s, 18 quanta (88.9%) also divides exactly, but 15 quanta (86.7%) is closer to the
+target and within the SAE J2284 range.

@@ -23,17 +23,17 @@
 #define PACKET_DELIMITER      0x00U
 #define PACKET_TYPE_CAN_FRAME 0x01U
 
-/* CAN frame payload: seq u16, timestamp_us u32, id u32, dlc u8, data. */
+/* CAN frame payload: seq u16 (the frame's capture number), timestamp_us u32,
+ * id u32, dlc u8, data. */
 #define PACKET_CAN_ID_EXTENDED 0x80000000U /* id bit 31: 29-bit identifier */
 #define PACKET_CAN_ID_RTR      0x40000000U /* id bit 30: remote frame */
 
 /* Bytes on the wire for a CAN frame with 8 data bytes (the largest). */
 #define PACKET_CAN_FRAME_MAX 25U
 
-/* Write the packet for one CAN frame, delimiters included. `seq` counts
- * frame packets, so the laptop can spot gaps. A remote frame carries no
- * data bytes. Returns the number of bytes written, or 0 if the frame is
- * invalid (DLC above 8) or `size` is too small. */
-size_t packet_encode_can_frame(const can_frame_t *frame, uint16_t seq, uint8_t *out, size_t size);
+/* Write the packet for one CAN frame, delimiters included. A remote frame
+ * carries no data bytes. Returns the number of bytes written, or 0 if the
+ * frame is invalid (DLC above 8) or `size` is too small. */
+size_t packet_encode_can_frame(const can_frame_t *frame, uint8_t *out, size_t size);
 
 #endif /* PACKET_H */

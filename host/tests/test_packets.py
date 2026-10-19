@@ -199,3 +199,10 @@ def test_incomplete_packet_waits_for_the_rest() -> None:
     assert not splitter.frames
     assert splitter.feed(GOLDEN_STANDARD[10:]) == b""
     assert list(splitter.frames) == [STANDARD]
+
+
+def test_uncollected_frames_are_bounded() -> None:
+    splitter = StreamSplitter(max_pending=2)
+    splitter.feed(GOLDEN_STANDARD * 3)
+    assert len(splitter.frames) == 2
+    assert splitter.discarded_frames == 1

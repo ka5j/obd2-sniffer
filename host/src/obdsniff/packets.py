@@ -33,6 +33,10 @@ MAX_BODY = _HEADER.size + CAN_MAX_DLC + 2 + 1
 # The console only ever sends printable ASCII plus these controls: bell,
 # backspace, tab, line feed, carriage return. Every packet body contains a
 # byte outside that set (its type, 0x01).
+# Frames kept until collected: about 25 s of a fully loaded bus. Beyond that
+# the oldest are discarded (and counted), so memory stays bounded when nobody
+# is reading them.
+MAX_PENDING_FRAMES = 100_000
 _NOT_TEXT = re.compile(rb"[^\x07-\x0a\x0d\x20-\x7e]")
 
 
@@ -97,7 +101,7 @@ class CanFrame:
     dlc: int | None = None  # defaults to len(data); a remote frame has a DLC but no data
     extended: bool = False
     rtr: bool = False
-    seq: int = 0  # packet number from the board (16-bit, wraps), to spot gaps
+    seq: int = 0  # capture number (16-bit, wraps): a gap means frames were lost
 
     @property
     def length(self) -> int:
@@ -155,9 +159,10 @@ class StreamSplitter:
     A packet that doesn't decode is counted in `bad_packets` and dropped; it
     never reaches the text."""
 
-    def __init__(self) -> None:
-        self.frames: deque[CanFrame] = deque()
+    def __init__(self, max_pending: int = MAX_PENDING_FRAMES) -> None:
+        self.frames: deque[CanFrame] = deque(maxlen=max_pending)
         self.bad_packets = 0
+        self.discarded_frames = 0  # not collected in time; oldest dropped first
         self._inside = False
         self._body = bytearray()
 
@@ -198,7 +203,11 @@ class StreamSplitter:
 
     def _finish_packet(self) -> None:
         try:
-            self.frames.append(decode_packet(bytes(self._body)))
+            frame = decode_packet(bytes(self._body))
         except PacketError:
             self.bad_packets += 1
+        else:
+            if len(self.frames) == self.frames.maxlen:
+                self.discarded_frames += 1
+            self.frames.append(frame)
         self.reset()

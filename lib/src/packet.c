@@ -26,7 +26,7 @@ static size_t put_u32(uint8_t *buf, size_t pos, uint32_t value)
     return pos + 4U;
 }
 
-size_t packet_encode_can_frame(const can_frame_t *frame, uint16_t seq, uint8_t *out, size_t size)
+size_t packet_encode_can_frame(const can_frame_t *frame, uint8_t *out, size_t size)
 {
     if ((frame->dlc > CAN_MAX_DLC) || (size < 2U)) {
         return 0U;
@@ -44,7 +44,7 @@ size_t packet_encode_can_frame(const can_frame_t *frame, uint16_t seq, uint8_t *
     size_t n = 0U;
     body[n] = PACKET_TYPE_CAN_FRAME;
     n++;
-    n = put_u16(body, n, seq);
+    n = put_u16(body, n, frame->seq);
     n = put_u32(body, n, frame->timestamp_us);
     n = put_u32(body, n, id);
     body[n] = frame->dlc;

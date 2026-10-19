@@ -26,6 +26,12 @@
 #define BOARD_VCP_RX_PIN  GPIO_PIN_3
 #define BOARD_VCP_AF      GPIO_AF7_USART2
 
+/* CAN1, to the transceiver: Arduino D15 (RX) and D14 (TX). */
+#define BOARD_CAN1_PORT   GPIOB
+#define BOARD_CAN1_RX_PIN GPIO_PIN_8
+#define BOARD_CAN1_TX_PIN GPIO_PIN_9
+#define BOARD_CAN1_AF     GPIO_AF9_CAN1
+
 void board_init(void);
 
 void board_led_set(bool on);

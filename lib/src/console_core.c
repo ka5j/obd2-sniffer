@@ -56,6 +56,17 @@ void console_core_prompt(console_core_t *con)
     }
 }
 
+void console_core_redraw(console_core_t *con)
+{
+    if (!interactive(con)) {
+        return;
+    }
+    out(con, CONSOLE_PROMPT);
+    if (!con->editor.ready) {
+        con->write(con->user, con->editor.buf, con->editor.len);
+    }
+}
+
 void console_core_text(console_core_t *con, const char *text)
 {
     out(con, text);
@@ -94,10 +105,7 @@ void console_core_event(console_core_t *con, const char *text)
     out(con, "\r\n");
     out(con, text);
     out(con, "\r\n");
-    out(con, CONSOLE_PROMPT);
-    if (!con->editor.ready) {
-        con->write(con->user, con->editor.buf, con->editor.len);
-    }
+    console_core_redraw(con);
 }
 
 cli_status_t console_core_help(console_core_t *con, const char *name)

@@ -12,6 +12,9 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from obdsniff.packets import encode_can_frame
+from obdsniff.sim_can import USAGE as CAN_USAGE
+from obdsniff.sim_can import SimulatedCan, format_line
 from obdsniff.transport import Transport
 
 PROMPT = "obd> "
@@ -19,6 +22,7 @@ LABEL_WIDTH = 18
 HELP_WIDTH = 24
 LINE_MAX = 96
 FIRMWARE_VERSION = "simulator"
+FRAMES_PER_READ = 200  # CAN frames produced per read of the output
 
 COMMANDS: list[tuple[str, str, str, int, int]] = [
     # name, usage, help, min args, max args (same table as the firmware)
@@ -28,6 +32,7 @@ COMMANDS: list[tuple[str, str, str, int, int]] = [
     ("led", "on|off|auto", "Green LED: on, off, or heartbeat (auto)", 1, 1),
     ("mode", "interactive|host", "Console mode (host is for the laptop tool)", 1, 1),
     ("fault", "[clear]", "Details of the last crash, or forget it", 0, 1),
+    ("can", CAN_USAGE, "CAN bus: status, loopback test mode, send a frame, test traffic", 0, 3),
     ("reset", "", "Restart the board", 0, 0),
     ("crash", "bus|usage|divzero|hard|watchdog", "Crash on purpose to test crash capture", 1, 1),
 ]
@@ -80,6 +85,7 @@ class SimulatedBoard:
         self._surviving_record: SimulatedFault | None = None
         self._fault_uptime_ms = 0
         self._after_reply: Callable[[], None] | None = None
+        self.can = SimulatedCan(clock)
         self.boot("power-on")
 
     # ---- board life cycle ---------------------------------------------------
@@ -98,6 +104,8 @@ class SimulatedBoard:
         self._last_was_cr = False
         self._line_done = False
         self._overflowed = False
+        self._lines_shown = False  # CAN frame lines printed since the last prompt
+        self.can.reset()  # CAN is off after every start-up
         self._boot_time = self._clock()
         self.rx_bytes = 0
         self.tx_bytes = 0
@@ -124,6 +132,7 @@ class SimulatedBoard:
     # ---- byte interface -------------------------------------------------------
 
     def take_output(self) -> bytes:
+        self._stream_frames()
         data = bytes(self._output)
         self._output.clear()
         self.tx_bytes += len(data)
@@ -133,6 +142,24 @@ class SimulatedBoard:
         for value in data:
             self.rx_bytes += 1
             self._feed_byte(value)
+
+    # ---- CAN frames (firmware/src/can_stream.c) ---------------------------------
+
+    def _stream_frames(self) -> None:
+        """Received CAN frames: packets in host mode, lines interactively. Once
+        the traffic stops, the prompt and any typed text are shown again."""
+        for frame in self.can.take(FRAMES_PER_READ):
+            if not self._interactive():
+                self._output += encode_can_frame(frame)
+                continue
+            if not self._lines_shown:
+                self._emit("\r\n")  # leave the prompt line
+                self._lines_shown = True
+            self._emit(format_line(frame))
+        if self._lines_shown and not self.can.busy():
+            self._lines_shown = False
+            if self._interactive():
+                self._emit(PROMPT + ("" if self._line_done else self._line))
 
     # ---- output helpers -------------------------------------------------------
 
@@ -314,6 +341,9 @@ class SimulatedBoard:
         self._field("cfsr", "CFSR", f"0x{f.cfsr:08X}")
         self._field("hfsr", "HFSR", f"0x{f.hfsr:08X}")
         return None
+
+    def _cmd_can(self, args: list[str]) -> str | None:
+        return self.can.command(args, self._field)
 
     def _cmd_reset(self, args: list[str]) -> str | None:
         self._after_reply = lambda: self.boot("software")
