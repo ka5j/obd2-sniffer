@@ -218,6 +218,19 @@ def test_watchdog_crash_has_no_fault_record(board) -> None:
     assert "Crash" not in report
 
 
+def test_crash_is_reported_once_like_the_firmware(board) -> None:
+    host(board)
+    run(board, "crash bus\r")
+    board.run_pending()
+    assert "Crash    BusFault" in board.take_output().decode()
+    assert "  Last crash        BusFault\r\n" in run(board, "fault\r")
+    run(board, "reset\r")  # any later restart forgets it
+    board.run_pending()
+    assert "Crash" not in board.take_output().decode()
+    host(board)
+    assert run(board, "fault\r") == "fault=none\r\nOK\r\n"
+
+
 def test_reset_replies_then_restarts(board) -> None:
     host(board)
     assert run(board, "reset\r") == "OK\r\n"
