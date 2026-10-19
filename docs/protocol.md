@@ -11,8 +11,8 @@ format changes:
 - **Host mode** is made for programs: nothing is echoed, every reply ends with `OK` or
   `ERR <reason>`, and data comes as `key=value` lines that are easy to parse.
 
-Serial settings: **115200 baud, 8 data bits, no parity, 1 stop bit**, no flow control. Lines end
-with CR, LF or CR LF.
+Serial settings: **1,500,000 baud, 8 data bits, no parity, 1 stop bit**, no flow control. Lines
+end with CR, LF or CR LF. (Why this speed: [serial-console.md](design/serial-console.md#speed).)
 
 ## Commands
 

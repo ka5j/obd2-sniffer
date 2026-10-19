@@ -20,7 +20,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define UART_LINK_BAUD 115200U
+/* Exact with the 45 MHz APB1 clock (divisor 1 + 14/16), and fast enough for a
+ * fully loaded CAN bus. Measured on the board: see docs/design/serial-console.md. */
+#define UART_LINK_BAUD 1500000U
 
 typedef struct {
     uint32_t rx_bytes;      /* bytes received and stored */

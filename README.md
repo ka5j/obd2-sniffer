@@ -140,8 +140,8 @@ Load the firmware with either method:
   drive that appears when the board is plugged in.
 - **Command line:** `cmake --build --preset firmware --target flash` (uses OpenOCD).
 
-Then open the board's serial port at 115200 baud (for example
-`screen /dev/tty.usbmodem* 115200`) and press the black reset button to see the start-up report.
+Then open the board's serial port at 1500000 baud (for example
+`screen /dev/tty.usbmodem* 1500000`) and press the black reset button to see the start-up report.
 
 The **[full getting-started guide](docs/getting-started.md)** covers installation on macOS, Linux
 and Windows, the other ways to flash the board, ready-made firmware downloads, debugging, and
