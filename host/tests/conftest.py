@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+import os
+
 import pytest
+
+# Desktop-app tests draw into memory instead of opening windows (works in CI
+# without a display). Must be set before Qt is first imported.
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from obdsniff.device import Device
 from obdsniff.simulator import SimulatedBoard, SimulatedTransport

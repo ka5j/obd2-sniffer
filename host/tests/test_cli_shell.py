@@ -205,7 +205,7 @@ def test_shell_session(device, board) -> None:
     assert "  Uptime (ms)" in text
     assert "  led on|off|auto" in text
     assert "error: invalid argument" in text
-    assert "The shell manages the console mode itself." in text
+    assert "The laptop tool manages the console mode itself." in text
     assert "Board restarted." in text
     assert "Board restarted after the crash. What it recorded:" in text
     assert "error: wrong number of arguments (usage: crash bus|usage|divzero|hard|watchdog)" in text

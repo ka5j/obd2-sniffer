@@ -1,0 +1,140 @@
+"""The board connection for the desktop app.
+
+Every request to the board waits for its reply: usually a few milliseconds,
+but up to several seconds while the board restarts. The worker owns the
+Device and runs on its own thread, so the window never freezes. The window
+and the worker only talk through Qt signals, which Qt queues between the two
+threads, so nothing is shared and no locks are needed.
+"""
+
+from __future__ import annotations
+
+import contextlib
+from collections.abc import Callable
+
+from PySide6.QtCore import QObject, QTimer, Signal, Slot
+
+from obdsniff.device import CommandError, Device, DeviceError, open_device
+from obdsniff.shell import execute_line
+
+EVENT_POLL_MS = 100  # how often to check for events such as button presses
+
+
+class DeviceWorker(QObject):
+    """Runs requests against the board and reports the results as signals."""
+
+    connected = Signal(str)  # port
+    disconnected = Signal(str)  # reason; "" when disconnected on request
+    info = Signal(object, object, object)  # version, status, fault (dicts)
+    console = Signal(object)  # rows for the console pane (list of str)
+    event = Signal(str)  # e.g. "button pressed"
+    failed = Signal(str)  # a request failed; the connection stays up
+
+    def __init__(self, opener: Callable[[str | None], Device] = open_device) -> None:
+        super().__init__()
+        self._opener = opener
+        self._device: Device | None = None
+        # A child of the worker, so it moves to the worker's thread with it.
+        self._timer = QTimer(self)
+        self._timer.setInterval(EVENT_POLL_MS)
+        self._timer.timeout.connect(self.poll)
+
+    # ---- connection -----------------------------------------------------------
+
+    @Slot(str)
+    def open_port(self, port: str) -> None:
+        """Connect to a port ("sim" for the simulator, "" to find the board)."""
+        self.close_port()
+        try:
+            self._device = self._opener(port or None)
+        except DeviceError as exc:
+            self.failed.emit(str(exc))
+            return
+        self._timer.start()
+        self.connected.emit(port)
+        self.refresh()
+
+    @Slot()
+    def close_port(self) -> None:
+        """Disconnect, handing the board's console back in interactive mode."""
+        if self._device is None:
+            return
+        self._timer.stop()
+        device, self._device = self._device, None
+        device.close()
+        self.disconnected.emit("")
+
+    def _lost(self, device: Device, exc: OSError) -> None:
+        """The port stopped working, e.g. the board was unplugged."""
+        self._timer.stop()
+        self._device = None
+        with contextlib.suppress(OSError):
+            device.close()
+        self.disconnected.emit(f"connection lost: {exc}")
+
+    def _run(self, action: Callable[[Device], None]) -> None:
+        """Run one request; turn failures into signals."""
+        device = self._device
+        if device is None:
+            self.failed.emit("not connected")
+            return
+        try:
+            action(device)
+        except CommandError as exc:
+            self.failed.emit(f"{exc.command}: {exc.reason}")
+        except DeviceError as exc:
+            self.failed.emit(str(exc))
+        except OSError as exc:
+            self._lost(device, exc)
+
+    # ---- requests -------------------------------------------------------------
+
+    def _send_info(self, device: Device) -> None:
+        self.info.emit(device.version(), device.status(), device.fault())
+
+    @Slot()
+    def refresh(self) -> None:
+        self._run(self._send_info)
+
+    @Slot(str)
+    def set_led(self, mode: str) -> None:
+        def action(device: Device) -> None:
+            device.set_led(mode)
+            self._send_info(device)
+
+        self._run(action)
+
+    @Slot()
+    def clear_fault(self) -> None:
+        def action(device: Device) -> None:
+            device.clear_fault()
+            self._send_info(device)
+
+        self._run(action)
+
+    @Slot()
+    def reset(self) -> None:
+        def action(device: Device) -> None:
+            device.reset()
+            self.console.emit(["Board restarted."])
+            self._send_info(device)
+
+        self._run(action)
+
+    @Slot(str)
+    def run_line(self, line: str) -> None:
+        """A command typed in the console pane, handled like the shell does."""
+
+        def action(device: Device) -> None:
+            self.console.emit(execute_line(device, line))
+            self._send_info(device)  # the command may have changed something
+
+        self._run(action)
+
+    @Slot()
+    def poll(self) -> None:
+        def action(device: Device) -> None:
+            for event in device.poll_events():
+                self.event.emit(event)
+
+        self._run(action)

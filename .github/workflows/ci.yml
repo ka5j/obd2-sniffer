@@ -159,6 +159,12 @@ jobs:
           cache: pip
           cache-dependency-path: host/pyproject.toml
 
+      - name: Install Qt runtime libraries
+        # The desktop-app tests draw offscreen, but Qt still loads these.
+        run: >
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends
+          libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3
+
       - name: Install
         run: python -m pip install -e ".[dev]"
 
