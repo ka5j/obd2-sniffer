@@ -46,8 +46,10 @@ def main() -> None:
     if (args.out / "coverage").exists():
         shutil.rmtree(args.out / "coverage")
     shutil.copytree(args.html, args.out / "coverage")
-    print(f"Python coverage: lines {summary['lines']['percent']:.1f}%, "
-          f"branches {summary['branches']['percent']:.1f}%")
+    print(
+        f"Python coverage: lines {summary['lines']['percent']:.1f}%, "
+        f"branches {summary['branches']['percent']:.1f}%"
+    )
 
 
 if __name__ == "__main__":

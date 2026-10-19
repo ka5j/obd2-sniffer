@@ -22,18 +22,35 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import tomllib
 import xml.etree.ElementTree as ET
 from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+import tomllib
+
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG = ROOT / "misra" / "config.toml"
 
 # Mandatory MISRA C:2012 rules (including Amendments 1-2): never deviated.
-MANDATORY = {"9.1", "12.5", "13.6", "17.3", "17.4", "17.6", "19.1", "21.13", "21.17",
-             "21.18", "21.19", "21.20", "22.2", "22.4", "22.5", "22.6"}
+MANDATORY = {
+    "9.1",
+    "12.5",
+    "13.6",
+    "17.3",
+    "17.4",
+    "17.6",
+    "19.1",
+    "21.13",
+    "21.17",
+    "21.18",
+    "21.19",
+    "21.20",
+    "22.2",
+    "22.4",
+    "22.5",
+    "22.6",
+}
 
 TAG_RE = re.compile(r"MISRA\s+(DEV-\d+)")
 
@@ -42,20 +59,27 @@ TAG_RE = re.compile(r"MISRA\s+(DEV-\d+)")
 class Finding:
     file: str
     line: int
-    rule: str        # "15.5" for MISRA, cppcheck id otherwise
-    checker: str     # "misra" or "cppcheck"
+    rule: str  # "15.5" for MISRA, cppcheck id otherwise
+    checker: str  # "misra" or "cppcheck"
     message: str
-    status: str = "open"   # open | disapplied | false_positive | deviated
-    resolution: str = ""   # disapplied rule or deviation id
+    status: str = "open"  # open | disapplied | false_positive | deviated
+    resolution: str = ""  # disapplied rule or deviation id
 
 
 def base_command(cfg: dict, cppcheck: str) -> list[str]:
     # The MISRA addon reports at "style" severity: without --enable=style its
     # findings are silently dropped.
-    return [cppcheck, "--addon=misra", f"--std={cfg['tool']['std']}",
-            f"--platform={cfg['tool']['platform']}",
-            "--enable=style,warning,performance,portability", "--inline-suppr",
-            "--xml", "--xml-version=2", "--quiet"]
+    return [
+        cppcheck,
+        "--addon=misra",
+        f"--std={cfg['tool']['std']}",
+        f"--platform={cfg['tool']['platform']}",
+        "--enable=style,warning,performance,portability",
+        "--inline-suppr",
+        "--xml",
+        "--xml-version=2",
+        "--quiet",
+    ]
 
 
 def self_test(cfg: dict, cppcheck: str, workdir: Path) -> bool:
@@ -67,8 +91,9 @@ def self_test(cfg: dict, cppcheck: str, workdir: Path) -> bool:
     canary = workdir / "canary.c"
     canary.write_text("int canary(int a) { if (a) { return 1; } return 0; }\n")
     out = workdir / "canary.xml"
-    subprocess.run(base_command(cfg, cppcheck) + [f"--output-file={out}", str(canary)],
-                   check=True, cwd=workdir)
+    subprocess.run(
+        [*base_command(cfg, cppcheck), f"--output-file={out}", str(canary)], check=True, cwd=workdir
+    )
     ids = {e.get("id") for e in ET.parse(out).getroot().iter("error")}
     return {"misra-c2012-14.4", "misra-c2012-15.5"} <= ids
 
@@ -81,8 +106,11 @@ def run_cppcheck(cfg: dict, cppcheck: str, workdir: Path) -> Path:
     (stub / "version.h").write_text('#define FW_VERSION "analysis"\n')
 
     xml_out = workdir / "cppcheck.xml"
-    cmd = base_command(cfg, cppcheck) + [f"--output-file={xml_out}",
-                                         f"--cppcheck-build-dir={workdir / 'cache'}"]
+    cmd = [
+        *base_command(cfg, cppcheck),
+        f"--output-file={xml_out}",
+        f"--cppcheck-build-dir={workdir / 'cache'}",
+    ]
     (workdir / "cache").mkdir(exist_ok=True)
     cmd += [f"-I{ROOT / p}" for p in scope["include"]] + [f"-I{stub}"]
     cmd += [f"-D{d}" for d in scope["defines"]]
@@ -110,8 +138,15 @@ def parse_findings(xml_path: Path, cfg: dict) -> list[Finding]:
             continue  # tool notices (missing system includes etc.)
         match = re.fullmatch(r"misra-c2012-(\d+\.\d+)", err_id)
         rule, checker = (match.group(1), "misra") if match else (err_id, "cppcheck")
-        findings.append(Finding(str(path.relative_to(ROOT)), int(loc.get("line", 0)), rule,
-                                checker, err.get("msg", "")))
+        findings.append(
+            Finding(
+                str(path.relative_to(ROOT)),
+                int(loc.get("line", 0)),
+                rule,
+                checker,
+                err.get("msg", ""),
+            )
+        )
     # The addon reports some findings more than once (e.g. via macro expansion).
     unique = {(f.file, f.line, f.rule): f for f in findings}
     return sorted(unique.values(), key=lambda f: (f.file, f.line, f.rule))
@@ -128,7 +163,9 @@ def validate_config(cfg: dict) -> list[str]:
                 problems.append(f"{d['id']} covers mandatory rule {rule}: not allowed")
     for d in cfg.get("disapplied", []):
         if d["category"] != "advisory":
-            problems.append(f"rule {d['rule']} is {d['category']}: only advisory rules can be disapplied")
+            problems.append(
+                f"rule {d['rule']} is {d['category']}: only advisory rules can be disapplied"
+            )
         if d["rule"] in MANDATORY:
             problems.append(f"rule {d['rule']} is mandatory and cannot be disapplied")
     return problems
@@ -176,8 +213,11 @@ def classify(findings: list[Finding], cfg: dict) -> list[str]:
         if f.status == "open" and f.checker == "misra":
             text = source_line(f.file, f.line, cache)
             for fp in cfg.get("false_positive", []):
-                if (fp["rule"] == f.rule and any(fnmatch.fnmatch(f.file, p) for p in fp["paths"])
-                        and re.search(fp["match"], text)):
+                if (
+                    fp["rule"] == f.rule
+                    and any(fnmatch.fnmatch(f.file, p) for p in fp["paths"])
+                    and re.search(fp["match"], text)
+                ):
                     f.status, f.resolution = "false_positive", fp["id"]
                     break
         if f.status != "open":
@@ -227,17 +267,26 @@ def main() -> int:
     args = parser.parse_args()
 
     cfg = tomllib.loads(CONFIG.read_text())
-    version = subprocess.run([args.cppcheck, "--version"], capture_output=True, text=True,
-                             check=True).stdout.strip().split()[-1]
+    version = (
+        subprocess.run([args.cppcheck, "--version"], capture_output=True, text=True, check=True)
+        .stdout.strip()
+        .split()[-1]
+    )
     if version != cfg["tool"]["cppcheck_version"]:
-        print(f"warning: cppcheck {version}, config expects {cfg['tool']['cppcheck_version']}; "
-              "results may differ from CI", file=sys.stderr)
+        print(
+            f"warning: cppcheck {version}, config expects {cfg['tool']['cppcheck_version']}; "
+            "results may differ from CI",
+            file=sys.stderr,
+        )
 
     args.out.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
         if not self_test(cfg, args.cppcheck, Path(tmp)):
-            print("error: self-test failed: the MISRA addon reported nothing for a file with "
-                  "known violations, so the analysis cannot be trusted", file=sys.stderr)
+            print(
+                "error: self-test failed: the MISRA addon reported nothing for a file with "
+                "known violations, so the analysis cannot be trusted",
+                file=sys.stderr,
+            )
             return 2
         xml_path = run_cppcheck(cfg, args.cppcheck, Path(tmp))
         shutil.copy(xml_path, args.out / "cppcheck.xml")
@@ -249,8 +298,9 @@ def main() -> int:
 
     open_items = [f for f in findings if f.status == "open"]
     counts = Counter(f.status for f in findings)
-    files = sorted({str(p.relative_to(ROOT)) for s in cfg["scope"]["sources"]
-                    for p in (ROOT / s).rglob("*.c")})
+    files = sorted(
+        {str(p.relative_to(ROOT)) for s in cfg["scope"]["sources"] for p in (ROOT / s).rglob("*.c")}
+    )
 
     def rule_rows(kind: str, key: str) -> list[dict]:
         rows = []
@@ -258,11 +308,19 @@ def main() -> int:
             rules = item["rules"] if "rules" in item else [item["rule"]]
             label = item.get("id", f"Rule {item.get('rule')}")
             n = sum(1 for f in findings if f.status != "open" and f.resolution == label)
-            rows.append({key: label, "rules": rules, "category": item.get("category", ""),
-                         "title": item["title"], "reason": item["reason"],
-                         "mitigation": item.get("mitigation", ""),
-                         "where": item.get("where", ""),
-                         "paths": item.get("paths", []), "instances": n})
+            rows.append(
+                {
+                    key: label,
+                    "rules": rules,
+                    "category": item.get("category", ""),
+                    "title": item["title"],
+                    "reason": item["reason"],
+                    "mitigation": item.get("mitigation", ""),
+                    "where": item.get("where", ""),
+                    "paths": item.get("paths", []),
+                    "instances": n,
+                }
+            )
         return rows
 
     summary = {
@@ -272,9 +330,13 @@ def main() -> int:
         "rules_checked": addon_rule_count(),
         "files": files,
         "passed": not open_items and not problems,
-        "counts": {"open": counts["open"], "deviated": counts["deviated"],
-                   "disapplied": counts["disapplied"],
-                   "false_positive": counts["false_positive"], "total": len(findings)},
+        "counts": {
+            "open": counts["open"],
+            "deviated": counts["deviated"],
+            "disapplied": counts["disapplied"],
+            "false_positive": counts["false_positive"],
+            "total": len(findings),
+        },
         "by_rule": dict(sorted(Counter(f.rule for f in findings).items())),
         "disapplied": rule_rows("disapplied", "rule"),
         "deviations": rule_rows("deviation", "id"),
@@ -286,28 +348,42 @@ def main() -> int:
     (args.out / "misra-summary.json").write_text(json.dumps(summary, indent=2))
 
     verdict = "PASSED" if summary["passed"] else "FAILED"
-    md = [f"### MISRA C:2012 ({summary['tool']}): {verdict}", "",
-          f"{len(files)} source files, {summary['rules_checked']} rules with automated checks.", "",
-          "| Result | Findings |", "|---|---|",
-          f"| Open (must be fixed) | {counts['open']} |",
-          f"| Covered by a documented deviation | {counts['deviated']} |",
-          f"| Advisory rule not applied | {counts['disapplied']} |",
-          f"| Documented tool false positive | {counts['false_positive']} |", ""]
+    md = [
+        f"### MISRA C:2012 ({summary['tool']}): {verdict}",
+        "",
+        f"{len(files)} source files, {summary['rules_checked']} rules with automated checks.",
+        "",
+        "| Result | Findings |",
+        "|---|---|",
+        f"| Open (must be fixed) | {counts['open']} |",
+        f"| Covered by a documented deviation | {counts['deviated']} |",
+        f"| Advisory rule not applied | {counts['disapplied']} |",
+        f"| Documented tool false positive | {counts['false_positive']} |",
+        "",
+    ]
     if open_items:
-        md += ["Open findings:", ""] + [f"- `{f.file}:{f.line}` {f.checker} {f.rule}: {f.message}"
-                                       for f in open_items] + [""]
+        md += (
+            ["Open findings:", ""]
+            + [f"- `{f.file}:{f.line}` {f.checker} {f.rule}: {f.message}" for f in open_items]
+            + [""]
+        )
     if problems:
         md += ["Configuration problems:", ""] + [f"- {p}" for p in problems] + [""]
     if stale:
-        md += ["Deviation tags that no longer cover a finding (remove them):", ""] + \
-              [f"- `{s}`" for s in stale] + [""]
+        md += (
+            ["Deviation tags that no longer cover a finding (remove them):", ""]
+            + [f"- `{s}`" for s in stale]
+            + [""]
+        )
     text = "\n".join(md)
     print(text)
     if os.environ.get("GITHUB_ACTIONS") == "true":
         # Workflow commands: show open findings as annotations on the PR diff.
         for f in open_items:
-            print(f"::error file={f.file},line={f.line},title=MISRA {f.rule}::{f.checker} {f.rule}: "
-                  f"{f.message}")
+            print(
+                f"::error file={f.file},line={f.line},title=MISRA {f.rule}::{f.checker} {f.rule}: "
+                f"{f.message}"
+            )
     if args.summary_md:
         with args.summary_md.open("a") as fh:
             fh.write(text + "\n")

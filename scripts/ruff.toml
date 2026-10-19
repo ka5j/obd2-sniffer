@@ -1,0 +1,2 @@
+# The scripts follow the laptop tool's lint and format settings.
+extend = "../host/pyproject.toml"

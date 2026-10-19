@@ -149,7 +149,7 @@ with open_device("sim") as board:  # or a port path, or None to find the board
 ```sh
 pip install -e "host[dev]"
 cd host
-ruff check . && ruff format --check .
+ruff check . ../scripts && ruff format --check . ../scripts   # the repo's scripts too
 python -m pytest --cov            # 100% line and branch coverage is required
 ```
 

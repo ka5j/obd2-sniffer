@@ -168,8 +168,8 @@ jobs:
       - name: Install
         run: python -m pip install -e ".[dev]"
 
-      - name: Lint
-        run: ruff check . && ruff format --check .
+      - name: Lint (the laptop tool and the repo's scripts)
+        run: ruff check . ../scripts && ruff format --check . ../scripts
 
       - name: Test (100% line and branch coverage required)
         run: >

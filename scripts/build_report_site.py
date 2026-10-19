@@ -45,7 +45,8 @@ a { color: var(--accent); }
 .pass { color: var(--pass); } .fail { color: var(--fail); }
 .table-wrap { overflow-x:auto; }
 table { width:100%; border-collapse:collapse; font-size:.95rem; }
-th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--border);
+         vertical-align:top; }
 th { background:var(--card); }
 td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 code { font-family: ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.88em; }
@@ -57,11 +58,14 @@ COVERAGE_HELP = [
     ("Functions", "Every function was called by at least one test."),
     ("Regions", "Every block of code, including both sides of short expressions, was run."),
     ("Branches", "Every decision (if/else, loop condition) went both ways in some test."),
-    ("MC/DC", "Modified Condition/Decision Coverage, the standard used for safety-critical "
-              "aviation and automotive software: for a decision like `if (a || b)`, each "
-              "condition was shown, on its own, to change the outcome. Measured for the C code; "
-              "Python has no MC/DC tooling, so the laptop tool is held to 100% line and branch "
-              "coverage instead."),
+    (
+        "MC/DC",
+        "Modified Condition/Decision Coverage, the standard used for safety-critical "
+        "aviation and automotive software: for a decision like `if (a || b)`, each "
+        "condition was shown, on its own, to change the outcome. Measured for the C code; "
+        "Python has no MC/DC tooling, so the laptop tool is held to 100% line and branch "
+        "coverage instead.",
+    ),
 ]
 
 
@@ -105,15 +109,19 @@ def parse_junit(label: str, path: Path) -> Suite:
             group, _, case = name.partition(".")
         else:
             group, case = classname or label, name
-        suite.cases.append(Case(group, case, float(tc.get("time", 0) or 0), status, message.strip()))
+        suite.cases.append(
+            Case(group, case, float(tc.get("time", 0) or 0), status, message.strip())
+        )
     return suite
 
 
 def page(title: str, body: str) -> str:
-    return (f"<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
-            f"<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-            f"<title>{html.escape(title)}</title><style>{STYLE}</style></head>"
-            f"<body><main>{body}</main></body></html>")
+    return (
+        f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        f'<meta name="viewport" content="width=device-width,initial-scale=1">'
+        f"<title>{html.escape(title)}</title><style>{STYLE}</style></head>"
+        f"<body><main>{body}</main></body></html>"
+    )
 
 
 def misra_page(summary: dict, meta: str, repo: str) -> str:
@@ -124,21 +132,28 @@ def misra_page(summary: dict, meta: str, repo: str) -> str:
     def locations(resolution: str) -> str:
         refs = [f for f in summary["findings"] if f["resolution"] == resolution]
         if not refs:
-            return "<span class=\"muted\">none</span>"
+            return '<span class="muted">none</span>'
         return ", ".join(
-            f"<a href=\"{blob}/{html.escape(f['file'])}#L{f['line']}\"><code>"
+            f'<a href="{blob}/{html.escape(f["file"])}#L{f["line"]}"><code>'
             f"{html.escape(f['file'])}:{f['line']}</code></a> (Rule {html.escape(f['rule'])})"
-            for f in refs)
+            for f in refs
+        )
 
-    verdict = ("<span class=\"pass\">Compliant: no open findings</span>" if summary["passed"]
-               else f"<span class=\"fail\">{counts['open']} open "
-                    f"finding{'' if counts['open'] == 1 else 's'}</span>")
-    result_rows = "".join(f"<tr><td>{label}</td><td class=\"num\">{counts[key]}</td></tr>" for key, label in [
-        ("open", "Open: must be fixed before merging"),
-        ("deviated", "Covered by a documented deviation"),
-        ("disapplied", "Advisory rule not applied, with a recorded reason"),
-        ("false_positive", "Tool false positive, with evidence"),
-    ])
+    verdict = (
+        '<span class="pass">Compliant: no open findings</span>'
+        if summary["passed"]
+        else f'<span class="fail">{counts["open"]} open '
+        f"finding{'' if counts['open'] == 1 else 's'}</span>"
+    )
+    result_rows = "".join(
+        f'<tr><td>{label}</td><td class="num">{counts[key]}</td></tr>'
+        for key, label in [
+            ("open", "Open: must be fixed before merging"),
+            ("deviated", "Covered by a documented deviation"),
+            ("disapplied", "Advisory rule not applied, with a recorded reason"),
+            ("false_positive", "Tool false positive, with evidence"),
+        ]
+    )
 
     def describe(resolution: str) -> str:
         if not resolution:
@@ -151,57 +166,84 @@ def misra_page(summary: dict, meta: str, repo: str) -> str:
     for f in summary["findings"]:
         resolution_of.setdefault(f["rule"], set()).add(describe(f["resolution"]))
     rule_rows = "".join(
-        f"<tr><td>{html.escape(rule)}</td><td class=\"num\">{n}</td>"
+        f'<tr><td>{html.escape(rule)}</td><td class="num">{n}</td>'
         f"<td>{html.escape(', '.join(sorted(resolution_of.get(rule, []))))}</td></tr>"
-        for rule, n in sorted(summary["by_rule"].items(),
-                              key=lambda kv: [int(x) if x.isdigit() else x for x in kv[0].split(".")]))
+        for rule, n in sorted(
+            summary["by_rule"].items(),
+            key=lambda kv: [int(x) if x.isdigit() else x for x in kv[0].split(".")],
+        )
+    )
 
     def items(rows: list[dict], key: str, with_mitigation: bool) -> str:
         out = []
         for r in rows:
             rules = ", ".join(r["rules"])
             category = f" ({html.escape(r['category'])})" if r["category"] else ""
-            scope = (f"<dd><b>Applies to:</b> <code>{html.escape(', '.join(r['paths']))}</code></dd>"
-                     if r.get("paths") else "")
-            mitigation = (f"<dd><b>Risk control:</b> {html.escape(r['mitigation'])}</dd>"
-                          if with_mitigation and r.get("mitigation") else "")
-            where = (f"<dd><b>Locations ({r['instances']}):</b> {locations(r[key])}</dd>"
-                     if key == "id" else f"<dd><b>Findings covered:</b> {r['instances']}</dd>")
+            scope = (
+                f"<dd><b>Applies to:</b> <code>{html.escape(', '.join(r['paths']))}</code></dd>"
+                if r.get("paths")
+                else ""
+            )
+            mitigation = (
+                f"<dd><b>Risk control:</b> {html.escape(r['mitigation'])}</dd>"
+                if with_mitigation and r.get("mitigation")
+                else ""
+            )
+            where = (
+                f"<dd><b>Locations ({r['instances']}):</b> {locations(r[key])}</dd>"
+                if key == "id"
+                else f"<dd><b>Findings covered:</b> {r['instances']}</dd>"
+            )
             if r.get("where"):
                 where += f"<dd><b>Applies to:</b> <code>{html.escape(r['where'])}</code></dd>"
-            head = (f"{html.escape(r[key])}: Rule {html.escape(rules)}" if key == "id"
-                    else html.escape(r[key]))
-            out.append(f"<dt>{head}{category}: "
-                       f"{html.escape(r['title'])}</dt><dd>{html.escape(r['reason'])}</dd>"
-                       f"{mitigation}{scope}{where}")
-        return "<dl>" + "".join(out) + "</dl>" if out else "<p class=\"muted\">None.</p>"
+            head = (
+                f"{html.escape(r[key])}: Rule {html.escape(rules)}"
+                if key == "id"
+                else html.escape(r[key])
+            )
+            out.append(
+                f"<dt>{head}{category}: "
+                f"{html.escape(r['title'])}</dt><dd>{html.escape(r['reason'])}</dd>"
+                f"{mitigation}{scope}{where}"
+            )
+        return "<dl>" + "".join(out) + "</dl>" if out else '<p class="muted">None.</p>'
 
     files = "".join(f"<li><code>{html.escape(f)}</code></li>" for f in summary["files"])
-    return page("MISRA C:2012 compliance", (
-        "<p><a href=\"index.html\">Back to report</a></p><h1>MISRA C:2012 compliance</h1>"
-        f"<p class=\"meta\">{meta}</p>"
-        "<p><b>MISRA C</b> is a set of coding rules for C, written for the automotive industry and "
-        "now used across safety-critical software. The rules ban constructs that are easy to get "
-        "wrong or behave differently between compilers, such as unchecked type conversions, "
-        "hidden side effects and unclear operator precedence. Each rule is <i>mandatory</i> "
-        "(never broken), <i>required</i> (broken only with a documented, reviewed deviation) or "
-        "<i>advisory</i> (a project may choose not to apply it, with a recorded reason).</p>"
-        f"<h2>Result: {verdict}</h2>"
-        f"<p>Checked with {html.escape(summary['tool'])}, which has automated checks for "
-        f"{summary['rules_checked']} rules, analysing for the target's 32-bit Arm type sizes. "
-        "Every change is checked in CI; any finding that is not fixed or covered below blocks "
-        "the merge. Rules that no tool can decide on its own are covered by code review.</p>"
-        f"<div class=\"table-wrap\"><table><tr><th>Findings</th><th>Count</th></tr>{result_rows}</table></div>"
-        "<h2>Deviations from required rules</h2>"
-        "<p>Places where a required rule is broken on purpose. Each one is tagged in the source "
-        "(<code>/* MISRA DEV-xx */</code>) and only covers the rules listed for it.</p>"
-        + items(summary["deviations"], "id", True)
-        + "<h2>Advisory rules not applied</h2>" + items(summary["disapplied"], "rule", False)
-        + "<h2>Tool false positives</h2>" + items(summary.get("false_positives", []), "id", False)
-        + "<h2>Findings by rule</h2><div class=\"table-wrap\"><table><tr><th>Rule</th><th>Findings</th>"
-        f"<th>Resolved by</th></tr>{rule_rows}</table></div>"
-        f"<h2>Files analysed</h2><p>Project code only; ST's HAL and CMSIS (third-party) are excluded.</p>"
-        f"<ul>{files}</ul>"))
+    return page(
+        "MISRA C:2012 compliance",
+        (
+            '<p><a href="index.html">Back to report</a></p><h1>MISRA C:2012 compliance</h1>'
+            f'<p class="meta">{meta}</p>'
+            "<p><b>MISRA C</b> is a set of coding rules for C, written for the automotive industry "
+            "and now used across safety-critical software. The rules ban constructs that are easy "
+            "to get wrong or behave differently between compilers, such as unchecked type "
+            "conversions, hidden side effects and unclear operator precedence. Each rule is "
+            "<i>mandatory</i> "
+            "(never broken), <i>required</i> (broken only with a documented, reviewed deviation) "
+            "or <i>advisory</i> (a project may choose not to apply it, with a recorded reason).</p>"
+            f"<h2>Result: {verdict}</h2>"
+            f"<p>Checked with {html.escape(summary['tool'])}, which has automated checks for "
+            f"{summary['rules_checked']} rules, analysing for the target's 32-bit Arm type sizes. "
+            "Every change is checked in CI; any finding that is not fixed or covered below blocks "
+            "the merge. Rules that no tool can decide on its own are covered by code review.</p>"
+            '<div class="table-wrap"><table><tr><th>Findings</th><th>Count</th></tr>'
+            f"{result_rows}</table></div>"
+            "<h2>Deviations from required rules</h2>"
+            "<p>Places where a required rule is broken on purpose. Each one is tagged in the "
+            "source (<code>/* MISRA DEV-xx */</code>) and only covers the rules listed for it.</p>"
+            + items(summary["deviations"], "id", True)
+            + "<h2>Advisory rules not applied</h2>"
+            + items(summary["disapplied"], "rule", False)
+            + "<h2>Tool false positives</h2>"
+            + items(summary.get("false_positives", []), "id", False)
+            + '<h2>Findings by rule</h2><div class="table-wrap"><table>'
+            "<tr><th>Rule</th><th>Findings</th>"
+            f"<th>Resolved by</th></tr>{rule_rows}</table></div>"
+            "<h2>Files analysed</h2>"
+            "<p>Project code only; ST's HAL and CMSIS (third-party) are excluded.</p>"
+            f"<ul>{files}</ul>"
+        ),
+    )
 
 
 def readable(case_name: str) -> str:
@@ -212,10 +254,19 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out", type=Path, default=Path("site"))
     parser.add_argument("--junit", action="append", default=[], metavar="LABEL=FILE")
-    parser.add_argument("--coverage", action="append", default=[], metavar="LABEL=DIR",
-                        help="directory with coverage-summary.json and a coverage/ HTML report")
-    parser.add_argument("--misra", type=Path, metavar="DIR",
-                        help="directory with misra-summary.json from scripts/misra.py")
+    parser.add_argument(
+        "--coverage",
+        action="append",
+        default=[],
+        metavar="LABEL=DIR",
+        help="directory with coverage-summary.json and a coverage/ HTML report",
+    )
+    parser.add_argument(
+        "--misra",
+        type=Path,
+        metavar="DIR",
+        help="directory with misra-summary.json from scripts/misra.py",
+    )
     args = parser.parse_args()
 
     if args.out.exists():
@@ -247,9 +298,14 @@ def main() -> None:
     ref = os.environ.get("GITHUB_REF_NAME", "")
     repo = os.environ.get("GITHUB_REPOSITORY", "ka5j/obd2-sniffer")
     when = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    commit_link = (f'<a href="https://github.com/{repo}/commit/{os.environ["GITHUB_SHA"]}">{sha}</a>'
-                   if os.environ.get("GITHUB_SHA") else sha)
-    meta = f"Generated {when} from commit {commit_link}" + (f" on <code>{html.escape(ref)}</code>" if ref else "")
+    commit_link = (
+        f'<a href="https://github.com/{repo}/commit/{os.environ["GITHUB_SHA"]}">{sha}</a>'
+        if os.environ.get("GITHUB_SHA")
+        else sha
+    )
+    meta = f"Generated {when} from commit {commit_link}" + (
+        f" on <code>{html.escape(ref)}</code>" if ref else ""
+    )
 
     total = sum(len(s.cases) for s in suites)
     passed = sum(s.count("passed") for s in suites)
@@ -261,21 +317,37 @@ def main() -> None:
         rows = []
         for c in s.cases:
             cls = "pass" if c.status == "passed" else ("fail" if c.status == "failed" else "muted")
-            detail = f"<br><span class=\"muted\">{html.escape(c.message[:300])}</span>" if c.message else ""
-            rows.append(f"<tr><td>{html.escape(c.suite)}</td><td>{html.escape(readable(c.name))}"
-                        f"<br><code class=\"muted\">{html.escape(c.name)}</code>{detail}</td>"
-                        f"<td class=\"{cls}\">{c.status}</td><td class=\"num\">{c.seconds:.3f} s</td></tr>")
+            detail = (
+                f'<br><span class="muted">{html.escape(c.message[:300])}</span>'
+                if c.message
+                else ""
+            )
+            rows.append(
+                f"<tr><td>{html.escape(c.suite)}</td><td>{html.escape(readable(c.name))}"
+                f'<br><code class="muted">{html.escape(c.name)}</code>{detail}</td>'
+                f'<td class="{cls}">{c.status}</td><td class="num">{c.seconds:.3f} s</td></tr>'
+            )
         sections.append(
             f"<h2>{html.escape(s.label)}: {s.count('passed')} of {len(s.cases)} passed</h2>"
-            f"<div class=\"table-wrap\"><table><tr><th>Module</th><th>Test</th><th>Result</th><th>Time</th></tr>"
-            f"{''.join(rows)}</table></div>")
-    (args.out / "tests.html").write_text(page("Test results", (
-        f"<p><a href=\"index.html\">Back to report</a></p><h1>Test results</h1><p class=\"meta\">{meta}</p>"
-        + "".join(sections))))
+            '<div class="table-wrap"><table>'
+            "<tr><th>Module</th><th>Test</th><th>Result</th><th>Time</th></tr>"
+            f"{''.join(rows)}</table></div>"
+        )
+    (args.out / "tests.html").write_text(
+        page(
+            "Test results",
+            (
+                '<p><a href="index.html">Back to report</a></p><h1>Test results</h1>'
+                f'<p class="meta">{meta}</p>' + "".join(sections)
+            ),
+        )
+    )
 
     # ---- index page ----
-    cards = [f"<div class=\"card\"><div class=\"muted\">Tests passed</div>"
-             f"<div class=\"value {'pass' if failed == 0 else 'fail'}\">{passed} / {total}</div></div>"]
+    cards = [
+        f'<div class="card"><div class="muted">Tests passed</div>'
+        f'<div class="value {"pass" if failed == 0 else "fail"}">{passed} / {total}</div></div>'
+    ]
     cov_sections = []
     for label, summary, dest in coverages:
         # Headline the strongest measure available: MC/DC for C, branch
@@ -283,17 +355,26 @@ def main() -> None:
         headline = "mcdc" if "mcdc" in summary else "branches"
         name = "MC/DC" if headline == "mcdc" else "branch"
         pct = summary[headline]["percent"]
-        cards.append(f"<div class=\"card\"><div class=\"muted\">{html.escape(label)}: {name} coverage</div>"
-                     f"<div class=\"value {'pass' if summary.get('passed') else 'fail'}\">{pct:.0f}%</div></div>")
+        cards.append(
+            f'<div class="card"><div class="muted">{html.escape(label)}: {name} coverage</div>'
+            f'<div class="value {"pass" if summary.get("passed") else "fail"}">'
+            f"{pct:.0f}%</div></div>"
+        )
         rows = "".join(
-            f"<tr><td>{html.escape(v['label'])}</td><td class=\"num\">{v['covered']} / {v['count']}</td>"
-            f"<td class=\"num {'pass' if v['percent'] >= summary['threshold'] else 'fail'}\">{v['percent']:.1f}%</td></tr>"
-            for k, v in summary.items() if isinstance(v, dict))
+            f"<tr><td>{html.escape(v['label'])}</td>"
+            f'<td class="num">{v["covered"]} / {v["count"]}</td>'
+            f'<td class="num {"pass" if v["percent"] >= summary["threshold"] else "fail"}">'
+            f"{v['percent']:.1f}%</td></tr>"
+            for k, v in summary.items()
+            if isinstance(v, dict)
+        )
         cov_sections.append(
             f"<h2>Code coverage: {html.escape(label)}</h2>"
             f"<p>Required: {summary['threshold']:g}% on every measure. "
-            f"<a href=\"{dest}/index.html\">Open the line-by-line coverage report</a>.</p>"
-            f"<div class=\"table-wrap\"><table><tr><th>Measure</th><th>Covered</th><th>Percent</th></tr>{rows}</table></div>")
+            f'<a href="{dest}/index.html">Open the line-by-line coverage report</a>.</p>'
+            '<div class="table-wrap"><table>'
+            f"<tr><th>Measure</th><th>Covered</th><th>Percent</th></tr>{rows}</table></div>"
+        )
 
     misra_section = ""
     misra_file = args.misra / "misra-summary.json" if args.misra else None
@@ -301,34 +382,40 @@ def main() -> None:
         misra = json.loads(misra_file.read_text())
         (args.out / "misra.html").write_text(misra_page(misra, meta, repo))
         open_n = misra["counts"]["open"]
-        cards.append(f"<div class=\"card\"><div class=\"muted\">MISRA C:2012 open findings</div>"
-                     f"<div class=\"value {'pass' if misra['passed'] else 'fail'}\">{open_n}</div></div>")
+        cards.append(
+            f'<div class="card"><div class="muted">MISRA C:2012 open findings</div>'
+            f'<div class="value {"pass" if misra["passed"] else "fail"}">{open_n}</div></div>'
+        )
         misra_section = (
             "<h2>Coding standard: MISRA C:2012</h2>"
             "<p>All project C code is checked against MISRA C, the coding rules used for "
             f"automotive and other safety-critical software. Open findings: {open_n}. "
             f"{misra['counts']['deviated']} findings are covered by "
             f"{len(misra['deviations'])} documented deviations. "
-            "<a href=\"misra.html\">See the full compliance report</a>.</p>")
+            '<a href="misra.html">See the full compliance report</a>.</p>'
+        )
     elif args.misra:
         print(f"warning: {misra_file} not found, skipping MISRA section", file=sys.stderr)
 
-    help_items = "".join(f"<dt>{html.escape(k)}</dt><dd>{html.escape(v)}</dd>" for k, v in COVERAGE_HELP)
+    help_items = "".join(
+        f"<dt>{html.escape(k)}</dt><dd>{html.escape(v)}</dd>" for k, v in COVERAGE_HELP
+    )
     body = (
         "<h1>OBD2 CAN Sniffer: quality report</h1>"
-        f"<p class=\"meta\">{meta}. <a href=\"https://github.com/{repo}\">Source on GitHub</a></p>"
-        "<p>This page is rebuilt automatically every time code is merged. It shows the results of the "
-        "automated tests, how much of the code those tests exercise, and compliance with the "
+        f'<p class="meta">{meta}. <a href="https://github.com/{repo}">Source on GitHub</a></p>'
+        "<p>This page is rebuilt automatically every time code is merged. It shows the results of "
+        "the automated tests, how much of the code those tests exercise, and compliance with the "
         "MISRA C coding standard.</p>"
-        f"<div class=\"cards\">{''.join(cards)}</div>"
+        f'<div class="cards">{"".join(cards)}</div>'
         f"<h2>Tests</h2><p>{passed} of {total} automated tests passed. "
-        "<a href=\"tests.html\">See every test and its result</a>.</p>"
+        '<a href="tests.html">See every test and its result</a>.</p>'
         + "".join(cov_sections)
         + misra_section
         + f"<h2>What the coverage measures mean</h2><dl>{help_items}</dl>"
-        "<p class=\"muted\">C coverage is measured on the hardware-independent firmware code, which "
+        '<p class="muted">C coverage is measured on the hardware-independent firmware code, which '
         "runs on a normal computer. Code that drives the microcontroller's hardware directly is "
-        "tested on the board itself.</p>")
+        "tested on the board itself.</p>"
+    )
     (args.out / "index.html").write_text(page("OBD2 CAN Sniffer: quality report", body))
     (args.out / ".nojekyll").write_text("")
     print(f"Report site written to {args.out / 'index.html'}")
