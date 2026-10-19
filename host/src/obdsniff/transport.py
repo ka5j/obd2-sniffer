@@ -37,7 +37,11 @@ class SerialTransport(Transport):
     1.5 Mbaud, is applied in two steps through a placeholder speed: the
     ST-LINK briefly switches to it and bytes in flight are lost. So reads
     don't use the port's timeout; they wait by polling how many bytes have
-    arrived."""
+    arrived.
+
+    The port is opened for exclusive use: macOS and Linux otherwise let two
+    programs open it at once, and they then split the board's output between
+    them. A second program gets a clear "busy" error instead."""
 
     def __init__(
         self,
@@ -46,7 +50,7 @@ class SerialTransport(Transport):
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
-        self._serial = serial.Serial(port, baud_rate, timeout=0)
+        self._serial = serial.Serial(port, baud_rate, timeout=0, exclusive=True)
         self._clock = clock
         self._sleep = sleep
 

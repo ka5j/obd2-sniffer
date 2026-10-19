@@ -10,7 +10,7 @@ from __future__ import annotations
 import struct
 from collections.abc import Callable
 
-from obdsniff.packets import CanFrame
+from obdsniff.packets import CanFrame, format_frame
 
 APB1_HZ = 45_000_000  # the board's CAN clock
 QUEUE_FRAMES = 409  # 8 KiB of 20-byte frames, as on the board
@@ -68,13 +68,7 @@ def frame_bits(frame: CanFrame) -> int:
 
 def format_line(frame: CanFrame) -> str:
     """The board's text form of a frame (lib/src/can_text.c)."""
-    seconds, micros = divmod(frame.timestamp_us, 1_000_000)
-    ident = f"{frame.id:08X}" if frame.extended else f"{frame.id:03X}"
-    if frame.rtr:
-        tail = "  remote request"
-    else:
-        tail = ("  " + " ".join(f"{b:02X}" for b in frame.data)) if frame.data else ""
-    return f"  {seconds}.{micros:06d}  {ident:<10}[{frame.length}]{tail}\r\n"
+    return format_frame(frame) + "\r\n"
 
 
 class SimulatedCan:

@@ -26,7 +26,13 @@ obdsniff led on                    # on | off | auto (heartbeat)
 obdsniff fault                     # details of the last crash, if any (--clear forgets it)
 obdsniff reset                     # restart the board and reconnect
 obdsniff crash bus                 # debug firmware: crash on purpose, show what was recorded
-obdsniff monitor                   # print events (button presses) as they happen
+obdsniff can loopback              # CAN in loopback: the board receives its own frames
+obdsniff can test                  # send 10,000 test frames and check that every one arrives
+obdsniff can send 7DF 0201050000000000   # one frame (hex, as in Linux's cansend)
+obdsniff can                       # CAN status: frames received, dropped, error counters
+obdsniff can off
+obdsniff monitor                   # print CAN frames and events as they happen
+obdsniff monitor --log trace.log   # ...and save the frames in candump format
 obdsniff shell                     # interactive session
 obdsniff gui                       # desktop app (see below)
 ```
@@ -43,8 +49,42 @@ $ obdsniff --port sim --json status
 }
 ```
 
-Exit codes: `0` success, `1` the board rejected the command, `2` no connection or invalid
-arguments.
+Exit codes: `0` success, `1` the board rejected the command (or `can test` found a problem),
+`2` no connection or invalid arguments.
+
+Only one program can use the board's port at a time. A second one (another `obdsniff`, or a
+serial terminal) gets a clear "in use" error, instead of the two silently splitting the board's
+output between them.
+
+### CAN
+
+The board's CAN controller has a **loopback** mode: frames it sends are received back
+internally and nothing reaches its pins. Everything from capture to display can be tested with
+the board alone:
+
+```
+$ obdsniff can test --count 50000
+CAN loopback test: 50000 frames at 500 kbit/s, as fast as the bus allows
+  Received   50000 of 50000, none lost
+  Content    all correct, in order
+  Damaged    0 packets
+  Bus rate   4,212 frames/s (board timestamps)
+  Spacing    234 / 238 / 252 us (min / median / max)
+Passed.
+```
+
+Each test frame carries its own number, so `can test` checks every frame arrived, in order and
+undamaged. `monitor` shows frames as the board prints them:
+
+```
+  1277.564848  123       [8]  24 00 00 00 DB FF FF FF
+  1277.565850  123       [8]  25 00 00 00 DA FF FF FF
+```
+
+`--log FILE` also writes them in the candump format of Linux's can-utils, which tools such as
+SavvyCAN can open. With `--json`, each frame is one JSON object per line. When `monitor` stops it
+reports how many frames arrived and how many were lost, from the gaps in the board's capture
+numbers.
 
 When it finishes, the tool switches the board back to interactive mode, so a serial terminal
 opened afterwards works as usual.
@@ -83,8 +123,15 @@ buttons for the LED, restarting the board and clearing the crash record. The con
 takes the same commands as the shell, and events such as button presses appear there as they
 happen.
 
+The **CAN bus** tab starts and stops loopback at a chosen bit rate, sends test frames, and
+shows the newest frames as they arrive, with counts of frames received, frames per second, frames
+lost and damaged packets:
+
+![The CAN tab after 4,000 test frames in loopback, none lost](../docs/images/desktop-app-can.png)
+
 The connection to the board runs on its own thread, so the window stays responsive even while the
-board restarts. When the app closes, the board is handed back in interactive mode.
+board restarts or thousands of frames a second stream in. When the app closes, the board is
+handed back in interactive mode.
 
 ## As a library
 
@@ -112,8 +159,12 @@ python -m pytest --cov            # 100% line and branch coverage is required
 | `transport.py` | Byte transport: the serial port (pyserial) |
 | `simulator.py` | Software model of the board's console, used by `--port sim` and the tests |
 | `ports.py` | Finds the board by its ST-LINK USB IDs |
+| `packets.py` | Binary frame packets: COBS, CRC, decoding; separates them from the console text |
+| `cantest.py` | `can test`: runs a test series and checks every frame |
+| `sim_can.py` | The simulator's CAN controller (loopback, test traffic) |
 | `cli.py`, `shell.py`, `output.py` | Command line, interactive shell, formatting |
 | `gui/window.py` | Desktop app window: displays results, turns clicks into requests |
 | `gui/worker.py` | Desktop app's board connection, run on its own thread; talks to the window only through Qt signals |
+| `gui/can_panel.py` | The app's CAN tab: loopback, test traffic, live frame table and counters |
 
 The serial protocol is described in [docs/protocol.md](../docs/protocol.md).

@@ -229,6 +229,15 @@ def test_open_reports_unusable_port(monkeypatch) -> None:
         open_device("/dev/x")
 
 
+def test_open_explains_a_port_in_use(monkeypatch) -> None:
+    def locked(port: str) -> None:
+        raise serial.SerialException("Could not exclusively lock port /dev/x: [Errno 35]")
+
+    monkeypatch.setattr(device_module, "SerialTransport", locked)
+    with pytest.raises(DeviceError, match="in use by another program"):
+        open_device("/dev/x")
+
+
 def test_open_closes_port_when_board_does_not_answer(monkeypatch) -> None:
     transport = ScriptedTransport()
     monkeypatch.setattr(device_module, "SerialTransport", lambda port: transport)
