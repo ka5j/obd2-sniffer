@@ -13,7 +13,7 @@
 /* Interactive mode: after this long without frames, show the prompt again. */
 #define QUIET_MS 200U
 
-static uint32_t sent;
+static uint32_t frames_streamed;
 static bool lines_shown; /* frame lines printed since the prompt was last shown */
 static uint32_t last_line_ms;
 
@@ -36,26 +36,37 @@ static void show_line(const can_frame_t *frame, uint32_t now_ms)
     last_line_ms = now_ms;
 }
 
+/* Send the next frame if there is one and its output fits, leaving the
+ * space reserved for command replies. False if nothing was sent. */
+static bool stream_one(bool interactive, uint32_t now_ms)
+{
+    /* The longest output one frame can produce, in either form. */
+    size_t room = interactive ? (CAN_TEXT_MAX + 2U) : PACKET_CAN_FRAME_MAX;
+    can_frame_t frame;
+
+    if (uart_link_tx_free() < (CONSOLE_REPLY_SPACE + room)) {
+        return false;
+    }
+    if (!can_drv_receive(&frame)) {
+        return false;
+    }
+    if (interactive) {
+        show_line(&frame, now_ms);
+    } else {
+        send_packet(&frame);
+    }
+    frames_streamed++;
+    return true;
+}
+
 void can_stream_task(uint32_t now_ms)
 {
     bool interactive = console_is_interactive();
-    /* The longest output one frame can produce, in either form. */
-    size_t room = interactive ? (CAN_TEXT_MAX + 2U) : PACKET_CAN_FRAME_MAX;
 
     for (uint32_t i = 0U; i < FRAMES_PER_PASS; i++) {
-        can_frame_t frame;
-        if (uart_link_tx_free() < (CONSOLE_REPLY_SPACE + room)) {
+        if (!stream_one(interactive, now_ms)) {
             break;
         }
-        if (!can_drv_receive(&frame)) {
-            break;
-        }
-        if (interactive) {
-            show_line(&frame, now_ms);
-        } else {
-            send_packet(&frame);
-        }
-        sent++;
     }
 
     if (lines_shown && ((now_ms - last_line_ms) >= QUIET_MS)) {
@@ -66,5 +77,5 @@ void can_stream_task(uint32_t now_ms)
 
 uint32_t can_stream_sent(void)
 {
-    return sent;
+    return frames_streamed;
 }

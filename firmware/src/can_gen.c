@@ -7,7 +7,7 @@
 
 static bool running;
 static uint32_t total;
-static uint32_t sent;
+static uint32_t frames_sent;
 static uint32_t period_us; /* 0: as fast as possible */
 static uint32_t next_due_us;
 
@@ -18,7 +18,7 @@ bool can_gen_start(uint32_t count, uint32_t per_second)
         return false;
     }
     total = count;
-    sent = 0U;
+    frames_sent = 0U;
     period_us = (per_second == 0U) ? 0U : (US_PER_S / per_second);
     next_due_us = timebase_us();
     running = true;
@@ -37,7 +37,7 @@ bool can_gen_running(void)
 
 uint32_t can_gen_sent(void)
 {
-    return sent;
+    return frames_sent;
 }
 
 uint32_t can_gen_count(void)
@@ -73,15 +73,15 @@ void can_gen_task(void)
         return;
     }
     /* Fill free mailboxes, at most three per pass, so the loop stays quick. */
-    while ((sent < total) && due() && (can_drv_tx_free() > 0U)) {
-        can_frame_t f = numbered_frame(sent);
+    while ((frames_sent < total) && due() && (can_drv_tx_free() > 0U)) {
+        can_frame_t f = numbered_frame(frames_sent);
         if (!can_drv_send(&f)) {
             break;
         }
-        sent++;
+        frames_sent++;
         next_due_us += period_us;
     }
-    if (sent >= total) {
+    if (frames_sent >= total) {
         running = false;
     }
 }

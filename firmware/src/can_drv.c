@@ -1,5 +1,7 @@
 #include "can_drv.h"
 
+#include <string.h>
+
 #include "board.h"
 #include "can_timing.h"
 #include "frame_queue.h"
@@ -60,8 +62,10 @@ void CAN1_RX0_IRQHandler(void)
 {
     uint32_t start = timebase_cycles();
     CAN_RxHeaderTypeDef header;
-    uint8_t data[CAN_MAX_DLC] = {0U};
+    uint8_t data[CAN_MAX_DLC];
     can_frame_t frame;
+
+    (void)memset(data, 0, sizeof data);
 
     while (HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0) > 0U) {
         if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &header, data) != HAL_OK) {
@@ -165,9 +169,10 @@ bool can_drv_start_loopback(uint32_t bitrate)
     hcan1.Init.ReceiveFifoLocked = DISABLE;
     hcan1.Init.TransmitFifoPriority = ENABLE; /* send in the order queued, not by ID */
 
+    const uint32_t interrupts =
+        CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_RX_FIFO0_OVERRUN; /* MISRA DEV-02 */
     if ((HAL_CAN_Init(&hcan1) != HAL_OK) || !accept_all() ||
-        (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING |
-                                                  CAN_IT_RX_FIFO0_OVERRUN) != HAL_OK)) {
+        (HAL_CAN_ActivateNotification(&hcan1, interrupts) != HAL_OK)) {
         (void)HAL_CAN_DeInit(&hcan1);
         return false;
     }
