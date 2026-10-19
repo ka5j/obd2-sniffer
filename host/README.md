@@ -20,12 +20,15 @@ pip install -e host
 ```sh
 obdsniff ports                     # list serial ports; the Nucleo is marked
 obdsniff info                      # firmware version and board status
+obdsniff version                   # firmware version and chip identity only
 obdsniff status                    # uptime, last reset, clocks, serial statistics
 obdsniff led on                    # on | off | auto (heartbeat)
-obdsniff fault                     # details of the last crash, if any
+obdsniff fault                     # details of the last crash, if any (--clear forgets it)
 obdsniff reset                     # restart the board and reconnect
+obdsniff crash bus                 # debug firmware: crash on purpose, show what was recorded
 obdsniff monitor                   # print events (button presses) as they happen
 obdsniff shell                     # interactive session
+obdsniff gui                       # desktop app (see below)
 ```
 
 The board is found automatically. Use `--port /dev/tty.usbmodem1103` (or `COM5` on Windows) to

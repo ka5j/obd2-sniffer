@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/ka5j/obd2-sniffer/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/ka5j/obd2-sniffer/actions/workflows/ci.yml)
 [![Quality report](https://img.shields.io/badge/quality%20report-tests%20%26%20coverage-0969da)](https://ka5j.github.io/obd2-sniffer/)
+[![Latest release](https://img.shields.io/github/v/release/ka5j/obd2-sniffer)](https://github.com/ka5j/obd2-sniffer/releases/latest)
 
 A small device that plugs into a car's diagnostic port, listens to the conversations between the
 car's computers, and shows live engine data on a laptop. It is built from scratch on an STM32
@@ -130,6 +131,9 @@ cd obd2-sniffer
 cmake --workflow --preset firmware        # configure and build in one step
 ```
 
+Or skip the build: the [latest release](https://github.com/ka5j/obd2-sniffer/releases/latest) has
+ready-made firmware files, checked on a board before publishing.
+
 Load the firmware with either method:
 
 - **Drag and drop:** copy `build/firmware/firmware/obd2_sniffer.bin` onto the **NODE_F446RE** USB
@@ -161,7 +165,7 @@ port. See [docs/design/testing.md](docs/design/testing.md) (including the
 Each document starts with a short plain-language summary, followed by the engineering detail.
 
 - [Serial console and protocol](docs/protocol.md): commands, and how programs talk to the board
-- [Laptop tool](host/README.md): command line, shell, simulator, Python library
+- [Laptop tool](host/README.md): desktop app, command line, shell, simulator, Python library
 - [Hardware and wiring](docs/design/hardware.md)
 - [Build system and start-up sequence](docs/design/build-and-boot.md)
 - [Testing and code coverage](docs/design/testing.md)

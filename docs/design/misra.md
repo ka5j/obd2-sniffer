@@ -132,5 +132,5 @@ third party.
 
 ```sh
 brew install cppcheck            # or build 2.21.0 from source to match CI exactly
-python3 scripts/misra.py         # writes build/misra/misra-summary.json and cppcheck.xml
+python3 scripts/misra.py         # Python 3.11+; writes build/misra/misra-summary.json
 ```

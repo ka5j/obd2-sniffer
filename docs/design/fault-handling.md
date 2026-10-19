@@ -14,7 +14,7 @@ firmware does both.
   processor was doing (the exact instruction address, the reason, and the memory address involved)
   in a small area of memory that survives a restart, then restarts.
 - **Explaining it afterwards.** On the next start-up, the report includes a line such as
-  `Crash    BusFault at 0x08000D9E: bus error on data access`, and the `fault` command shows the
+  `Crash    BusFault at 0x08000D8E: bus error on data access`, and the `fault` command shows the
   full details. The start-up report also always says why the chip last restarted (power-on, reset
   button, watchdog, software).
 
@@ -30,24 +30,26 @@ on purpose, so the recovery path is exercised rather than assumed.
 
 ## What gets reported
 
-Example output (addresses depend on the build):
+Output from the board after `crash bus` (addresses depend on the build):
 
 ```
 obd> fault
-  Last crash      BusFault
-  Cause           bus error on data access
-  At address (PC) 0x08000D9E
-  Called from (LR) 0x08000E61
-  Bad address     0x08080000
-  Crash time (ms) 15230
-  CFSR            0x00008200
-  HFSR            0x00000000
+  Last crash        BusFault
+  Cause             bus error on data access
+  At address (PC)   0x08000D8E
+  Called from (LR)  0x08000EB9
+  Bad address       0x08080000
+  Crash time (ms)   1485
+  CFSR              0x00008200
+  HFSR              0x00000000
 ```
 
 The PC can be turned into a file and line number on the development machine:
 
 ```sh
-arm-none-eabi-addr2line -e build/firmware/firmware/obd2_sniffer.elf 0x08000D9E
+arm-none-eabi-addr2line -f -e build/firmware/firmware/obd2_sniffer.elf 0x08000D8E
+# read_bad_address
+# .../firmware/src/fault.c:87
 ```
 
 Crash testing (debug builds only):
