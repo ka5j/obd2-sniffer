@@ -29,6 +29,8 @@ class DeviceWorker(QObject):
     console = Signal(object)  # rows for the console pane (list of str)
     event = Signal(str)  # e.g. "button pressed"
     failed = Signal(str)  # a request failed; the connection stays up
+    frames = Signal(object, int)  # new CAN frames (list), damaged packets so far
+    can_state = Signal(object)  # the board's `can` status (dict)
 
     def __init__(self, opener: Callable[[str | None], Device] = open_device) -> None:
         super().__init__()
@@ -91,6 +93,7 @@ class DeviceWorker(QObject):
 
     def _send_info(self, device: Device) -> None:
         self.info.emit(device.version(), device.status(), device.fault())
+        self.can_state.emit(device.can_status())
 
     @Slot()
     def refresh(self) -> None:
@@ -131,10 +134,36 @@ class DeviceWorker(QObject):
 
         self._run(action)
 
+    @Slot(int)
+    def can_loopback(self, kbps: int) -> None:
+        def action(device: Device) -> None:
+            device.can_loopback(kbps)
+            self.can_state.emit(device.can_status())
+
+        self._run(action)
+
+    @Slot()
+    def can_off(self) -> None:
+        def action(device: Device) -> None:
+            device.can_off()
+            self.can_state.emit(device.can_status())
+
+        self._run(action)
+
+    @Slot(int)
+    def can_test(self, count: int) -> None:
+        self._run(lambda device: device.can_test(count))
+
     @Slot()
     def poll(self) -> None:
+        """New events and CAN frames. Frames go out as one batch per poll,
+        not one signal each: there can be thousands a second."""
+
         def action(device: Device) -> None:
             for event in device.poll_events():
                 self.event.emit(event)
+            frames = device.poll_frames()
+            if frames:
+                self.frames.emit(frames, device.bad_packets)
 
         self._run(action)

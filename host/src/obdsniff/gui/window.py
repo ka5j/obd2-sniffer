@@ -23,12 +23,14 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QPushButton,
     QSplitter,
+    QTabWidget,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
+from obdsniff.gui.can_panel import CanPanel
 from obdsniff.gui.worker import DeviceWorker
 from obdsniff.output import LABELS
 from obdsniff.ports import PortInfo, list_serial_ports
@@ -62,9 +64,13 @@ class MainWindow(QMainWindow):
         self._build_connection_bar()
         self._build_board_panel()
         self._build_console()
+        self.can_panel = CanPanel()
+        self.tabs = QTabWidget()
+        self.tabs.addTab(self._console_panel, "Console")
+        self.tabs.addTab(self.can_panel, "CAN bus")
         splitter = QSplitter()
         splitter.addWidget(self._board_panel)
-        splitter.addWidget(self._console_panel)
+        splitter.addWidget(self.tabs)
         splitter.setStretchFactor(1, 1)
         splitter.setSizes([440, 660])
         central = QWidget()
@@ -142,7 +148,7 @@ class MainWindow(QMainWindow):
         self.console_input.setFont(mono)
         self.console_input.setPlaceholderText("Type a board command and press Enter, e.g. help")
         self.console_input.returnPressed.connect(self._on_console_entered)
-        box = QGroupBox("Console")
+        box = QWidget()  # shown in the "Console" tab
         layout = QVBoxLayout(box)
         layout.addWidget(self.console_view, 1)
         layout.addWidget(self.console_input)
@@ -162,6 +168,11 @@ class MainWindow(QMainWindow):
         worker.console.connect(self._on_console_rows)
         worker.event.connect(self._on_event)
         worker.failed.connect(self._on_failed)
+        self.can_panel.loopback_requested.connect(worker.can_loopback)
+        self.can_panel.off_requested.connect(worker.can_off)
+        self.can_panel.test_requested.connect(worker.can_test)
+        worker.frames.connect(self.can_panel.on_frames)
+        worker.can_state.connect(self.can_panel.on_can_state)
 
     # ---- ports ----------------------------------------------------------------
 
@@ -244,6 +255,7 @@ class MainWindow(QMainWindow):
             self.console_input,
         ):
             widget.setEnabled(enabled)
+        self.can_panel.set_enabled(enabled)
         self.clear_fault_button.setEnabled(False)  # until a crash is shown
 
     def _on_info(

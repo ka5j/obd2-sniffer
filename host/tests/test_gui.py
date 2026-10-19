@@ -11,15 +11,17 @@ import sys
 
 import pytest
 import serial
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QApplication
 
 import obdsniff
 import obdsniff.cli as cli
 from obdsniff import gui
 from obdsniff.device import Device, DeviceError, ProtocolError
+from obdsniff.gui.can_panel import MAX_ROWS, FrameTableModel, frame_row
 from obdsniff.gui.window import SIMULATOR, MainWindow
 from obdsniff.gui.worker import DeviceWorker
+from obdsniff.packets import CanFrame
 from obdsniff.ports import PortInfo
 from obdsniff.simulator import SimulatedBoard, SimulatedTransport
 
@@ -255,3 +257,70 @@ def test_gui_command_without_pyside(monkeypatch, capsys) -> None:
     monkeypatch.setitem(sys.modules, "obdsniff.gui", None)  # import now fails
     assert cli.main(["gui"]) == cli.EXIT_NO_CONNECTION
     assert 'pip install -e "host[gui]"' in capsys.readouterr().err
+
+
+# ---- CAN tab ----------------------------------------------------------------------
+
+
+def test_can_tab_loopback_test_traffic_and_stop(connected, worker) -> None:
+    panel = connected.can_panel
+    assert panel.mode_label.text() == "CAN is off."
+    assert not panel.test_button.isEnabled()
+
+    panel.bitrate_box.setCurrentIndex(panel.bitrate_box.findData(250))
+    panel.start_button.click()
+    assert panel.mode_label.text().startswith("Loopback at 250 kbit/s")
+    assert panel.start_button.text() == "Stop"
+    assert panel.test_button.isEnabled()
+
+    panel.count_box.setValue(50)
+    panel.test_button.click()
+    worker.poll()
+    assert panel.model.rowCount() == 50
+    assert panel.stats_label.text().startswith("Frames 50 ")
+    assert "Lost 0" in panel.stats_label.text()
+    assert panel.model.data(panel.model.index(0, 1)) == "123"
+
+    panel.update_rate()
+    assert "Rate 50/s" in panel.stats_label.text()
+
+    panel.start_button.click()
+    assert panel.mode_label.text() == "CAN is off."
+    assert not panel.test_button.isEnabled()
+
+
+def test_can_tab_is_disabled_when_disconnected(connected) -> None:
+    connected.connect_button.click()
+    assert not connected.can_panel.start_button.isEnabled()
+    assert not connected.can_panel.test_button.isEnabled()
+
+
+def test_frame_table_keeps_the_newest_rows(window) -> None:
+    panel = window.can_panel
+    frames = [
+        CanFrame(timestamp_us=n, id=0x7E8, data=b"\x01", seq=n) for n in range(MAX_ROWS + 100)
+    ]
+    panel.on_frames(frames, damaged=2)
+    assert panel.model.rowCount() == MAX_ROWS
+    assert panel.model.data(panel.model.index(MAX_ROWS - 1, 0)) == f"{(MAX_ROWS + 99) / 1e6:.6f}"
+    assert "Damaged 2" in panel.stats_label.text()
+    panel.model.clear()
+    assert panel.model.rowCount() == 0
+
+
+def test_frame_table_model_text() -> None:
+    model = FrameTableModel()
+    model.add(
+        [frame_row(CanFrame(timestamp_us=0, id=0x18DAF110, dlc=8, extended=True, rtr=True), 1.5)]
+    )
+    assert [model.data(model.index(0, c)) for c in range(4)] == [
+        "1.500000",
+        "18DAF110",
+        "8",
+        "remote request",
+    ]
+    assert model.columnCount() == 4
+    assert model.data(model.index(0, 0), Qt.ItemDataRole.ToolTipRole) is None
+    assert model.headerData(1, Qt.Orientation.Horizontal) == "ID"
+    assert model.headerData(1, Qt.Orientation.Vertical) is None
+    assert model.headerData(1, Qt.Orientation.Horizontal, Qt.ItemDataRole.ToolTipRole) is None

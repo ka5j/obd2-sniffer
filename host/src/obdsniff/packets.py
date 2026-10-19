@@ -211,3 +211,76 @@ class StreamSplitter:
                 self.discarded_frames += 1
             self.frames.append(frame)
         self.reset()
+
+
+# ---- presenting frames ----------------------------------------------------------
+
+WRAP_US = 1 << 32  # the board's microsecond counter wraps after 2^32 us (71.6 min)
+
+
+class TimestampUnwrapper:
+    """Turns the board's wrapping 32-bit microsecond counter into seconds
+    that keep increasing, for frames seen in order."""
+
+    def __init__(self) -> None:
+        self._last: int | None = None
+        self._base = 0
+
+    def seconds(self, timestamp_us: int) -> float:
+        if self._last is not None and timestamp_us < self._last - WRAP_US // 2:
+            self._base += WRAP_US
+        self._last = timestamp_us
+        return (self._base + timestamp_us) / 1_000_000
+
+
+def format_frame(frame: CanFrame, seconds: float | None = None) -> str:
+    """One line, as the board prints frames in interactive mode
+    (lib/src/can_text.c): time, ID, length, data."""
+    if seconds is None:
+        whole, micros = divmod(frame.timestamp_us, 1_000_000)
+    else:
+        whole, micros = divmod(round(seconds * 1_000_000), 1_000_000)
+    ident = f"{frame.id:08X}" if frame.extended else f"{frame.id:03X}"
+    if frame.rtr:
+        tail = "  remote request"
+    else:
+        tail = ("  " + " ".join(f"{b:02X}" for b in frame.data)) if frame.data else ""
+    return f"  {whole}.{micros:06d}  {ident:<10}[{frame.length}]{tail}"
+
+
+def candump_line(frame: CanFrame, seconds: float, interface: str = "can0") -> str:
+    """A line of a candump log file (Linux can-utils), which tools such as
+    SavvyCAN and Wireshark can open: `(time) can0 7E8#0441...`."""
+    ident = f"{frame.id:08X}" if frame.extended else f"{frame.id:03X}"
+    payload = f"R{frame.length}" if frame.rtr else frame.data.hex().upper()
+    return f"({seconds:.6f}) {interface} {ident}#{payload}"
+
+
+def frame_to_json(frame: CanFrame, seconds: float) -> dict[str, object]:
+    return {
+        "time": round(seconds, 6),
+        "id": f"{frame.id:X}",
+        "extended": frame.extended,
+        "rtr": frame.rtr,
+        "dlc": frame.length,
+        "data": frame.data.hex().upper(),
+        "seq": frame.seq,
+    }
+
+
+class FrameGaps:
+    """Counts frames missing from the capture numbers (16-bit, wrapping).
+
+    A jump back by more than half the range is taken as CAN having been
+    restarted (capture numbers start again at 0), not as frames lost."""
+
+    def __init__(self) -> None:
+        self._last: int | None = None
+        self.lost = 0
+
+    def add(self, seq: int) -> None:
+        if self._last is not None:
+            gap = (seq - self._last - 1) % 65536
+            if gap < 32768:
+                self.lost += gap
+        self._last = seq

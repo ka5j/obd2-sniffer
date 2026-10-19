@@ -13,8 +13,9 @@ from obdsniff.transport import SerialTransport
 
 
 class FakeSerial:
-    def __init__(self, port: str, baud: int, timeout: float) -> None:
+    def __init__(self, port: str, baud: int, timeout: float, exclusive: bool = False) -> None:
         self.args = (port, baud, timeout)
+        self.exclusive = exclusive
         self.timeout = timeout
         self.incoming = bytearray()
         self.written = bytearray()
@@ -75,6 +76,7 @@ def test_serial_transport(fake_serial) -> None:
     transport = SerialTransport("/dev/ttyACM0", clock=fake_time.clock, sleep=fake_time.sleep)
     port = fake_serial[0]
     assert port.args == ("/dev/ttyACM0", 1_500_000, 0)
+    assert port.exclusive  # a second program can't open the port and steal its data
 
     transport.write(b"status\r")
     assert port.written == b"status\r"
