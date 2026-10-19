@@ -235,3 +235,55 @@ def test_open_closes_port_when_board_does_not_answer(monkeypatch) -> None:
     with pytest.raises(ProtocolError):
         open_device("/dev/x", timeout=0.05)
     assert transport.closed
+
+
+# ---- binary frame packets among the text ----------------------------------------
+
+GOLDEN = bytes.fromhex("00 0A 01 02 01 78 56 34 12 E8 07 01 07 08 04 41 0C 1A F8 01 01 03 3D 84 00")
+DAMAGED = GOLDEN[:13] + b"\x55" + GOLDEN[14:]
+
+
+def connected_scripted(*replies: bytes) -> tuple[Device, ScriptedTransport]:
+    """A device connected through a scripted transport; `replies` answer the
+    writes that follow connect()."""
+    transport = ScriptedTransport([b"", b"OK\r\n", *replies])
+    dev = Device(transport, timeout=0.05)
+    dev.connect()
+    return dev, transport
+
+
+def test_frames_between_reply_lines_do_not_disturb_the_reply() -> None:
+    dev, _ = connected_scripted(GOLDEN + b"led=on\r\n" + GOLDEN + b"!button pressed\r\nOK\r\n")
+    assert dev.command("status") == ["led=on"]
+    frames = dev.poll_frames()
+    assert [f.id for f in frames] == [0x7E8, 0x7E8]
+    assert frames[0].data == bytes.fromhex("04410C1AF8000000")
+    assert dev.poll_events() == ["button pressed"]
+    assert dev.poll_frames() == []
+
+
+def test_poll_frames_keeps_events_for_later() -> None:
+    dev, transport = connected_scripted()
+    transport.pending += b"!button pressed\r\n" + GOLDEN
+    assert len(dev.poll_frames()) == 1
+    assert dev.poll_events() == ["button pressed"]
+
+
+def test_damaged_packets_are_counted() -> None:
+    dev, _ = connected_scripted(DAMAGED + b"OK\r\n")
+    assert dev.command("status") == []
+    assert dev.bad_packets == 1
+    assert dev.poll_frames() == []
+
+
+def test_empty_lines_are_ignored() -> None:
+    dev, _ = connected_scripted(b"\r\nled=on\r\n\r\nOK\r\n")
+    assert dev.command("status") == ["led=on"]
+
+
+def test_crash_is_detected_while_frames_stream() -> None:
+    dev, _ = connected_scripted(
+        GOLDEN + GOLDEN + b"\r\n========\r\n Crash    BusFault\r\nobd> ", b"", b"OK\r\n"
+    )
+    dev.crash("bus")  # finds the prompt among the packets, then reconnects
+    assert len(dev.poll_frames()) == 2
