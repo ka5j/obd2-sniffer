@@ -141,14 +141,35 @@ static void test_ctrl_c_cancels_line(void)
     TEST_ASSERT_EQUAL_INT(-1, led_state);
 }
 
-static void test_overflow_rings_bell(void)
+/* "led on" padded with spaces to exactly the line limit: if the extra byte
+ * were simply dropped, the line would still run `led on`. */
+static void feed_overlong_led_on(void)
 {
-    for (size_t i = 0; i < LINE_EDITOR_MAX; i++) {
-        console_core_feed(&con, 'x');
+    feed("led on");
+    for (size_t i = 6U; i < LINE_EDITOR_MAX; i++) {
+        console_core_feed(&con, ' ');
     }
     clear_output();
-    feed("y");
+    feed("x");
+}
+
+static void test_overflow_rings_bell_and_rejects_line(void)
+{
+    feed_overlong_led_on();
     TEST_ASSERT_EQUAL_STRING("\a", output);
+    clear_output();
+    feed("\r");
+    TEST_ASSERT_EQUAL_STRING("\r\nerror: line too long\r\nobd> ", output);
+    TEST_ASSERT_EQUAL_INT(-1, led_state); /* never run cut short */
+}
+
+static void test_host_mode_rejects_overlong_line(void)
+{
+    console_core_set_mode(&con, CONSOLE_MODE_HOST);
+    feed_overlong_led_on();
+    feed("\r");
+    TEST_ASSERT_EQUAL_STRING("ERR line too long\r\n", output);
+    TEST_ASSERT_EQUAL_INT(-1, led_state);
 }
 
 static void test_empty_line_shows_prompt(void)
@@ -239,7 +260,7 @@ static void test_switch_back_to_interactive_shows_prompt(void)
 static void test_field_formats(void)
 {
     console_core_field(&con, "uptime_ms", "Uptime", "1234 ms");
-    TEST_ASSERT_EQUAL_STRING("  Uptime          1234 ms\r\n", output);
+    TEST_ASSERT_EQUAL_STRING("  Uptime            1234 ms\r\n", output);
 
     clear_output();
     console_core_field(&con, "k", "A label longer than width", "v");
@@ -293,8 +314,9 @@ static void test_help_lists_commands(void)
     feed("help\r");
     TEST_ASSERT_NOT_NULL(strstr(output, "  led on|off              Set the LED\r\n"));
     TEST_ASSERT_NOT_NULL(strstr(output, "  show                    Show a field\r\n"));
-    /* Name and usage longer than the column: a single space separates them. */
-    TEST_ASSERT_NOT_NULL(strstr(output, "  averyveryverylongname with-args Long entry\r\n"));
+    /* Name and usage too wide for the column: the text goes below, aligned. */
+    TEST_ASSERT_NOT_NULL(strstr(output, "  averyveryverylongname with-args\r\n"
+                                        "                          Long entry\r\n"));
 }
 
 static void test_help_for_one_command(void)
@@ -321,7 +343,8 @@ int main(int argc, char **argv)
     UNIT_TEST(test_crlf_runs_command_once);
     UNIT_TEST(test_backspace_erases_on_screen);
     UNIT_TEST(test_ctrl_c_cancels_line);
-    UNIT_TEST(test_overflow_rings_bell);
+    UNIT_TEST(test_overflow_rings_bell_and_rejects_line);
+    UNIT_TEST(test_host_mode_rejects_overlong_line);
     UNIT_TEST(test_empty_line_shows_prompt);
     UNIT_TEST(test_interactive_unknown_command_suggests_help);
     UNIT_TEST(test_interactive_wrong_args_shows_usage);

@@ -33,15 +33,15 @@ Commands and arguments are not case-sensitive.
 
 ```
 obd> status
-  Uptime (ms)     53211
-  Last reset      reset pin
-  Clock source    HSE 8 MHz bypass
-  CPU clock (Hz)  180000000
-  Watchdog (ms)   500
-  Last crash      none
-  LED             auto
-  Serial received 7
-    dropped       0
+  Uptime (ms)       53211
+  Last reset        reset pin
+  Clock source      HSE 8 MHz bypass
+  CPU clock (Hz)    180000000
+  Watchdog (ms)     500
+  Last crash        none
+  LED               auto
+  Serial received   7
+    dropped         0
   ...
 obd> led blue
 error: invalid argument
@@ -51,9 +51,14 @@ obd> led
 error: wrong number of arguments (usage: led on|off|auto)
 ```
 
-Editing keys: **Backspace** deletes the last character, **Ctrl-C** discards the line. Lines are
-limited to 96 characters. If an event happens while you're typing (for example the blue button is
-pressed), it is printed on its own line and your partly typed command is shown again below it.
+Editing keys: **Backspace** deletes the last character, **Ctrl-C** discards the line. If an event
+happens while you're typing (for example the blue button is pressed), it is printed on its own
+line and your partly typed command is shown again below it.
+
+Lines are limited to 96 characters. When a line is full the terminal bell rings, and when you
+press Enter the whole line is rejected with `error: line too long`. It is never run cut short,
+because a shortened command could do something other than what you typed. Press Ctrl-C to start
+over.
 
 ## Host mode
 
@@ -67,7 +72,7 @@ For programs that talk to the board. Enter it with `mode host`; leave it with
 | Final line | Meaning |
 |---|---|
 | `OK` | The command succeeded |
-| `ERR <reason>` | It failed: `unknown command`, `wrong number of arguments (usage: ...)`, `invalid argument`, `too many arguments`, `command failed` |
+| `ERR <reason>` | It failed: `unknown command`, `wrong number of arguments (usage: ...)`, `invalid argument`, `too many arguments`, `command failed`, `line too long` (over 96 characters; nothing was run) |
 
 **Data lines** for `version`, `status` and `fault` are `key=value`:
 

@@ -28,7 +28,7 @@
 #include "line_editor.h"
 
 #define CONSOLE_PROMPT      "obd> "
-#define CONSOLE_LABEL_WIDTH 16U /* column where interactive values start */
+#define CONSOLE_LABEL_WIDTH 18U /* column where interactive values start */
 
 typedef enum {
     CONSOLE_MODE_INTERACTIVE,

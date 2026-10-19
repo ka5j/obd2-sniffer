@@ -25,6 +25,7 @@ typedef enum {
     CLI_ERR_TOO_MANY, /* more words than CLI_MAX_ARGS */
     CLI_ERR_INVALID,  /* handler rejected an argument value */
     CLI_ERR_FAILED,   /* handler could not carry out the command */
+    CLI_ERR_TOO_LONG, /* line longer than the console accepts (reported by the console) */
 } cli_status_t;
 
 typedef cli_status_t (*cli_handler_t)(int argc, char *argv[], void *ctx);

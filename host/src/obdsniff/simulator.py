@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from obdsniff.transport import Transport
 
 PROMPT = "obd> "
-LABEL_WIDTH = 16
+LABEL_WIDTH = 18
 HELP_WIDTH = 24
 LINE_MAX = 96
 FIRMWARE_VERSION = "simulator"
@@ -89,6 +89,7 @@ class SimulatedBoard:
         self._line = ""
         self._last_was_cr = False
         self._line_done = False
+        self._overflowed = False
         self._boot_time = self._clock()
         self.rx_bytes = 0
         self.tx_bytes = 0
@@ -164,12 +165,19 @@ class SimulatedBoard:
         if value in (0x0D, 0x0A):
             if value == 0x0A and after_cr:
                 return
-            self._line_done = True
             if echo:
                 self._emit("\r\n")
+            if self._overflowed:
+                # Rejected whole: running it cut short could do something else.
+                self._overflowed = False
+                self._line = ""
+                self._report("line too long")
+                return
+            self._line_done = True
             self._run(self._line)
         elif value == 0x03:
             self._line = ""
+            self._overflowed = False
             if echo:
                 self._emit("^C\r\n" + PROMPT)
         elif value in (0x08, 0x7F):
@@ -179,6 +187,7 @@ class SimulatedBoard:
                     self._emit("\b \b")
         elif 0x20 <= value <= 0x7E:
             if len(self._line) >= LINE_MAX:
+                self._overflowed = True
                 if echo:
                     self._emit("\a")
             else:
@@ -232,8 +241,11 @@ class SimulatedBoard:
             return None
         for name, usage, text, _, _ in COMMANDS:
             used = len(name) + 1 + len(usage)
-            pad = HELP_WIDTH - used if used < HELP_WIDTH else 1
-            self._emit(f"  {name} {usage}{' ' * pad}{text}\r\n")
+            # Too wide for the column: the text goes below, still aligned.
+            gap = (
+                " " * (HELP_WIDTH - used) if used < HELP_WIDTH else "\r\n" + " " * (2 + HELP_WIDTH)
+            )
+            self._emit(f"  {name} {usage}{gap}{text}\r\n")
         return None
 
     def _cmd_version(self, args: list[str]) -> str | None:

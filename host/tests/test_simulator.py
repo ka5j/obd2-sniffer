@@ -49,9 +49,31 @@ def test_ctrl_c_discards_line(board) -> None:
     assert run(board, "reset\x03") == "reset^C\r\nobd> "
 
 
-def test_overflow_rings_bell(board) -> None:
+def overlong_led_on() -> str:
+    """`led on` padded to the line limit plus one byte: it would still run
+    `led on` if the extra byte were simply dropped."""
+    return "led on".ljust(LINE_MAX) + "x"
+
+
+def test_overflow_rings_bell_and_rejects_line(board) -> None:
     run(board, "x" * LINE_MAX)
     assert run(board, "y") == "\a"
+    assert run(board, "\r") == "\r\nerror: line too long\r\nobd> "
+
+
+def test_overlong_command_is_never_run(board) -> None:
+    run(board, overlong_led_on())
+    run(board, "\r")
+    assert board.led == "auto"
+    host(board)
+    assert run(board, overlong_led_on() + "\r") == "ERR line too long\r\n"
+    assert board.led == "auto"
+
+
+def test_ctrl_c_clears_overflow(board) -> None:
+    run(board, overlong_led_on() + "\x03")
+    assert run(board, "led on\r") == "led on\r\nobd> "
+    assert board.led == "on"
 
 
 def test_other_bytes_ignored(board) -> None:
@@ -113,14 +135,15 @@ def test_status_and_version_fields(board, clock) -> None:
 
 def test_interactive_field_alignment(board) -> None:
     out = run(board, "status\r")
-    assert "  Uptime (ms)     0\r\n" in out  # padded to the value column
-    assert f"  Serial received {board.rx_bytes}\r\n" in out  # exactly fills it: one space
+    assert "  Uptime (ms)       0\r\n" in out  # padded to the value column
+    assert f"  Serial received   {board.rx_bytes}\r\n" in out
 
 
 def test_help(board) -> None:
     out = run(board, "help\r")
     assert "  led on|off|auto         Green LED: on, off, or heartbeat (auto)\r\n" in out
-    assert "  crash bus|usage|divzero|hard|watchdog Crash on purpose" in out  # overlong
+    # Too wide for the column: the text goes on the next line, aligned.
+    assert "  crash bus|usage|divzero|hard|watchdog\r\n" + " " * 26 + "Crash on purpose" in out
     assert run(board, "help LED\r") == (
         "help LED\r\nusage: led on|off|auto\r\n  Green LED: on, off, or heartbeat (auto)\r\nobd> "
     )
@@ -182,8 +205,8 @@ def test_fault_shown_interactively(board) -> None:
     board.run_pending()
     board.take_output()
     out = run(board, "fault\r")
-    assert "  Called from (LR) 0x" in out  # label longer than the column
-    assert "  Cause           divide by zero\r\n" in out
+    assert "  Called from (LR)  0x" in out  # the longest label still lines up
+    assert "  Cause             divide by zero\r\n" in out
 
 
 def test_watchdog_crash_has_no_fault_record(board) -> None:
