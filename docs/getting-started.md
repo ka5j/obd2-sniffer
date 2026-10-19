@@ -130,9 +130,11 @@ This configures and builds in one step and ends with a memory report. The output
 For a smaller, optimised build use `cmake --workflow --preset firmware-release` (output in
 `build/firmware-release/`).
 
-**No toolchain?** Every automated build also produces ready-made firmware. Open the repository's
-**Actions** tab, select the latest successful **CI** run on `develop`, and download the
-`obd2_sniffer-firmware-release` artifact (you need to be signed in to GitHub).
+**No toolchain?** Download ready-made firmware instead. Each
+[release](https://github.com/ka5j/obd2-sniffer/releases) has the `.bin`, `.hex` and `.elf` files
+attached, checked on a board before publishing. For the newest, untagged code, open the
+repository's **Actions** tab, select the latest successful **CI** run on `develop`, and download
+the `obd2_sniffer-firmware-release` artifact (you need to be signed in to GitHub).
 
 ## 5. Load the firmware onto the board
 
