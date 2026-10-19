@@ -7,12 +7,16 @@
  * can delay the others.
  */
 #include "board.h"
+#include "can_drv.h"
+#include "can_gen.h"
+#include "can_stream.h"
 #include "clock.h"
 #include "commands.h"
 #include "console.h"
 #include "fault.h"
 #include "reset_cause.h"
 #include "status_led.h"
+#include "timebase.h"
 #include "uart_link.h"
 #include "version.h"
 #include "watchdog.h"
@@ -74,12 +78,13 @@ int main(void)
     }
 
     clock_source_t clk_src;
-    if (!clock_init(&clk_src)) {
+    if (!clock_init(&clk_src) || !timebase_init()) {
         board_panic();
     }
     fault_init();
 
-    if (!console_init()) {
+    /* CAN stays off until a command starts it. */
+    if (!console_init() || !can_drv_init()) {
         board_panic();
     }
     commands_set_boot_info(cause, clk_src);
@@ -96,6 +101,8 @@ int main(void)
 
         watchdog_kick();
         console_poll();
+        can_gen_task();
+        can_stream_task(now);
         status_led_task(now);
         button_task(now);
 

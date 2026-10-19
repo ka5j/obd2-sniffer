@@ -62,7 +62,9 @@ with `-Wall -Wextra -Werror -Wshadow -Wdouble-promotion -Wformat=2 -Wundef -Wstr
 -Wmissing-prototypes -Wcast-align`. Vendor include directories are marked `SYSTEM` so warnings in
 vendor headers don't fail the project build.
 
-Only the HAL modules listed in `firmware/include/stm32f4xx_hal_conf.h` are compiled.
+Only the HAL modules the firmware needs are compiled: they are listed in `firmware/CMakeLists.txt`
+(`HAL_MODULES`) and enabled in `firmware/include/stm32f4xx_hal_conf.h`, and the two lists must
+match.
 
 ### Outputs
 
@@ -74,7 +76,7 @@ contents and resets the MCU.
 ### Version stamping
 
 `cmake/version.cmake` runs on every build and writes `git describe --tags --always --dirty` (for
-example `v0.1.0`, or `v0.1.0-3-gabc1234-dirty` for a modified tree) into `version.h`.
+example `v0.2.0`, or `v0.2.0-3-gabc1234-dirty` for a modified tree) into `version.h`.
 `configure_file` only rewrites the header when the string changes, so it doesn't trigger a
 rebuild every time. The banner therefore always identifies the exact source the image came from.
 

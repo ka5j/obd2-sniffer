@@ -3,20 +3,45 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import sys
 import time
 from collections.abc import Callable
+from typing import TextIO
 
 from obdsniff import __version__
+from obdsniff.cantest import describe, run_test
 from obdsniff.device import CommandError, Device, DeviceError, open_device
 from obdsniff.output import format_fields
+from obdsniff.packets import (
+    CanFrame,
+    FrameGaps,
+    TimestampUnwrapper,
+    candump_line,
+    format_frame,
+    frame_to_json,
+)
 from obdsniff.ports import list_serial_ports
 from obdsniff.shell import run_shell
 
 EXIT_OK = 0
 EXIT_COMMAND_FAILED = 1
 EXIT_NO_CONNECTION = 2
+
+
+def hex_int(text: str) -> int:
+    try:
+        return int(text, 16)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not a hex number: {text!r}") from None
+
+
+def hex_bytes(text: str) -> bytes:
+    try:
+        return bytes.fromhex(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not hex bytes: {text!r}") from None
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -43,8 +68,43 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("reset", help="restart the board")
     crash = sub.add_parser("crash", help="crash the board on purpose (debug firmware, for testing)")
     crash.add_argument("kind", choices=["bus", "usage", "divzero", "hard", "watchdog"])
-    monitor = sub.add_parser("monitor", help="print events (button presses) as they happen")
+    can = sub.add_parser("can", help="CAN bus: status, loopback test mode, frames, test traffic")
+    can_sub = can.add_subparsers(dest="can_command", metavar="ACTION")
+    loopback = can_sub.add_parser(
+        "loopback", help="start silent loopback: the board receives its own frames"
+    )
+    loopback.add_argument(
+        "--bitrate",
+        type=int,
+        default=500,
+        metavar="KBPS",
+        help="125, 250, 500 or 1000 (default 500)",
+    )
+    can_sub.add_parser("off", help="stop CAN")
+    send = can_sub.add_parser("send", help="send one frame (loopback only)")
+    send.add_argument("id", type=hex_int, help="identifier in hex, e.g. 7DF; above 7FF is 29-bit")
+    send.add_argument(
+        "data", nargs="?", type=hex_bytes, default=b"", help="data in hex, e.g. 0201050000000000"
+    )
+    test = can_sub.add_parser(
+        "test", help="send numbered frames in loopback and check that every one arrives"
+    )
+    test.add_argument("--count", type=int, default=10000, help="frames to send (default 10000)")
+    test.add_argument(
+        "--rate",
+        type=int,
+        default=0,
+        metavar="PER_S",
+        help="frames per second (default: bus speed)",
+    )
+    test.add_argument(
+        "--bitrate", type=int, default=500, metavar="KBPS", help="if loopback isn't running yet"
+    )
+    monitor = sub.add_parser("monitor", help="print CAN frames and events as they happen")
     monitor.add_argument("--duration", type=float, help="stop after this many seconds")
+    monitor.add_argument(
+        "--log", metavar="FILE", help="also save frames in candump format (SavvyCAN, can-utils)"
+    )
     sub.add_parser("shell", help="interactive session with the board")
     sub.add_parser("gui", help="open the desktop app")
     return parser
@@ -113,20 +173,94 @@ def cmd_crash(device: Device, args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_can(device: Device, args: argparse.Namespace) -> int:
+    action = args.can_command
+    if action == "test":
+        report = run_test(device, args.count, args.rate, args.bitrate)
+        bitrate = int(device.can_status().get("can_bitrate", "0")) // 1000
+        if args.json:
+            print(json.dumps({**vars(report), "lost": report.lost, "passed": report.passed}))
+        else:
+            print("\n".join(describe(report, f"{bitrate} kbit/s", args.rate)))
+        return EXIT_OK if report.passed else EXIT_COMMAND_FAILED
+    if action == "loopback":
+        device.can_loopback(args.bitrate)
+        message = f"CAN in loopback at {args.bitrate} kbit/s."
+    elif action == "off":
+        device.can_off()
+        message = "CAN off."
+    elif action == "send":
+        device.can_send(args.id, args.data)
+        message = "Frame sent."
+    else:
+        fields = device.can_status()
+        emit(fields, args.json, format_fields(fields))
+        return EXIT_OK
+    emit({"done": action}, args.json, [message])
+    return EXIT_OK
+
+
+class FrameOutput:
+    """Prints frames and events for `monitor`, and writes the optional log."""
+
+    def __init__(self, as_json: bool, log: TextIO | None) -> None:
+        self._as_json = as_json
+        self._log = log
+        self._clock = TimestampUnwrapper()
+        self._epoch: float | None = None  # wall-clock time of the board's time zero
+        self.gaps = FrameGaps()
+        self.frames = 0
+
+    def show(self, frames: list[CanFrame], events: list[str]) -> None:
+        lines = []
+        log_lines = []
+        for event in events:
+            stamp = time.strftime("%H:%M:%S")
+            lines.append(
+                json.dumps({"time": stamp, "event": event})
+                if self._as_json
+                else f"[{stamp}] {event}"
+            )
+        for frame in frames:
+            seconds = self._clock.seconds(frame.timestamp_us)
+            if self._epoch is None:
+                self._epoch = time.time() - seconds
+            lines.append(
+                json.dumps(frame_to_json(frame, seconds))
+                if self._as_json
+                else format_frame(frame, seconds)
+            )
+            if self._log is not None:
+                log_lines.append(candump_line(frame, self._epoch + seconds))
+            self.gaps.add(frame.seq)
+        self.frames += len(frames)
+        if lines:  # one write per batch: thousands of frames a second
+            sys.stdout.write("\n".join(lines) + "\n")
+            sys.stdout.flush()
+        if log_lines and self._log is not None:
+            self._log.write("\n".join(log_lines) + "\n")
+
+
 def cmd_monitor(device: Device, args: argparse.Namespace) -> int:
     if not args.json:
-        print("Watching for events. Press Ctrl-C to stop.")
+        print("Watching for CAN frames and events. Press Ctrl-C to stop.", flush=True)
     end = None if args.duration is None else time.monotonic() + args.duration
-    try:
-        while end is None or time.monotonic() < end:
-            for event in device.poll_events(timeout=0.2):
-                stamp = time.strftime("%H:%M:%S")
-                if args.json:
-                    print(json.dumps({"time": stamp, "event": event}), flush=True)
-                else:
-                    print(f"[{stamp}] {event}", flush=True)
-    except KeyboardInterrupt:
-        pass
+    with contextlib.ExitStack() as stack:
+        log = stack.enter_context(open(args.log, "w", encoding="ascii")) if args.log else None
+        output = FrameOutput(args.json, log)
+        try:
+            while end is None or time.monotonic() < end:
+                frames = device.poll_frames(timeout=0.1)
+                output.show(frames, device.poll_events())
+        except KeyboardInterrupt:
+            pass
+    if output.frames:
+        saved = f"; saved to {args.log}" if args.log else ""
+        print(
+            f"{output.frames} frames, {output.gaps.lost} lost, "
+            f"{device.bad_packets} damaged{saved}.",
+            file=sys.stderr,
+        )
     return EXIT_OK
 
 
@@ -142,6 +276,7 @@ HANDLERS: dict[str, Callable[[Device, argparse.Namespace], int]] = {
     "fault": cmd_fault,
     "reset": cmd_reset,
     "crash": cmd_crash,
+    "can": cmd_can,
     "monitor": cmd_monitor,
     "shell": cmd_shell,
 }

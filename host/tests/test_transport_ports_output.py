@@ -13,8 +13,9 @@ from obdsniff.transport import SerialTransport
 
 
 class FakeSerial:
-    def __init__(self, port: str, baud: int, timeout: float) -> None:
+    def __init__(self, port: str, baud: int, timeout: float, exclusive: bool = False) -> None:
         self.args = (port, baud, timeout)
+        self.exclusive = exclusive
         self.timeout = timeout
         self.incoming = bytearray()
         self.written = bytearray()
@@ -49,24 +50,51 @@ def fake_serial(monkeypatch) -> list[FakeSerial]:
     return created
 
 
+class FakeTime:
+    """Clock and sleep for the transport: sleeping advances the clock and can
+    make bytes arrive at a given time."""
+
+    def __init__(self) -> None:
+        self.now = 0.0
+        self.sleeps: list[float] = []
+        self.arrivals: list[tuple[float, FakeSerial, bytes]] = []
+
+    def clock(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.sleeps.append(seconds)
+        self.now += seconds
+        for when, port, data in list(self.arrivals):
+            if self.now >= when:
+                port.incoming += data
+                self.arrivals.remove((when, port, data))
+
+
 def test_serial_transport(fake_serial) -> None:
-    transport = SerialTransport("/dev/ttyACM0")
+    fake_time = FakeTime()
+    transport = SerialTransport("/dev/ttyACM0", clock=fake_time.clock, sleep=fake_time.sleep)
     port = fake_serial[0]
-    assert port.args == ("/dev/ttyACM0", 115200, 0)
+    assert port.args == ("/dev/ttyACM0", 1_500_000, 0)
+    assert port.exclusive  # a second program can't open the port and steal its data
 
     transport.write(b"status\r")
     assert port.written == b"status\r"
 
-    assert transport.read(0.1) == b""  # nothing arrived
-    assert port.timeout == 0.1
+    assert transport.read(0.01) == b""  # nothing arrived: waited the full time
+    assert fake_time.now == pytest.approx(0.01)
+
+    fake_time.arrivals.append((0.0125, port, b"OK\r\n"))
+    assert transport.read(0.1) == b"OK\r\n"  # returns as soon as data arrives
+    assert fake_time.now == pytest.approx(0.013)
 
     port.incoming += b"x"
-    assert transport.read(-1) == b"x"  # one byte, nothing else waiting
-    assert port.timeout == 0.0
+    fake_time.sleeps.clear()
+    assert transport.read(0.0) == b"x"  # already waiting: no sleep at all
+    assert transport.read(0.0) == b""
+    assert fake_time.sleeps == []
 
-    port.incoming += b"OK\r\n"
-    assert transport.read(0.1) == b"OK\r\n"  # first byte plus everything waiting
-
+    assert port.timeout == 0  # never reconfigured while open
     transport.close()
     assert port.closed
 

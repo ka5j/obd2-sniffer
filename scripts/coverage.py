@@ -73,13 +73,23 @@ def main() -> int:
 
     build = args.build_dir
     out = args.output or build / "report"
-    profiles = sorted((build / "profiles").glob("*.profraw"))
-    if not profiles:
-        sys.exit(f"error: no .profraw files in {build / 'profiles'}; run `ctest --preset host-coverage` first")
-
     binaries = sorted(p for p in (build / "tests").glob("test_*") if p.is_file() and os.access(p, os.X_OK))
     if not binaries:
         sys.exit(f"error: no test executables in {build / 'tests'}")
+
+    # The profiles folder is never emptied, so it also holds profiles from
+    # runs of older test builds. Merging those would mix stale counts into the
+    # result (coverage from a deleted test could still pass the gate) or fail
+    # outright after a compiler change. Only profiles written after the newest
+    # test build are used; at worst that asks for the tests to be run again.
+    newest_build = max(p.stat().st_mtime for p in binaries)
+    all_profiles = sorted((build / "profiles").glob("*.profraw"))
+    profiles = [p for p in all_profiles if p.stat().st_mtime >= newest_build]
+    if not profiles:
+        sys.exit(f"error: no coverage profiles from the current build in {build / 'profiles'}; "
+                 "run `ctest --preset host-coverage` first")
+    if len(profiles) < len(all_profiles):
+        print(f"note: ignored {len(all_profiles) - len(profiles)} profile(s) from older test builds")
 
     llvm_profdata = find_tool("llvm-profdata")
     llvm_cov = find_tool("llvm-cov")

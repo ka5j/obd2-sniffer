@@ -183,6 +183,40 @@ static void test_status_strings(void)
 
 /* ---- number parsing ------------------------------------------------------- */
 
+static void test_parse_hex_u32(void)
+{
+    uint32_t v = 0U;
+    TEST_ASSERT_TRUE(cli_parse_hex_u32("7DF", &v));
+    TEST_ASSERT_EQUAL_HEX32(0x7DFU, v);
+    TEST_ASSERT_TRUE(cli_parse_hex_u32("18daf110", &v)); /* either case */
+    TEST_ASSERT_EQUAL_HEX32(0x18DAF110U, v);
+    TEST_ASSERT_TRUE(cli_parse_hex_u32("FFFFFFFF", &v));
+    TEST_ASSERT_EQUAL_HEX32(0xFFFFFFFFU, v);
+    TEST_ASSERT_FALSE(cli_parse_hex_u32("", &v));
+    TEST_ASSERT_FALSE(cli_parse_hex_u32("123456789", &v)); /* more than 8 digits */
+    TEST_ASSERT_FALSE(cli_parse_hex_u32("7G", &v));
+    TEST_ASSERT_FALSE(cli_parse_hex_u32("0x7DF", &v)); /* digits only */
+}
+
+static void test_parse_hex_bytes(void)
+{
+    uint8_t buf[4];
+    size_t len = 0U;
+    TEST_ASSERT_TRUE(cli_parse_hex_bytes("0201aF", buf, sizeof buf, &len));
+    TEST_ASSERT_EQUAL_size_t(3U, len);
+    TEST_ASSERT_EQUAL_HEX8(0x02, buf[0]);
+    TEST_ASSERT_EQUAL_HEX8(0x01, buf[1]);
+    TEST_ASSERT_EQUAL_HEX8(0xAF, buf[2]);
+    TEST_ASSERT_TRUE(cli_parse_hex_bytes("00112233", buf, sizeof buf, &len)); /* exactly max */
+    TEST_ASSERT_EQUAL_size_t(4U, len);
+    TEST_ASSERT_FALSE(cli_parse_hex_bytes("", buf, sizeof buf, &len));
+    TEST_ASSERT_FALSE(cli_parse_hex_bytes("021", buf, sizeof buf, &len));        /* odd length */
+    TEST_ASSERT_FALSE(cli_parse_hex_bytes("x1", buf, sizeof buf, &len));         /* first digit */
+    TEST_ASSERT_FALSE(cli_parse_hex_bytes("0x12", buf, sizeof buf, &len));       /* second digit */
+    TEST_ASSERT_FALSE(cli_parse_hex_bytes("1x", buf, sizeof buf, &len));         /* low digit */
+    TEST_ASSERT_FALSE(cli_parse_hex_bytes("0011223344", buf, sizeof buf, &len)); /* too many */
+}
+
 static void test_parse_decimal(void)
 {
     uint32_t v = 0U;
@@ -243,6 +277,8 @@ int main(int argc, char **argv)
     UNIT_TEST(test_execute_more_words_than_max_args);
     UNIT_TEST(test_execute_returns_handler_status);
     UNIT_TEST(test_status_strings);
+    UNIT_TEST(test_parse_hex_u32);
+    UNIT_TEST(test_parse_hex_bytes);
     UNIT_TEST(test_parse_decimal);
     UNIT_TEST(test_parse_hex);
     UNIT_TEST(test_parse_rejects_bad_input_without_writing);

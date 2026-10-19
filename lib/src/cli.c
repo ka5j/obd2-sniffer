@@ -123,6 +123,43 @@ static int digit_value(char c)
     return -1;
 }
 
+bool cli_parse_hex_u32(const char *s, uint32_t *out)
+{
+    uint32_t value = 0U;
+    size_t i = 0U;
+    for (; s[i] != '\0'; i++) {
+        int d = digit_value(s[i]);
+        if ((d < 0) || (i >= 8U)) {
+            return false;
+        }
+        value = (value << 4U) | (uint32_t)d;
+    }
+    if (i == 0U) {
+        return false;
+    }
+    *out = value;
+    return true;
+}
+
+bool cli_parse_hex_bytes(const char *s, uint8_t *out, size_t max, size_t *len)
+{
+    size_t count = 0U;
+    while (s[2U * count] != '\0') {
+        int high = digit_value(s[2U * count]);
+        int low = (high < 0) ? -1 : digit_value(s[(2U * count) + 1U]);
+        if ((low < 0) || (count >= max)) {
+            return false;
+        }
+        out[count] = (uint8_t)(((uint32_t)high << 4U) | (uint32_t)low);
+        count++;
+    }
+    if (count == 0U) {
+        return false;
+    }
+    *len = count;
+    return true;
+}
+
 bool cli_parse_u32(const char *s, uint32_t *out)
 {
     uint32_t base = 10U;

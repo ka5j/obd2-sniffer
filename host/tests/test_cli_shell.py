@@ -97,7 +97,7 @@ def test_monitor_prints_events(capsys, sim_board) -> None:
     sim_board.press_button()  # queued before the monitor starts reading
     code, out, _ = run_cli(capsys, "monitor", "--duration", "0.3")
     assert code == 0
-    assert out.startswith("Watching for events.")
+    assert out.startswith("Watching for CAN frames and events.")
     assert "] button pressed" in out
 
 

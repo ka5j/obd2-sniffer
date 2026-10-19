@@ -28,11 +28,22 @@ bool console_init(void)
     return true;
 }
 
+/* At most one command per call, and only once its reply is sure to fit in
+ * the transmit buffer. Commands sent in a burst (pasted into a terminal, or
+ * from a program that doesn't wait for replies) would otherwise all run in
+ * one pass of the main loop: their replies could take longer to send than
+ * the watchdog allows, or overflow the buffer. Input that isn't processed
+ * yet waits in the receive buffer. */
 void console_poll(void)
 {
+    if (uart_link_tx_free() < CONSOLE_REPLY_SPACE) {
+        return;
+    }
     uint8_t byte = 0U;
     while (uart_link_read(&byte)) {
-        console_core_feed(&core, (char)byte);
+        if (console_core_feed(&core, (char)byte)) {
+            break;
+        }
     }
 }
 
@@ -49,6 +60,16 @@ void console_puts(const char *text)
 void console_prompt(void)
 {
     console_core_prompt(&core);
+}
+
+void console_redraw_prompt(void)
+{
+    console_core_redraw(&core);
+}
+
+bool console_is_interactive(void)
+{
+    return console_core_mode(&core) == CONSOLE_MODE_INTERACTIVE;
 }
 
 void console_event(const char *text)

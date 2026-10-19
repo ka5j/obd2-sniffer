@@ -11,8 +11,10 @@ from collections.abc import Callable
 
 from obdsniff.device import CommandError, Device, ProtocolError
 from obdsniff.output import format_fields, format_reply
+from obdsniff.packets import TimestampUnwrapper, format_frame
 
 BANNER = "Connected. Type board commands (try 'help'); 'exit' or Ctrl-D quits."
+MAX_FRAMES_SHOWN = 20  # more than this between prompts is summarised
 
 
 def execute_line(device: Device, line: str) -> list[str]:
@@ -45,9 +47,16 @@ def run_shell(
     write: Callable[[str], None] = print,
 ) -> int:
     write(BANNER)
+    clock = TimestampUnwrapper()
     while True:
         for event in device.poll_events():
             write(f"[event] {event}")
+        frames = device.poll_frames()
+        for frame in frames[:MAX_FRAMES_SHOWN]:
+            write(format_frame(frame, clock.seconds(frame.timestamp_us)))
+        if len(frames) > MAX_FRAMES_SHOWN:
+            more = len(frames) - MAX_FRAMES_SHOWN
+            write(f"  ... and {more} more frames (`obdsniff monitor` shows them all)")
         try:
             line = read_line("obd> ").strip()
         except (EOFError, KeyboardInterrupt):

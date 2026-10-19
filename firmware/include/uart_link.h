@@ -20,7 +20,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define UART_LINK_BAUD 115200U
+/* Exact with the 45 MHz APB1 clock (divisor 1 + 14/16), and fast enough for a
+ * fully loaded CAN bus. Measured on the board: see docs/design/serial-console.md. */
+#define UART_LINK_BAUD 1500000U
 
 typedef struct {
     uint32_t rx_bytes;      /* bytes received and stored */
@@ -45,6 +47,9 @@ size_t uart_link_write(const uint8_t *data, size_t len, uint32_t timeout_ms);
 
 /* Wait until everything queued has left the UART. False on timeout. */
 bool uart_link_flush(uint32_t timeout_ms);
+
+/* Bytes that can be queued right now without waiting. */
+size_t uart_link_tx_free(void);
 
 void uart_link_get_stats(uart_link_stats_t *out);
 

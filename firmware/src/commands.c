@@ -1,10 +1,15 @@
 #include "commands.h"
 
+#include "can_drv.h"
+#include "can_gen.h"
+#include "can_stream.h"
+#include "can_timing.h"
 #include "console.h"
 #include "console_core.h"
 #include "fault.h"
 #include "status_led.h"
 #include "stm32f4xx_hal.h"
+#include "timebase.h"
 #include "uart_link.h"
 #include "version.h"
 #include "watchdog.h"
@@ -171,6 +176,130 @@ static cli_status_t cmd_crash(int argc, char *argv[], void *ctx)
 }
 #endif
 
+/* ---- can ------------------------------------------------------------------ */
+
+#define CAN_DEFAULT_KBPS 500U
+#define CAN_MAX_KBPS     1000U
+#define BPS_PER_KBPS     1000U
+
+static const char *can_bus_state(const can_drv_stats_t *s)
+{
+    if (can_drv_mode() == CAN_DRV_OFF) {
+        return "off";
+    }
+    if (s->bus_off) {
+        return "bus-off";
+    }
+    return s->error_passive ? "error-passive" : "error-active";
+}
+
+static cli_status_t can_status(void *ctx)
+{
+    can_drv_stats_t s;
+    can_drv_get_stats(&s);
+    console_fieldf(ctx, "can_mode", "Mode", "%s", can_drv_mode_name(can_drv_mode()));
+    console_fieldf(ctx, "can_bitrate", "Bit rate (bit/s)", "%lu", (unsigned long)can_drv_bitrate());
+    console_fieldf(ctx, "can_bus", "Bus state", "%s", can_bus_state(&s));
+    console_fieldf(ctx, "can_rx_frames", "Received", "%lu", (unsigned long)s.rx_frames);
+    console_fieldf(ctx, "can_rx_dropped", "  dropped", "%lu", (unsigned long)s.rx_dropped);
+    console_fieldf(ctx, "can_rx_overruns", "  overruns", "%lu", (unsigned long)s.rx_overruns);
+    console_fieldf(ctx, "can_queue", "  queued", "%lu/%lu", (unsigned long)can_drv_queued(),
+                   (unsigned long)can_drv_queue_capacity());
+    console_fieldf(ctx, "can_streamed", "Sent to laptop", "%lu", (unsigned long)can_stream_sent());
+    console_fieldf(ctx, "can_tx_frames", "Transmitted", "%lu", (unsigned long)s.tx_frames);
+    console_fieldf(ctx, "can_test_frames", "Test frames", "%lu/%lu", (unsigned long)can_gen_sent(),
+                   (unsigned long)can_gen_count());
+    console_fieldf(ctx, "can_isr_max_us", "Longest IRQ (us)", "%lu",
+                   (unsigned long)timebase_cycles_to_us(s.isr_max_cycles));
+    console_fieldf(ctx, "can_tec", "TX error count", "%lu", (unsigned long)s.tx_errors);
+    console_fieldf(ctx, "can_rec", "RX error count", "%lu", (unsigned long)s.rx_errors);
+    return CLI_OK;
+}
+
+static cli_status_t can_loopback(int argc, char *argv[])
+{
+    uint32_t kbps = CAN_DEFAULT_KBPS;
+    if (argc > 3) {
+        return CLI_ERR_ARGS;
+    }
+    if ((argc == 3) && !cli_parse_u32(argv[2], &kbps)) {
+        return CLI_ERR_INVALID;
+    }
+    can_timing_t timing;
+    if ((kbps == 0U) || (kbps > CAN_MAX_KBPS) ||
+        !can_timing_calc(HAL_RCC_GetPCLK1Freq(), kbps * BPS_PER_KBPS, &timing)) {
+        return CLI_ERR_INVALID; /* no exact bit timing for this rate */
+    }
+    can_gen_stop();
+    return can_drv_start_loopback(kbps * BPS_PER_KBPS) ? CLI_OK : CLI_ERR_FAILED;
+}
+
+/* `can send <id> [data]`: hex, as in Linux's cansend. IDs above 7FF are
+ * sent as 29-bit (extended) IDs. */
+static cli_status_t can_send(int argc, char *argv[])
+{
+    can_frame_t frame = {.dlc = 0U};
+    size_t len = 0U;
+    if ((argc < 3) || (argc > 4)) {
+        return CLI_ERR_ARGS;
+    }
+    if (!cli_parse_hex_u32(argv[2], &frame.id) || (frame.id > CAN_ID_EXT_MAX)) {
+        return CLI_ERR_INVALID;
+    }
+    if (frame.id > CAN_ID_STD_MAX) {
+        frame.flags = CAN_FLAG_EXTENDED;
+    }
+    if (argc == 4) {
+        if (!cli_parse_hex_bytes(argv[3], frame.data, CAN_MAX_DLC, &len)) {
+            return CLI_ERR_INVALID;
+        }
+        frame.dlc = (uint8_t)len;
+    }
+    /* Fails outside loopback, or if all transmit mailboxes are busy. */
+    return can_drv_send(&frame) ? CLI_OK : CLI_ERR_FAILED;
+}
+
+static cli_status_t can_test(int argc, char *argv[])
+{
+    uint32_t count = 0U;
+    uint32_t per_second = 0U;
+    if ((argc < 3) || (argc > 4)) {
+        return CLI_ERR_ARGS;
+    }
+    if (!cli_parse_u32(argv[2], &count) || ((argc == 4) && !cli_parse_u32(argv[3], &per_second))) {
+        return CLI_ERR_INVALID;
+    }
+    if (can_drv_mode() != CAN_DRV_LOOPBACK) {
+        return CLI_ERR_FAILED; /* test traffic only in loopback */
+    }
+    return can_gen_start(count, per_second) ? CLI_OK : CLI_ERR_INVALID;
+}
+
+static cli_status_t cmd_can(int argc, char *argv[], void *ctx)
+{
+    if (argc == 1) {
+        return can_status(ctx);
+    }
+    if (cli_streq(argv[1], "loopback")) {
+        return can_loopback(argc, argv);
+    }
+    if (cli_streq(argv[1], "off")) {
+        if (argc != 2) {
+            return CLI_ERR_ARGS;
+        }
+        can_gen_stop();
+        can_drv_stop();
+        return CLI_OK;
+    }
+    if (cli_streq(argv[1], "send")) {
+        return can_send(argc, argv);
+    }
+    if (cli_streq(argv[1], "test")) {
+        return can_test(argc, argv);
+    }
+    return CLI_ERR_INVALID;
+}
+
 static cli_status_t cmd_reset(int argc, char *argv[], void *ctx)
 {
     (void)argc;
@@ -189,6 +318,8 @@ static const cli_command_t table[] = {
     {"led", "on|off|auto", "Green LED: on, off, or heartbeat (auto)", 1U, 1U, cmd_led},
     {"mode", "interactive|host", "Console mode (host is for the laptop tool)", 1U, 1U, cmd_mode},
     {"fault", "[clear]", "Details of the last crash, or forget it", 0U, 1U, cmd_fault},
+    {"can", "[loopback [kbps] | off | send <id> [data] | test <count> [per_s]]",
+     "CAN bus: status, loopback test mode, send a frame, test traffic", 0U, 3U, cmd_can},
     {"reset", "", "Restart the board", 0U, 0U, cmd_reset},
 #ifndef NDEBUG
     {"crash", "bus|usage|divzero|hard|watchdog", "Crash on purpose to test crash capture", 1U, 1U,

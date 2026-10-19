@@ -33,6 +33,19 @@ LABELS: dict[str, str] = {
     "crash_uptime_ms": "Crash time (ms)",
     "cfsr": "CFSR",
     "hfsr": "HFSR",
+    "can_mode": "Mode",
+    "can_bitrate": "Bit rate (bit/s)",
+    "can_bus": "Bus state",
+    "can_rx_frames": "Received",
+    "can_rx_dropped": "  dropped",
+    "can_rx_overruns": "  overruns",
+    "can_queue": "  queued",
+    "can_streamed": "Sent to laptop",
+    "can_tx_frames": "Transmitted",
+    "can_test_frames": "Test frames",
+    "can_isr_max_us": "Longest IRQ (us)",
+    "can_tec": "TX error count",
+    "can_rec": "RX error count",
 }
 
 

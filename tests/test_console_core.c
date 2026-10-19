@@ -172,6 +172,18 @@ static void test_host_mode_rejects_overlong_line(void)
     TEST_ASSERT_EQUAL_INT(-1, led_state);
 }
 
+static void test_feed_reports_when_a_line_has_ended(void)
+{
+    TEST_ASSERT_FALSE(console_core_feed(&con, 'l'));
+    feed("ed on");
+    TEST_ASSERT_TRUE(console_core_feed(&con, '\r')); /* command ran */
+    TEST_ASSERT_EQUAL_INT(1, led_state);
+    TEST_ASSERT_FALSE(console_core_feed(&con, '\n')); /* second half of CR LF */
+    TEST_ASSERT_FALSE(console_core_feed(&con, '\x03'));
+    feed_overlong_led_on();
+    TEST_ASSERT_TRUE(console_core_feed(&con, '\r')); /* rejected line */
+}
+
 static void test_empty_line_shows_prompt(void)
 {
     feed("\r");
@@ -285,6 +297,24 @@ static void test_event_in_host_mode(void)
     TEST_ASSERT_EQUAL_STRING("!button\r\n", output);
 }
 
+static void test_redraw_shows_prompt_and_typed_text(void)
+{
+    feed("le");
+    clear_output();
+    console_core_redraw(&con);
+    TEST_ASSERT_EQUAL_STRING("obd> le", output);
+
+    feed("d on\r"); /* completed line: nothing typed since */
+    clear_output();
+    console_core_redraw(&con);
+    TEST_ASSERT_EQUAL_STRING("obd> ", output);
+
+    console_core_set_mode(&con, CONSOLE_MODE_HOST);
+    clear_output();
+    console_core_redraw(&con);
+    TEST_ASSERT_EQUAL_STRING("", output);
+}
+
 static void test_event_restores_partial_line(void)
 {
     feed("le");
@@ -345,6 +375,7 @@ int main(int argc, char **argv)
     UNIT_TEST(test_ctrl_c_cancels_line);
     UNIT_TEST(test_overflow_rings_bell_and_rejects_line);
     UNIT_TEST(test_host_mode_rejects_overlong_line);
+    UNIT_TEST(test_feed_reports_when_a_line_has_ended);
     UNIT_TEST(test_empty_line_shows_prompt);
     UNIT_TEST(test_interactive_unknown_command_suggests_help);
     UNIT_TEST(test_interactive_wrong_args_shows_usage);
@@ -358,6 +389,7 @@ int main(int argc, char **argv)
     UNIT_TEST(test_field_formats);
     UNIT_TEST(test_text_is_written_verbatim);
     UNIT_TEST(test_event_in_host_mode);
+    UNIT_TEST(test_redraw_shows_prompt_and_typed_text);
     UNIT_TEST(test_event_restores_partial_line);
     UNIT_TEST(test_event_after_completed_line_shows_bare_prompt);
     UNIT_TEST(test_event_during_command_is_inline);

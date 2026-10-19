@@ -4,8 +4,13 @@
 #include "critical.h"
 #include "ring_buffer.h"
 
-#define RX_BUFFER_SIZE 256U  /* about 22 ms of input at 115200 baud */
-#define TX_BUFFER_SIZE 2048U /* a full status report fits without waiting */
+#define RX_BUFFER_SIZE 1024U /* about 7 ms of input at 1.5 Mbaud */
+#define TX_BUFFER_SIZE 4096U /* command replies plus streamed CAN frames */
+/* Longest single DMA transfer. Space in the transmit buffer is released when
+ * a transfer completes, so shorter transfers free it in small steps instead
+ * of all at once (a full-buffer transfer would hold its space for 27 ms at
+ * 1.5 Mbaud, and for over 300 ms at slower speeds). */
+#define TX_DMA_MAX_BLOCK 256U
 
 #define UART_IRQ_PRIORITY 5U
 #define DMA_IRQ_PRIORITY  6U
@@ -39,6 +44,9 @@ static void tx_start_next(void)
     size_t count = ring_peek_contiguous(&tx_ring, &data);
     if (count == 0U) {
         return;
+    }
+    if (count > TX_DMA_MAX_BLOCK) {
+        count = TX_DMA_MAX_BLOCK;
     }
     tx_in_flight = count;
     /* Clear "transmission complete" so it only becomes set again once this
@@ -220,6 +228,11 @@ bool uart_link_init(void)
     HAL_NVIC_EnableIRQ(USART2_IRQn);
     USART2->CR1 |= USART_CR1_RXNEIE;
     return true;
+}
+
+size_t uart_link_tx_free(void)
+{
+    return (size_t)ring_free(&tx_ring);
 }
 
 void uart_link_get_stats(uart_link_stats_t *out)

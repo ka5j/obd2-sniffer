@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.25)
 # Use the CMake presets rather than configuring by hand.
 
 project(obd2_sniffer
-    VERSION 0.2.0
+    VERSION 0.3.0
     DESCRIPTION "CAN bus sniffer and OBD2 diagnostic tool for STM32F446RE"
     LANGUAGES C)
 
