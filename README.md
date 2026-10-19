@@ -87,7 +87,7 @@ flowchart LR
 | Part | Status |
 |---|---|
 | Build system, project structure, automated builds (CI) | Done |
-| Microcontroller start-up: 180 MHz clock, serial console, start-up report | Done, awaiting hardware check |
+| Microcontroller start-up: 180 MHz clock, start-up report, reset-cause reporting | Done, awaiting hardware check |
 | Serial console: interrupt and DMA driven, interactive and host modes, board commands | Done, awaiting hardware check |
 | Watchdog and crash capture with reports after restart | Done, awaiting hardware check |
 | Laptop tool: command line, desktop app, simulated device | In progress |
@@ -139,7 +139,7 @@ troubleshooting.
 ## Testing
 
 ```sh
-cmake --preset host-tests && cmake --build --preset host-tests && ctest --preset host-tests
+cmake --workflow --preset host-tests      # configure, build and run the unit tests
 ```
 
 The unit tests run on a normal computer under memory-error, undefined-behaviour and race

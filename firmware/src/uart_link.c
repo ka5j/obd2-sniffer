@@ -41,6 +41,12 @@ static void tx_start_next(void)
         return;
     }
     tx_in_flight = count;
+    /* Clear "transmission complete" so it only becomes set again once this
+     * block's last bit has left the pin (RM0390, USART chapter: transmission
+     * using DMA).
+     * TC is cleared by writing 0; writing 1 to the other flags has no
+     * effect, so no read-modify-write is needed. */
+    USART2->SR = ~USART_SR_TC;
     DMA1->HIFCR = TX_DMA_FLAGS;
     TX_DMA_STREAM->M0AR = (uint32_t)data;
     TX_DMA_STREAM->NDTR = (uint32_t)count;
@@ -63,15 +69,16 @@ void DMA1_Stream6_IRQHandler(void)
     DMA1->HIFCR = TX_DMA_FLAGS;
 
     if ((status & DMA_HISR_TEIF6) != 0U) {
-        stats.tx_dma_errors++;
+        stats.tx_dma_errors++; /* block abandoned: not counted as sent */
+    } else if ((status & DMA_HISR_TCIF6) != 0U) {
+        stats.tx_bytes += (uint32_t)tx_in_flight;
+    } else {
+        return; /* no transfer finished (spurious or FIFO flag only) */
     }
-    if ((status & (DMA_HISR_TCIF6 | DMA_HISR_TEIF6)) != 0U) {
-        size_t sent = tx_in_flight;
-        stats.tx_bytes += (uint32_t)sent;
-        ring_consume(&tx_ring, sent);
-        tx_in_flight = 0U;
-        tx_start_next();
-    }
+    /* Either way the block is finished: release it and send the next one. */
+    ring_consume(&tx_ring, tx_in_flight);
+    tx_in_flight = 0U;
+    tx_start_next();
 }
 
 size_t uart_link_write(const uint8_t *data, size_t len, uint32_t timeout_ms)
