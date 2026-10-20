@@ -131,6 +131,14 @@ def test_run_test_against_the_simulator(sim) -> None:
     assert report.received == 450
 
 
+def test_run_test_turns_streaming_on(sim) -> None:
+    dev = connected(sim)
+    dev.can_loopback()
+    dev.can_stream(False)
+    assert run_test(dev, 20).passed
+    assert dev.can_status()["can_stream"] == "on"
+
+
 def test_run_test_starts_loopback_and_gives_up_when_frames_stop(sim, monkeypatch) -> None:
     dev = connected(sim)
     monkeypatch.setattr(Device, "can_test", lambda self, count, per_second=0: None)
@@ -174,6 +182,10 @@ def test_cli_can_commands(capsys, sim) -> None:
     assert "Bit rate (bit/s)" in out
     assert "250000" in out
     assert run(capsys, "can", "send", "7df", "0201")[1] == "Frame sent.\n"
+    assert run(capsys, "can", "stream", "off")[1] == "Streaming off.\n"
+    assert sim.can.stream is False
+    assert run(capsys, "can", "stream", "on")[1] == "Streaming on.\n"
+    assert sim.can.stream is True
     assert json.loads(run(capsys, "--json", "can", "off")[1]) == {"done": "off"}
     code, _, err = run(capsys, "can", "send", "123")
     assert code == cli.EXIT_COMMAND_FAILED
@@ -232,6 +244,12 @@ def test_monitor_json_frames(capsys, sim) -> None:
     (frame,) = [json.loads(line) for line in out.splitlines()]
     assert (frame["id"], frame["data"], frame["seq"]) == ("7DF", "02", 0)
     assert "1 frames, 0 lost" in err
+
+
+def test_monitor_turns_streaming_on(capsys, sim) -> None:
+    sim.can.command(["stream", "off"], lambda *_: None)
+    assert run(capsys, "monitor", "--duration", "0.1")[0] == 0
+    assert sim.can.stream is True
 
 
 # ---- shell ------------------------------------------------------------------------------

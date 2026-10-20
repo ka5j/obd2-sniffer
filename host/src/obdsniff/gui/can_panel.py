@@ -18,6 +18,7 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import QFontDatabase
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QHBoxLayout,
     QHeaderView,
@@ -88,6 +89,7 @@ class CanPanel(QWidget):
     loopback_requested = Signal(int)  # kbit/s
     off_requested = Signal()
     test_requested = Signal(int)  # frames
+    stream_requested = Signal(bool)  # on
 
     def __init__(self) -> None:
         super().__init__()
@@ -111,8 +113,15 @@ class CanPanel(QWidget):
         self.count_box.setSuffix(" frames")
         self.test_button = QPushButton("Send test frames")
         self.test_button.clicked.connect(lambda: self.test_requested.emit(self.count_box.value()))
+        self.stream_box = QCheckBox("Stream frames")
+        self.stream_box.setToolTip(
+            "Off: the board still receives and counts frames, but doesn't send them here"
+        )
+        self.stream_box.setChecked(True)
+        self.stream_box.toggled.connect(self.stream_requested.emit)
         controls = QHBoxLayout()
-        for widget in (self.bitrate_box, self.start_button, self.count_box, self.test_button):
+        widgets = (self.bitrate_box, self.start_button, self.count_box, self.test_button)
+        for widget in (*widgets, self.stream_box):
             controls.addWidget(widget)
         controls.addStretch(1)
 
@@ -147,12 +156,15 @@ class CanPanel(QWidget):
     # ---- from the window and worker -------------------------------------------
 
     def set_enabled(self, enabled: bool) -> None:
-        for widget in (self.bitrate_box, self.start_button, self.count_box):
+        for widget in (self.bitrate_box, self.start_button, self.count_box, self.stream_box):
             widget.setEnabled(enabled)
         self.test_button.setEnabled(enabled and self._running)
 
     def on_can_state(self, status: dict[str, str]) -> None:
         self._running = status.get("can_mode") == "loopback"
+        self.stream_box.blockSignals(True)  # showing the board's state isn't a request
+        self.stream_box.setChecked(status.get("can_stream", "on") == "on")
+        self.stream_box.blockSignals(False)
         self.start_button.setText("Stop" if self._running else "Start loopback")
         self.test_button.setEnabled(self._running and self.start_button.isEnabled())
         if self._running:

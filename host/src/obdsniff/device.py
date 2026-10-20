@@ -240,6 +240,11 @@ class Device:
             line += f" {data.hex()}"
         self.command(line)
 
+    def can_stream(self, on: bool) -> None:
+        """Whether received frames are sent to the laptop. Off, the board still
+        receives and counts them."""
+        self.command(f"can stream {'on' if on else 'off'}")
+
     def can_test(self, count: int, per_second: int = 0) -> None:
         """Start a series of numbered test frames (loopback only); 0 frames per
         second means as fast as the bus allows. Returns at once: the frames

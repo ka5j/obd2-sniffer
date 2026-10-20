@@ -86,6 +86,10 @@ def build_parser() -> argparse.ArgumentParser:
     send.add_argument(
         "data", nargs="?", type=hex_bytes, default=b"", help="data in hex, e.g. 0201050000000000"
     )
+    stream = can_sub.add_parser(
+        "stream", help="send received frames to the laptop (on), or only count them (off)"
+    )
+    stream.add_argument("state", choices=["on", "off"])
     test = can_sub.add_parser(
         "test", help="send numbered frames in loopback and check that every one arrives"
     )
@@ -192,6 +196,9 @@ def cmd_can(device: Device, args: argparse.Namespace) -> int:
     elif action == "send":
         device.can_send(args.id, args.data)
         message = "Frame sent."
+    elif action == "stream":
+        device.can_stream(args.state == "on")
+        message = f"Streaming {args.state}."
     else:
         fields = device.can_status()
         emit(fields, args.json, format_fields(fields))
@@ -242,6 +249,7 @@ class FrameOutput:
 
 
 def cmd_monitor(device: Device, args: argparse.Namespace) -> int:
+    device.can_stream(True)  # the frames have to reach the laptop
     if not args.json:
         print("Watching for CAN frames and events. Press Ctrl-C to stop.", flush=True)
     end = None if args.duration is None else time.monotonic() + args.duration

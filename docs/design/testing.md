@@ -88,6 +88,7 @@ timing the watchdog) is checked by hand.
 | CAN capture | Silent loopback, every frame checked by number and content: 100,000 frames at 500 kbit/s (4,230 frames/s, 100% load) and 10,000 at 250 kbit/s, none lost or damaged; frame spacing matches the frame length on the bus | Pass |
 | CAN capture | 1 Mbit/s overload: frames dropped on the board when the serial link can't keep up, and the laptop sees exactly that many gaps in the capture numbers | Pass |
 | CAN capture | Longest receive interrupt: 7 µs | Pass |
+| CAN capture | Streaming off (`can stream off`): no frame lines in a terminal during 1,000 test frames, all of them received and counted. At 1 Mbit/s and 100% load, 20,000 frames received and none dropped: the serial link is the only limit | Pass |
 | CAN tools | `can test`, `monitor --log` (candump file), shell; desktop-app CAN tab: 4,000 test frames shown, none lost; a second program can't open the port | Pass |
 
 The checks found problems that the unit tests and the simulator had not, all fixed:

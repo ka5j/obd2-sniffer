@@ -171,6 +171,7 @@ class MainWindow(QMainWindow):
         self.can_panel.loopback_requested.connect(worker.can_loopback)
         self.can_panel.off_requested.connect(worker.can_off)
         self.can_panel.test_requested.connect(worker.can_test)
+        self.can_panel.stream_requested.connect(worker.can_stream)
         worker.frames.connect(self.can_panel.on_frames)
         worker.can_state.connect(self.can_panel.on_can_state)
 

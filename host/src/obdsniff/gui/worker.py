@@ -150,6 +150,14 @@ class DeviceWorker(QObject):
 
         self._run(action)
 
+    @Slot(bool)
+    def can_stream(self, on: bool) -> None:
+        def action(device: Device) -> None:
+            device.can_stream(on)
+            self.can_state.emit(device.can_status())
+
+        self._run(action)
+
     @Slot(int)
     def can_test(self, count: int) -> None:
         self._run(lambda device: device.can_test(count))

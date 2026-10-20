@@ -40,6 +40,7 @@ LABELS: dict[str, str] = {
     "can_rx_dropped": "  dropped",
     "can_rx_overruns": "  overruns",
     "can_queue": "  queued",
+    "can_stream": "Streaming",
     "can_streamed": "Sent to laptop",
     "can_tx_frames": "Transmitted",
     "can_test_frames": "Test frames",

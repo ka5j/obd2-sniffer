@@ -32,7 +32,7 @@ COMMANDS: list[tuple[str, str, str, int, int]] = [
     ("led", "on|off|auto", "Green LED: on, off, or heartbeat (auto)", 1, 1),
     ("mode", "interactive|host", "Console mode (host is for the laptop tool)", 1, 1),
     ("fault", "[clear]", "Details of the last crash, or forget it", 0, 1),
-    ("can", CAN_USAGE, "CAN bus: status, loopback test mode, send a frame, test traffic", 0, 3),
+    ("can", CAN_USAGE, "CAN bus: status, loopback, send, test traffic, frame output", 0, 3),
     ("reset", "", "Restart the board", 0, 0),
     ("crash", "bus|usage|divzero|hard|watchdog", "Crash on purpose to test crash capture", 1, 1),
 ]
