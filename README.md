@@ -74,6 +74,8 @@ flowchart LR
 
 ![The desktop app's CAN tab: 4,000 test frames captured on the board, none lost](docs/images/desktop-app-can.png)
 
+![The desktop app's OBD2 tab: live data, trouble codes and VIN read on the board from its simulated engine computer](docs/images/desktop-app-obd.png)
+
 Try the laptop tool without a board: `pip install -e "host[gui]"`, then `obdsniff --port sim shell`
 or `obdsniff --port sim gui`. See [host/README.md](host/README.md).
 
