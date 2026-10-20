@@ -82,6 +82,7 @@ add_executable(${FW_NAME}
     src/console.c
     src/fault.c
     src/fault_entry.S
+    src/obd.c
     src/reset_cause.c
     src/status_led.c
     src/timebase.c

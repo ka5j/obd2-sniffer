@@ -17,13 +17,13 @@
 #define WORD_MAX           65535
 
 static const obd2_pid_t PIDS[] = {
-    {OBD2_PID_ENGINE_SPEED, OBD2_FORMULA_RPM, 0U, "obd_rpm", "Engine speed", "rpm"},
-    {OBD2_PID_VEHICLE_SPEED, OBD2_FORMULA_BYTE, 0U, "obd_speed", "Vehicle speed", "km/h"},
-    {OBD2_PID_THROTTLE, OBD2_FORMULA_PERCENT, 1U, "obd_throttle", "Throttle", "%"},
-    {OBD2_PID_ENGINE_LOAD, OBD2_FORMULA_PERCENT, 1U, "obd_load", "Engine load", "%"},
-    {OBD2_PID_COOLANT_TEMP, OBD2_FORMULA_TEMPERATURE, 0U, "obd_coolant", "Coolant", "C"},
-    {OBD2_PID_INTAKE_TEMP, OBD2_FORMULA_TEMPERATURE, 0U, "obd_intake", "Intake air", "C"},
-    {OBD2_PID_RUN_TIME, OBD2_FORMULA_WORD, 0U, "obd_run_time", "Engine run time", "s"},
+    {OBD2_PID_ENGINE_SPEED, OBD2_FORMULA_RPM, 0U, "obd_rpm", "Engine (rpm)"},
+    {OBD2_PID_VEHICLE_SPEED, OBD2_FORMULA_BYTE, 0U, "obd_speed", "Speed (km/h)"},
+    {OBD2_PID_THROTTLE, OBD2_FORMULA_PERCENT, 1U, "obd_throttle", "Throttle (%)"},
+    {OBD2_PID_ENGINE_LOAD, OBD2_FORMULA_PERCENT, 1U, "obd_load", "Engine load (%)"},
+    {OBD2_PID_COOLANT_TEMP, OBD2_FORMULA_TEMPERATURE, 0U, "obd_coolant", "Coolant (C)"},
+    {OBD2_PID_INTAKE_TEMP, OBD2_FORMULA_TEMPERATURE, 0U, "obd_intake", "Intake air (C)"},
+    {OBD2_PID_RUN_TIME, OBD2_FORMULA_WORD, 0U, "obd_run_time", "Run time (s)"},
 };
 
 _Static_assert((sizeof(PIDS) / sizeof(PIDS[0])) == OBD2_PID_COUNT,

@@ -4,7 +4,9 @@
  * Receive: the controller's FIFO raises an interrupt for each frame. The
  * interrupt stamps it with the microsecond timebase and puts it in a
  * lock-free queue (lib/frame_queue); the main loop takes frames out with
- * can_drv_receive(). The interrupt does nothing else, so it is short.
+ * can_drv_receive(). OBD2 frames (to 0x7DF and 0x7E0, from 0x7E8) also go
+ * into a second, smaller queue for the board's own OBD2 tasks, read with
+ * can_drv_receive_obd(). The interrupt does nothing else, so it is short.
  *
  * Modes: off at start-up. Loopback is the controller's silent loopback:
  * frames it sends are received internally and nothing reaches the pins, so
@@ -58,6 +60,9 @@ uint32_t can_drv_tx_free(void);
 
 /* Next received frame, oldest first. False if none. Main loop only. */
 bool can_drv_receive(can_frame_t *frame);
+
+/* Next received OBD2 frame, oldest first. False if none. Main loop only. */
+bool can_drv_receive_obd(can_frame_t *frame);
 
 void can_drv_get_stats(can_drv_stats_t *out);
 

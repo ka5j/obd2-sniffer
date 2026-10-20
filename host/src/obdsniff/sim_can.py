@@ -11,6 +11,7 @@ import struct
 from collections.abc import Callable
 
 from obdsniff.packets import CanFrame, format_frame
+from obdsniff.sim_obd import GAP_US, REQUEST_ID, SimulatedEcu, SimulatedTester, single_frame
 
 APB1_HZ = 45_000_000  # the board's CAN clock
 QUEUE_FRAMES = 409  # 8 KiB of 20-byte frames, as on the board
@@ -91,6 +92,9 @@ class SimulatedCan:
         self._pending: list[CanFrame] = []  # sent but not yet received
         self._gen_spacing_us = 0
         self._bus_time_us = 0
+        self._boot_us = self._now_us()  # the simulated ECU's clock is the uptime
+        self.ecu = SimulatedEcu()
+        self.tester = SimulatedTester()
 
     # ---- the `can` command ----------------------------------------------------
 
@@ -106,6 +110,7 @@ class SimulatedCan:
             if rest:
                 return f"wrong number of arguments (usage: can {USAGE})"
             self.mode, self.bitrate, self.gen_running = "off", 0, False
+            self.tester.stop()
             return None
         if sub == "send":
             return self._send(rest)
@@ -186,7 +191,7 @@ class SimulatedCan:
     # ---- frames ---------------------------------------------------------------
 
     def _now_us(self) -> int:
-        return int(self._clock() * 1_000_000) & 0xFFFF_FFFF
+        return int(self._clock() * 1_000_000)  # frame timestamps wrap; this doesn't
 
     def _transmit(self, ident: int, data: bytes, extended: bool = False, spacing: int = 0) -> None:
         frame = CanFrame(timestamp_us=0, id=ident, data=data, extended=extended)
@@ -204,11 +209,33 @@ class SimulatedCan:
         )
         self._seq += 1
         self.rx_frames += 1
+        if not extended:
+            # In loopback the board receives its own frames, so they reach its
+            # OBD2 tester and simulated ECU too (firmware/src/obd.c).
+            elapsed_ms = (self._bus_time_us - self._boot_us) // 1000
+            self.ecu.frame(ident, data, elapsed_ms, self._transmit)
+            self.tester.frame(ident, data, self._transmit)
+
+    def run_obd(self) -> None:
+        """The tester's requests up to now, each answered at once by the
+        simulated ECU; the next request follows 10 ms after the reply."""
+        now = self._now_us()
+        while self.tester.running and self.tester.next_request_us <= now:
+            self._bus_time_us = max(self._bus_time_us, self.tester.next_request_us)
+            self._transmit(REQUEST_ID, single_frame(self.tester.request(self._bus_time_us)))
+            self.tester.next_request_us = self._bus_time_us + GAP_US
+
+    def obd_start(self) -> bool:
+        if self.mode != "loopback":
+            return False
+        self.tester.start(self._now_us())
+        return True
 
     def take(self, limit: int) -> list[CanFrame]:
         """Frames received since the last call, to be sent (test traffic is
         produced up to `limit` frames at a time). With streaming off they
         are received and then dropped, as can_stream.c does."""
+        self.run_obd()
         while self.gen_running and len(self._pending) < limit:
             n = self.gen_sent
             data = struct.pack("<II", n, ~n & 0xFFFF_FFFF)

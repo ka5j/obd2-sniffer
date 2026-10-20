@@ -68,11 +68,16 @@ same capture path.
   1. reads the frame (`HAL_CAN_GetRxMessage`);
   2. reads the microsecond timer as its timestamp;
   3. gives it the next 16-bit capture number;
-  4. pushes it into the frame queue, or counts it as dropped if the queue is full.
+  4. pushes it into the frame queue, or counts it as dropped if the queue is full;
+  5. if it is an OBD2 frame (to 0x7DF or 0x7E0, from 0x7E8), also pushes a copy into a second,
+     small queue for the board's own OBD2 tester and simulated ECU (`firmware/src/obd.c`).
+     They then get their frames at once, even while the stream to the laptop is backed up or
+     switched off, and each queue keeps exactly one producer and one consumer.
 
   A FIFO overrun (a frame lost inside the controller, before the interrupt could run) is
   counted too. The handler measures its own duration with the CPU's cycle counter: 7 µs at
-  most, against 238 µs between frames at full load.
+  most for capture alone and 10 µs with OBD2 traffic (the extra copy), against 238 µs between
+  frames at full load.
 - **Off at start-up.** CAN is only started by a command, and sending is only allowed in loopback.
   A tool on a car's network must never transmit by accident.
 

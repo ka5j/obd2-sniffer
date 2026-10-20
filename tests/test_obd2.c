@@ -25,8 +25,7 @@ static void test_pid_table(void)
     const obd2_pid_t *first = obd2_pid_at(0U);
     TEST_ASSERT_EQUAL_HEX8(OBD2_PID_ENGINE_SPEED, first->pid);
     TEST_ASSERT_EQUAL_STRING("obd_rpm", first->key);
-    TEST_ASSERT_EQUAL_STRING("Engine speed", first->label);
-    TEST_ASSERT_EQUAL_STRING("rpm", first->unit);
+    TEST_ASSERT_EQUAL_STRING("Engine (rpm)", first->label);
     TEST_ASSERT_NULL(obd2_pid_at(obd2_pid_count()));
 
     TEST_ASSERT_EQUAL_PTR(first, obd2_pid_find(OBD2_PID_ENGINE_SPEED));
