@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "obdsniff"
-version = "0.3.0"
+version = "0.4.0"
 description = "Laptop tool for the OBD2 CAN Sniffer: command line, interactive shell and desktop app"
 readme = "README.md"
 requires-python = ">=3.10"
