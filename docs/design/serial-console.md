@@ -42,7 +42,11 @@ ThreadSanitizer.
 
 ### Receive path (`USART2_IRQHandler`)
 
-- Interrupt on RXNE (receive register not empty), priority 5.
+- Interrupt on RXNE (receive register not empty), priority 0: the highest in the system.
+  Priorities follow deadlines. The UART holds a single received byte, and at 1.5 Mbaud the next
+  one arrives 6.7 µs later, so the handler must never wait longer than that or a byte is lost.
+  The CAN receive interrupt (priority 1) has a 3-frame hardware FIFO and can wait about 90 µs
+  even on a full 1 Mbit/s bus. The handler itself takes well under a microsecond.
 - Reads `SR` then `DR`. That sequence also clears the overrun (ORE), framing (FE) and noise (NE)
   flags, so the handler can't get stuck re-entering on an error.
 - Bytes with framing or noise errors are discarded and counted. Overruns (a byte lost because the

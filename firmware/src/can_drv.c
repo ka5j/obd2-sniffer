@@ -8,7 +8,8 @@
 #include "obd_client.h"
 #include "timebase.h"
 
-/* Highest priority in the system: frames are timestamped as soon as they
+/* Second only to the serial receive interrupt, whose one-byte buffer has a
+ * tighter deadline (uart_link.c): frames are timestamped as soon as they
  * arrive, and the 3-frame hardware FIFO is emptied before it can overflow. */
 #define CAN_RX_IRQ_PRIORITY 1U
 
