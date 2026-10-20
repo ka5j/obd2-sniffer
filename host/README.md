@@ -138,6 +138,8 @@ reads from the simulated engine ECU as it changes: engine speed, vehicle speed, 
 load, coolant and intake temperature and run time, the warning light, stored trouble codes, the
 VIN, and the request counters. The tab also follows a tester started from the console.
 
+![The OBD2 tab on the board: 592 requests in about 6 seconds, every one answered](../docs/images/desktop-app-obd.png)
+
 The connection to the board runs on its own thread, so the window stays responsive even while the
 board restarts or thousands of frames a second stream in. When the app closes, the board is
 handed back in interactive mode.
