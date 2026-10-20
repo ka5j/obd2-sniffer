@@ -120,6 +120,8 @@ def test_loopback_and_off(board) -> None:
         ("can test 0", "invalid argument"),
         ("can test 10000001", "invalid argument"),
         ("can test 5 1000001", "invalid argument"),
+        ("can stream", USAGE_ERROR),
+        ("can stream maybe", "invalid argument"),
         ("can bogus", "invalid argument"),
     ],
 )
@@ -127,6 +129,22 @@ def test_errors(board, command: str, error: str) -> None:
     host(board)
     run(board, "can loopback\r")
     assert run(board, command + "\r").startswith("ERR " + error)
+
+
+def test_streaming_off_receives_frames_without_sending_them(board) -> None:
+    host(board)
+    run(board, "can loopback\r")
+    assert "can_stream=on\r\n" in run(board, "can\r")  # on after start-up
+    assert run(board, "can stream off\r") == "OK\r\n"
+    text, frames = host_frames(board, "can test 50")
+    assert (text, frames) == ("OK\r\n", [])
+    status = run(board, "can\r")
+    assert "can_stream=off\r\n" in status
+    assert "can_rx_frames=50\r\n" in status  # received and counted all the same
+    assert "can_streamed=0\r\n" in status
+    assert run(board, "can stream on\r") == "OK\r\n"
+    _, frames = host_frames(board, "can test 5")
+    assert len(frames) == 5
 
 
 def test_send_standard_and_extended_frames(board) -> None:

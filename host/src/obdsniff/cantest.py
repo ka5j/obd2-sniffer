@@ -72,9 +72,12 @@ def run_test(
     clock: Callable[[], float] = time.monotonic,
 ) -> LoopbackReport:
     """Run a test series and check every frame. Starts loopback at `kbps` if
-    CAN isn't in loopback already."""
-    if device.can_status().get("can_mode") != "loopback":
+    CAN isn't in loopback already, and streaming if it is off."""
+    status = device.can_status()
+    if status.get("can_mode") != "loopback":
         device.can_loopback(kbps)
+    if status.get("can_stream") == "off":
+        device.can_stream(True)
     device.poll_frames()  # earlier traffic isn't part of the test
     damaged_before = device.bad_packets
     device.can_test(count, per_second)

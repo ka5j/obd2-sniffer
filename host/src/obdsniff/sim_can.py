@@ -18,7 +18,7 @@ GEN_ID = 0x123
 GEN_MAX_COUNT = 10_000_000
 CAN_ID_STD_MAX = 0x7FF
 CAN_ID_EXT_MAX = 0x1FFF_FFFF
-USAGE = "[loopback [kbps] | off | send <id> [data] | test <count> [per_s]]"
+USAGE = "[loopback [kbps] | off | send <id> [data] | test <count> [per_s] | stream on|off]"
 
 
 def bit_timing_exists(clock_hz: int, bitrate: int) -> bool:
@@ -79,6 +79,7 @@ class SimulatedCan:
     def reset(self) -> None:
         """Start-up state: CAN off."""
         self.mode = "off"
+        self.stream = True  # frames go to the terminal or laptop
         self.bitrate = 0
         self.rx_frames = 0
         self.tx_frames = 0
@@ -110,6 +111,8 @@ class SimulatedCan:
             return self._send(rest)
         if sub == "test":
             return self._test(rest)
+        if sub == "stream":
+            return self._stream(rest)
         return "invalid argument"
 
     def _status(self, field: Callable[[str, str, str], None]) -> None:
@@ -121,6 +124,7 @@ class SimulatedCan:
         field("can_rx_dropped", "  dropped", "0")
         field("can_rx_overruns", "  overruns", "0")
         field("can_queue", "  queued", f"0/{QUEUE_FRAMES}")
+        field("can_stream", "Streaming", "on" if self.stream else "off")
         field("can_streamed", "Sent to laptop", str(self.streamed))
         field("can_tx_frames", "Transmitted", str(self.tx_frames))
         field("can_test_frames", "Test frames", f"{self.gen_sent}/{self.gen_count}")
@@ -171,6 +175,14 @@ class SimulatedCan:
         self._bus_time_us = max(self._bus_time_us, self._now_us())
         return None
 
+    def _stream(self, rest: list[str]) -> str | None:
+        if len(rest) != 1:
+            return f"wrong number of arguments (usage: can {USAGE})"
+        if rest[0] not in ("on", "off"):
+            return "invalid argument"
+        self.stream = rest[0] == "on"
+        return None
+
     # ---- frames ---------------------------------------------------------------
 
     def _now_us(self) -> int:
@@ -194,8 +206,9 @@ class SimulatedCan:
         self.rx_frames += 1
 
     def take(self, limit: int) -> list[CanFrame]:
-        """Frames received since the last call (test traffic is produced up
-        to `limit` frames at a time)."""
+        """Frames received since the last call, to be sent (test traffic is
+        produced up to `limit` frames at a time). With streaming off they
+        are received and then dropped, as can_stream.c does."""
         while self.gen_running and len(self._pending) < limit:
             n = self.gen_sent
             data = struct.pack("<II", n, ~n & 0xFFFF_FFFF)
@@ -203,6 +216,8 @@ class SimulatedCan:
             self.gen_sent += 1
             self.gen_running = self.gen_sent < self.gen_count
         frames, self._pending = self._pending[:limit], self._pending[limit:]
+        if not self.stream:
+            return []
         self.streamed += len(frames)
         return frames
 

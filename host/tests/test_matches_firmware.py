@@ -1,10 +1,11 @@
-"""Keep the simulator in step with the real firmware.
+"""Keep the simulator and the laptop tool in step with the real firmware.
 
-The simulator is a hand-written model of the board's console. If someone
-changes a command, a key or a label in firmware/src/commands.c and forgets
-the simulator, everything built and tested against the simulator would
-quietly go out of date. These tests read the firmware source and fail if
-the two disagree.
+The simulator is a hand-written model of the board's console, and the
+command line labels the board's fields itself. If someone changes a
+command, a key or a label in firmware/src/commands.c and forgets the laptop
+side, everything built and tested against the simulator would quietly go
+out of date. These tests read the firmware source and fail if they
+disagree.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from obdsniff.output import LABELS
 from obdsniff.simulator import COMMANDS, HELP_WIDTH, LABEL_WIDTH, LINE_MAX, SimulatedBoard
 from obdsniff.transport import BAUD_RATE
 
@@ -111,6 +113,16 @@ def test_layout_and_limits_match() -> None:
     assert c_define(lib / "include" / "console_core.h", "CONSOLE_LABEL_WIDTH") == LABEL_WIDTH
     assert c_define(lib / "src" / "console_core.c", "HELP_USAGE_WIDTH") == HELP_WIDTH
     assert c_define(lib / "include" / "line_editor.h", "LINE_EDITOR_MAX") == LINE_MAX
+
+
+def test_laptop_labels_match_the_firmware() -> None:
+    """The command line and shell show each field with the board's own label."""
+    mismatched = [
+        (m["key"], m["label"], LABELS.get(m["key"]))
+        for m in FIELD.finditer(firmware_source())
+        if LABELS.get(m["key"]) != m["label"]
+    ]
+    assert mismatched == []
 
 
 def test_every_firmware_label_fits_the_column() -> None:

@@ -29,9 +29,10 @@ obdsniff crash bus                 # debug firmware: crash on purpose, show what
 obdsniff can loopback              # CAN in loopback: the board receives its own frames
 obdsniff can test                  # send 10,000 test frames and check that every one arrives
 obdsniff can send 7DF 0201050000000000   # one frame (hex, as in Linux's cansend)
+obdsniff can stream off            # stop sending frames to the laptop (the board still counts them)
 obdsniff can                       # CAN status: frames received, dropped, error counters
 obdsniff can off
-obdsniff monitor                   # print CAN frames and events as they happen
+obdsniff monitor                   # print CAN frames and events as they happen (turns streaming on)
 obdsniff monitor --log trace.log   # ...and save the frames in candump format
 obdsniff shell                     # interactive session
 obdsniff gui                       # desktop app (see below)

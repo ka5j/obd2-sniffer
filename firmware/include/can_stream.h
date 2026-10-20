@@ -9,10 +9,15 @@
  * while traffic streams. If the link can't keep up, frames wait in the
  * queue; if the queue fills up, the receive interrupt counts them as
  * dropped.
+ *
+ * Streaming can be switched off (`can stream off`), for example so that a
+ * person in a serial terminal isn't flooded while the board talks OBD2.
+ * Frames are then still received and counted, but not sent.
  */
 #ifndef CAN_STREAM_H
 #define CAN_STREAM_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 /* Main loop: send what fits. */
@@ -20,5 +25,9 @@ void can_stream_task(uint32_t now_ms);
 
 /* Frames sent to the laptop since start-up. */
 uint32_t can_stream_sent(void);
+
+/* Streaming on or off. On at start-up. */
+void can_stream_enable(bool on);
+bool can_stream_enabled(void);
 
 #endif /* CAN_STREAM_H */

@@ -129,6 +129,10 @@ equals the board's drop count exactly.
   fits in the transmit buffer *beyond* the 1 KB reserved for command replies. If the serial link
   can't keep up, frames wait in the queue rather than blocking the main loop, and commands still
   get an immediate reply.
+- **Streaming can be switched off** (`can stream off`). Frames are then still received, counted
+  and taken out of the queue (so the queue never fills and nothing is counted as dropped), but
+  not sent. A person in a serial terminal can keep the console readable while the board is busy
+  with other traffic. `obdsniff monitor` and `obdsniff can test` switch it back on.
 
 ### On the laptop: `host/src/obdsniff/packets.py`
 

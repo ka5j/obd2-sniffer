@@ -205,6 +205,7 @@ static cli_status_t can_status(void *ctx)
     console_fieldf(ctx, "can_rx_overruns", "  overruns", "%lu", (unsigned long)s.rx_overruns);
     console_fieldf(ctx, "can_queue", "  queued", "%lu/%lu", (unsigned long)can_drv_queued(),
                    (unsigned long)can_drv_queue_capacity());
+    console_fieldf(ctx, "can_stream", "Streaming", "%s", can_stream_enabled() ? "on" : "off");
     console_fieldf(ctx, "can_streamed", "Sent to laptop", "%lu", (unsigned long)can_stream_sent());
     console_fieldf(ctx, "can_tx_frames", "Transmitted", "%lu", (unsigned long)s.tx_frames);
     console_fieldf(ctx, "can_test_frames", "Test frames", "%lu/%lu", (unsigned long)can_gen_sent(),
@@ -275,6 +276,24 @@ static cli_status_t can_test(int argc, char *argv[])
     return can_gen_start(count, per_second) ? CLI_OK : CLI_ERR_INVALID;
 }
 
+/* `can stream on|off`: whether received frames are sent to the terminal or
+ * the laptop. */
+static cli_status_t can_stream(int argc, char *argv[])
+{
+    if (argc != 3) {
+        return CLI_ERR_ARGS;
+    }
+    if (cli_streq(argv[2], "on")) {
+        can_stream_enable(true);
+        return CLI_OK;
+    }
+    if (cli_streq(argv[2], "off")) {
+        can_stream_enable(false);
+        return CLI_OK;
+    }
+    return CLI_ERR_INVALID;
+}
+
 static cli_status_t cmd_can(int argc, char *argv[], void *ctx)
 {
     if (argc == 1) {
@@ -297,6 +316,9 @@ static cli_status_t cmd_can(int argc, char *argv[], void *ctx)
     if (cli_streq(argv[1], "test")) {
         return can_test(argc, argv);
     }
+    if (cli_streq(argv[1], "stream")) {
+        return can_stream(argc, argv);
+    }
     return CLI_ERR_INVALID;
 }
 
@@ -318,8 +340,8 @@ static const cli_command_t table[] = {
     {"led", "on|off|auto", "Green LED: on, off, or heartbeat (auto)", 1U, 1U, cmd_led},
     {"mode", "interactive|host", "Console mode (host is for the laptop tool)", 1U, 1U, cmd_mode},
     {"fault", "[clear]", "Details of the last crash, or forget it", 0U, 1U, cmd_fault},
-    {"can", "[loopback [kbps] | off | send <id> [data] | test <count> [per_s]]",
-     "CAN bus: status, loopback test mode, send a frame, test traffic", 0U, 3U, cmd_can},
+    {"can", "[loopback [kbps] | off | send <id> [data] | test <count> [per_s] | stream on|off]",
+     "CAN bus: status, loopback, send, test traffic, frame output", 0U, 3U, cmd_can},
     {"reset", "", "Restart the board", 0U, 0U, cmd_reset},
 #ifndef NDEBUG
     {"crash", "bus|usage|divzero|hard|watchdog", "Crash on purpose to test crash capture", 1U, 1U,

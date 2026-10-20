@@ -32,6 +32,7 @@ end with CR, LF or CR LF. (Why this speed: [serial-console.md](design/serial-con
 | `can off` | Stop CAN (CAN is off after every start-up) |
 | `can send <id> [data]` | Loopback only: send one frame. Hex, as in Linux's `cansend`: `can send 7DF 0201050000000000`. IDs above `7FF` are 29-bit |
 | `can test <count> [per_s]` | Loopback only: send numbered test frames (ID `123`), as fast as the bus allows or at `per_s` frames per second |
+| `can stream on\|off` | Whether received frames are sent to the terminal or laptop (on after every start-up). Off, they are still received and counted, but not sent: useful in a terminal while the board is busy with other traffic |
 | `reset` | Restart the board (the reply is sent before it restarts) |
 | `crash bus\|usage\|divzero\|hard\|watchdog` | Debug builds only: crash on purpose to test crash capture. See [fault-handling.md](design/fault-handling.md) |
 

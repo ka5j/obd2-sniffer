@@ -80,6 +80,7 @@ class BoardCheck:
 
     def run(self, crash: bool) -> bool:
         self.device.connect()
+        self.device.can_stream(True)  # the CAN checks need every frame on the laptop
         checks: list[Callable[[], None]] = [
             self.identity,
             self.clock_accuracy,

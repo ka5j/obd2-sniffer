@@ -289,10 +289,33 @@ def test_can_tab_loopback_test_traffic_and_stop(connected, worker) -> None:
     assert not panel.test_button.isEnabled()
 
 
+def test_can_tab_streaming_switch(connected, worker) -> None:
+    panel = connected.can_panel
+    assert panel.stream_box.isChecked()
+    panel.start_button.click()
+    panel.stream_box.click()
+    assert not panel.stream_box.isChecked()
+    panel.count_box.setValue(20)
+    panel.test_button.click()
+    worker.poll()
+    assert panel.model.rowCount() == 0  # received on the board, not sent here
+    panel.stream_box.click()
+    assert panel.stream_box.isChecked()
+    panel.test_button.click()
+    worker.poll()
+    assert panel.model.rowCount() == 20
+
+
+def test_can_tab_shows_the_boards_streaming_state(window) -> None:
+    window.can_panel.on_can_state({"can_mode": "off", "can_stream": "off"})
+    assert not window.can_panel.stream_box.isChecked()
+
+
 def test_can_tab_is_disabled_when_disconnected(connected) -> None:
     connected.connect_button.click()
     assert not connected.can_panel.start_button.isEnabled()
     assert not connected.can_panel.test_button.isEnabled()
+    assert not connected.can_panel.stream_box.isEnabled()
 
 
 def test_frame_table_keeps_the_newest_rows(window) -> None:
