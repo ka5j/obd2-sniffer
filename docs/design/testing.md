@@ -89,6 +89,7 @@ timing the watchdog) is checked by hand.
 | CAN capture | 1 Mbit/s overload: frames dropped on the board when the serial link can't keep up, and the laptop sees exactly that many gaps in the capture numbers | Pass |
 | CAN capture | Longest receive interrupt: 7 µs | Pass |
 | CAN capture | Streaming off (`can stream off`): no frame lines in a terminal during 1,000 test frames, all of them received and counted. At 1 Mbit/s and 100% load, 20,000 frames received and none dropped: the serial link is the only limit | Pass |
+| OBD2 | Tester and simulated ECU over loopback, in a serial terminal: refused with CAN off; after 2 s, 220 requests and 220 replies; VIN (a multi-frame reply), both trouble codes and the warning light right; live values follow the simulated drive; about 95 requests a second; 0 timeouts, 0 errors, 0 frames dropped; longest receive interrupt 10 µs | Pass |
 | CAN tools | `can test`, `monitor --log` (candump file), shell; desktop-app CAN tab: 4,000 test frames shown, none lost; a second program can't open the port | Pass |
 
 The checks found problems that the unit tests and the simulator had not, all fixed:

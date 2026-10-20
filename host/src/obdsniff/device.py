@@ -251,6 +251,20 @@ class Device:
         arrive through poll_frames()."""
         self.command(f"can test {count} {per_second}")
 
+    # ---- OBD2 ----------------------------------------------------------------
+
+    def obd_status(self) -> dict[str, str]:
+        """The board's OBD2 tester: live values, trouble codes, VIN, counters."""
+        return self.query("obd")
+
+    def obd_start(self) -> None:
+        """Start the tester (CAN must be in loopback, where the board also
+        plays the car's engine ECU)."""
+        self.command("obd start")
+
+    def obd_stop(self) -> None:
+        self.command("obd stop")
+
     def reset(self) -> None:
         """Restart the board and reconnect once it is back."""
         self.command("reset")

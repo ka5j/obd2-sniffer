@@ -150,12 +150,12 @@ def test_streaming_off_receives_frames_without_sending_them(board) -> None:
 def test_send_standard_and_extended_frames(board) -> None:
     host(board)
     run(board, "can loopback\r")
-    text, frames = host_frames(board, "can send 7df 0201050000000000")
+    text, frames = host_frames(board, "can send 321 0201050000000000")
     assert text == "OK\r\n"
     assert frames == [
         CanFrame(
             timestamp_us=frames[0].timestamp_us,
-            id=0x7DF,
+            id=0x321,
             data=bytes.fromhex("0201050000000000"),
             dlc=8,
         )

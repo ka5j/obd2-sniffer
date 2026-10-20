@@ -163,6 +163,7 @@ python -m pytest --cov            # 100% line and branch coverage is required
 | `packets.py` | Binary frame packets: COBS, CRC, decoding; separates them from the console text |
 | `cantest.py` | `can test`: runs a test series and checks every frame |
 | `sim_can.py` | The simulator's CAN controller (loopback, test traffic) |
+| `sim_obd.py` | The simulator's OBD2 side: the simulated engine ECU, the board's tester and the `obd` command, modelled on the C code |
 | `cli.py`, `shell.py`, `output.py` | Command line, interactive shell, formatting |
 | `gui/window.py` | Desktop app window: displays results, turns clicks into requests |
 | `gui/worker.py` | Desktop app's board connection, run on its own thread; talks to the window only through Qt signals |

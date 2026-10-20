@@ -47,6 +47,23 @@ LABELS: dict[str, str] = {
     "can_isr_max_us": "Longest IRQ (us)",
     "can_tec": "TX error count",
     "can_rec": "RX error count",
+    "obd_tester": "Tester",
+    "obd_ecu": "Simulated ECU",
+    "obd_rpm": "Engine (rpm)",
+    "obd_speed": "Speed (km/h)",
+    "obd_throttle": "Throttle (%)",
+    "obd_load": "Engine load (%)",
+    "obd_coolant": "Coolant (C)",
+    "obd_intake": "Intake air (C)",
+    "obd_run_time": "Run time (s)",
+    "obd_mil": "Warning light",
+    "obd_dtc_count": "Codes stored",
+    "obd_dtcs": "Trouble codes",
+    "obd_vin": "VIN",
+    "obd_requests": "Requests",
+    "obd_replies": "  answered",
+    "obd_timeouts": "  timed out",
+    "obd_errors": "  errors",
 }
 
 
