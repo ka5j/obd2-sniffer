@@ -31,11 +31,13 @@ class DeviceWorker(QObject):
     failed = Signal(str)  # a request failed; the connection stays up
     frames = Signal(object, int)  # new CAN frames (list), damaged packets so far
     can_state = Signal(object)  # the board's `can` status (dict)
+    obd_state = Signal(object)  # the board's `obd` status (dict)
 
     def __init__(self, opener: Callable[[str | None], Device] = open_device) -> None:
         super().__init__()
         self._opener = opener
         self._device: Device | None = None
+        self._obd_running = False  # poll the tester's answers while it runs
         # A child of the worker, so it moves to the worker's thread with it.
         self._timer = QTimer(self)
         self._timer.setInterval(EVENT_POLL_MS)
@@ -91,9 +93,15 @@ class DeviceWorker(QObject):
 
     # ---- requests -------------------------------------------------------------
 
+    def _send_obd(self, device: Device) -> None:
+        status = device.obd_status()
+        self._obd_running = status.get("obd_tester") == "running"
+        self.obd_state.emit(status)
+
     def _send_info(self, device: Device) -> None:
         self.info.emit(device.version(), device.status(), device.fault())
         self.can_state.emit(device.can_status())
+        self._send_obd(device)  # the tester may have been started from a terminal
 
     @Slot()
     def refresh(self) -> None:
@@ -150,6 +158,35 @@ class DeviceWorker(QObject):
 
         self._run(action)
 
+    @Slot(bool)
+    def can_stream(self, on: bool) -> None:
+        def action(device: Device) -> None:
+            device.can_stream(on)
+            self.can_state.emit(device.can_status())
+
+        self._run(action)
+
+    @Slot()
+    def obd_start(self) -> None:
+        """Start the tester, and CAN loopback first if it is off."""
+
+        def action(device: Device) -> None:
+            if device.can_status().get("can_mode") != "loopback":
+                device.can_loopback()
+            device.obd_start()
+            self.can_state.emit(device.can_status())
+            self._send_obd(device)
+
+        self._run(action)
+
+    @Slot()
+    def obd_stop(self) -> None:
+        def action(device: Device) -> None:
+            device.obd_stop()
+            self._send_obd(device)
+
+        self._run(action)
+
     @Slot(int)
     def can_test(self, count: int) -> None:
         self._run(lambda device: device.can_test(count))
@@ -165,5 +202,7 @@ class DeviceWorker(QObject):
             frames = device.poll_frames()
             if frames:
                 self.frames.emit(frames, device.bad_packets)
+            if self._obd_running:
+                self._send_obd(device)
 
         self._run(action)

@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from obdsniff.packets import encode_can_frame
 from obdsniff.sim_can import USAGE as CAN_USAGE
 from obdsniff.sim_can import SimulatedCan, format_line
+from obdsniff.sim_obd import USAGE as OBD_USAGE
 from obdsniff.transport import Transport
 
 PROMPT = "obd> "
@@ -32,7 +33,8 @@ COMMANDS: list[tuple[str, str, str, int, int]] = [
     ("led", "on|off|auto", "Green LED: on, off, or heartbeat (auto)", 1, 1),
     ("mode", "interactive|host", "Console mode (host is for the laptop tool)", 1, 1),
     ("fault", "[clear]", "Details of the last crash, or forget it", 0, 1),
-    ("can", CAN_USAGE, "CAN bus: status, loopback test mode, send a frame, test traffic", 0, 3),
+    ("can", CAN_USAGE, "CAN bus: status, loopback, send, test traffic, frame output", 0, 3),
+    ("obd", OBD_USAGE, "OBD2 tester: live data, trouble codes, VIN (loopback)", 0, 1),
     ("reset", "", "Restart the board", 0, 0),
     ("crash", "bus|usage|divzero|hard|watchdog", "Crash on purpose to test crash capture", 1, 1),
 ]
@@ -344,6 +346,18 @@ class SimulatedBoard:
 
     def _cmd_can(self, args: list[str]) -> str | None:
         return self.can.command(args, self._field)
+
+    def _cmd_obd(self, args: list[str]) -> str | None:
+        self.can.run_obd()  # answers up to now
+        if not args:
+            self.can.tester.fields(self.can.mode == "loopback", self._field)
+            return None
+        if args[0] == "start":
+            return None if self.can.obd_start() else "command failed"
+        if args[0] == "stop":
+            self.can.tester.stop()
+            return None
+        return "invalid argument"
 
     def _cmd_reset(self, args: list[str]) -> str | None:
         self._after_reply = lambda: self.boot("software")

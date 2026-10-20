@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
 )
 
 from obdsniff.gui.can_panel import CanPanel
+from obdsniff.gui.obd_panel import ObdPanel
 from obdsniff.gui.worker import DeviceWorker
 from obdsniff.output import LABELS
 from obdsniff.ports import PortInfo, list_serial_ports
@@ -65,9 +66,11 @@ class MainWindow(QMainWindow):
         self._build_board_panel()
         self._build_console()
         self.can_panel = CanPanel()
+        self.obd_panel = ObdPanel()
         self.tabs = QTabWidget()
         self.tabs.addTab(self._console_panel, "Console")
         self.tabs.addTab(self.can_panel, "CAN bus")
+        self.tabs.addTab(self.obd_panel, "OBD2")
         splitter = QSplitter()
         splitter.addWidget(self._board_panel)
         splitter.addWidget(self.tabs)
@@ -171,8 +174,12 @@ class MainWindow(QMainWindow):
         self.can_panel.loopback_requested.connect(worker.can_loopback)
         self.can_panel.off_requested.connect(worker.can_off)
         self.can_panel.test_requested.connect(worker.can_test)
+        self.can_panel.stream_requested.connect(worker.can_stream)
         worker.frames.connect(self.can_panel.on_frames)
         worker.can_state.connect(self.can_panel.on_can_state)
+        self.obd_panel.start_requested.connect(worker.obd_start)
+        self.obd_panel.stop_requested.connect(worker.obd_stop)
+        worker.obd_state.connect(self.obd_panel.on_obd_state)
 
     # ---- ports ----------------------------------------------------------------
 
@@ -256,6 +263,7 @@ class MainWindow(QMainWindow):
         ):
             widget.setEnabled(enabled)
         self.can_panel.set_enabled(enabled)
+        self.obd_panel.set_enabled(enabled)
         self.clear_fault_button.setEnabled(False)  # until a crash is shown
 
     def _on_info(

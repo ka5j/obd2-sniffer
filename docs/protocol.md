@@ -32,6 +32,9 @@ end with CR, LF or CR LF. (Why this speed: [serial-console.md](design/serial-con
 | `can off` | Stop CAN (CAN is off after every start-up) |
 | `can send <id> [data]` | Loopback only: send one frame. Hex, as in Linux's `cansend`: `can send 7DF 0201050000000000`. IDs above `7FF` are 29-bit |
 | `can test <count> [per_s]` | Loopback only: send numbered test frames (ID `123`), as fast as the bus allows or at `per_s` frames per second |
+| `can stream on\|off` | Whether received frames are sent to the terminal or laptop (on after every start-up). Off, they are still received and counted, but not sent: useful in a terminal while the board is busy with other traffic |
+| `obd` | The board's OBD2 tester: whether it is running, the latest live values (engine speed, vehicle speed, throttle, engine load, coolant and intake temperature, engine run time), warning light, stored trouble codes, VIN, and request counters. A value shows `-` until it has been read |
+| `obd start\|stop` | Start or stop the tester. Needs CAN in loopback, where the board also plays the car's engine ECU: the tester's requests come back to it, and its replies back to the tester. `can off` stops the tester |
 | `reset` | Restart the board (the reply is sent before it restarts) |
 | `crash bus\|usage\|divzero\|hard\|watchdog` | Debug builds only: crash on purpose to test crash capture. See [fault-handling.md](design/fault-handling.md) |
 
@@ -79,6 +82,33 @@ obd>
 
 Text output is about twice the size of a binary packet, so at full load on a fast bus a terminal
 can't keep up and the board drops frames (counted by `can`). The laptop tool uses host mode.
+
+To read OBD2 data in a terminal, start loopback and the tester, and switch frame lines off so they
+don't scroll the answers away (the tester sends about 100 requests a second):
+
+```
+obd> can loopback
+obd> can stream off
+obd> obd start
+obd> obd
+  Tester            running
+  Simulated ECU     on
+  Engine (rpm)      2735
+  Speed (km/h)      61
+  Throttle (%)      31.4
+  Engine load (%)   65.1
+  Coolant (C)       27
+  Intake air (C)    25
+  Run time (s)      10
+  Warning light     on
+  Codes stored      2
+  Trouble codes     P0301 P0420
+  VIN               1M8GDM9AXKP042788
+  Requests          838
+    answered        838
+    timed out       0
+    errors          0
+```
 
 Lines are limited to 96 characters. When a line is full the terminal bell rings, and when you
 press Enter the whole line is rejected with `error: line too long`. It is never run cut short,

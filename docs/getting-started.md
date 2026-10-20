@@ -174,7 +174,7 @@ Press the black **RESET** button on the board. You should see the start-up repor
 
 ```
 ========================================
- OBD2 CAN Sniffer  v0.2.0
+ OBD2 CAN Sniffer  v0.4.0
 ----------------------------------------
  MCU      STM32F446RE  rev 0x....
  UID      ........-........-........
@@ -193,6 +193,18 @@ per second, and pressing the blue **USER** button prints `button pressed`.
 At the `obd>` prompt, try `help`, `status`, `version` or `led on`. All commands are described in
 [protocol.md](protocol.md).
 
+To see the diagnostic side, let the board talk to its own simulated engine computer:
+
+```
+obd> can loopback
+obd> can stream off
+obd> obd start
+obd> obd
+```
+
+`obd` shows live engine values, the warning light, the stored trouble codes and the VIN; type it
+again to see the values change. `obd stop` and `can off` stop it.
+
 ## 7. Use the laptop tool
 
 The `obdsniff` tool talks to the board from your computer. It needs Python 3.10 or newer:
@@ -205,6 +217,7 @@ pip install -e "host[gui]"         # without [gui] if you only want the command 
 obdsniff info                      # finds the board automatically
 obdsniff shell                     # interactive session
 obdsniff --port sim shell          # the same, against the built-in simulator
+obdsniff obd watch                 # OBD2 live data from the simulated engine computer
 obdsniff gui                       # desktop app
 ```
 
@@ -222,6 +235,10 @@ This builds the tests with memory and undefined-behaviour checkers and runs all 
 tool's tests run with `cd host && pip install -e ".[dev]" && python -m pytest --cov`. Coverage
 measurement and the MISRA C check are described in [testing.md](design/testing.md) and
 [misra.md](design/misra.md).
+
+With a board connected and the laptop tool installed, `python3 scripts/board_check.py` checks the
+board itself: clocks, the serial console under a burst of commands, and CAN capture at full bus
+load. It prints what it measured; see [testing.md](design/testing.md#checks-on-the-board).
 
 ## 9. Debugging (optional)
 

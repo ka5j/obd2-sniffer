@@ -37,7 +37,7 @@ same capture path.
 
 ```
  CAN controller ──► receive FIFO (3 frames, hardware)
-                       │ interrupt, highest priority
+                       │ interrupt, high priority
                        ▼
           CAN1_RX0_IRQHandler: timestamp (TIM2, 1 µs) + capture number
                        │
@@ -63,16 +63,23 @@ same capture path.
   15 time quanta per bit, sampling at 86.7% (see [hardware.md](hardware.md#can-bit-timing)).
 - **Filter.** One filter bank in 32-bit mask mode with an all-zero mask, so every frame is
   accepted into FIFO 0. A sniffer wants everything.
-- **Interrupt.** The FIFO-0 "message pending" interrupt runs at the highest priority in the
-  system (1). For each frame waiting in the 3-deep hardware FIFO it:
+- **Interrupt.** The FIFO-0 "message pending" interrupt runs at priority 1, second only to the
+  serial receive interrupt, which has the tighter deadline (see
+  [serial-console.md](serial-console.md#receive-path-usart2_irqhandler)). For each frame waiting
+  in the 3-deep hardware FIFO it:
   1. reads the frame (`HAL_CAN_GetRxMessage`);
   2. reads the microsecond timer as its timestamp;
   3. gives it the next 16-bit capture number;
-  4. pushes it into the frame queue, or counts it as dropped if the queue is full.
+  4. pushes it into the frame queue, or counts it as dropped if the queue is full;
+  5. if it is an OBD2 frame (to 0x7DF or 0x7E0, from 0x7E8), also pushes a copy into a second,
+     small queue for the board's own OBD2 tester and simulated ECU (`firmware/src/obd.c`).
+     They then get their frames at once, even while the stream to the laptop is backed up or
+     switched off, and each queue keeps exactly one producer and one consumer.
 
   A FIFO overrun (a frame lost inside the controller, before the interrupt could run) is
   counted too. The handler measures its own duration with the CPU's cycle counter: 7 µs at
-  most, against 238 µs between frames at full load.
+  most for capture alone and 10 µs with OBD2 traffic (the extra copy), against 238 µs between
+  frames at full load.
 - **Off at start-up.** CAN is only started by a command, and sending is only allowed in loopback.
   A tool on a car's network must never transmit by accident.
 
@@ -113,6 +120,11 @@ gaps at all while the board was dropping thousands of frames, because dropped fr
 became packets. Moving the numbering into the interrupt fixed that; now the laptop's gap count
 equals the board's drop count exactly.
 
+One limit is built into any numbering scheme: a gap only shows once a later frame arrives. If
+the last few frames of a burst are dropped, the laptop learns of it with the next frame, whenever
+that comes. The board check (`scripts/board_check.py`) accounts for this: its test frames are
+numbered from 0, so it counts losses after the last frame received separately.
+
 ### Sending: `firmware/src/can_stream.c`, `lib/src/packet.c`, `lib/src/can_text.c`
 
 - **Host mode:** each frame becomes a packet (format in [protocol.md](../protocol.md#can-frame-packets)):
@@ -129,6 +141,10 @@ equals the board's drop count exactly.
   fits in the transmit buffer *beyond* the 1 KB reserved for command replies. If the serial link
   can't keep up, frames wait in the queue rather than blocking the main loop, and commands still
   get an immediate reply.
+- **Streaming can be switched off** (`can stream off`). Frames are then still received, counted
+  and taken out of the queue (so the queue never fills and nothing is counted as dropped), but
+  not sent. A person in a serial terminal can keep the console readable while the board is busy
+  with other traffic. `obdsniff monitor` and `obdsniff can test` switch it back on.
 
 ### On the laptop: `host/src/obdsniff/packets.py`
 

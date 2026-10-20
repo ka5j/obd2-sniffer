@@ -12,7 +12,14 @@
  * 1.5 Mbaud, and for over 300 ms at slower speeds). */
 #define TX_DMA_MAX_BLOCK 256U
 
-#define UART_IRQ_PRIORITY 5U
+/* Priorities follow deadlines. The UART holds one received byte, and at
+ * 1.5 Mbaud the next one arrives 6.7 us later: if the handler waits longer,
+ * a byte is lost (an overrun). Nothing else in the system has a deadline
+ * that short, so receiving comes first, ahead of the CAN interrupt, whose
+ * 3-frame FIFO can wait about 90 us even on a full 1 Mbit/s bus. The handler
+ * takes well under a microsecond. Sending has no deadline: the DMA just
+ * moves on to the next block a little later. */
+#define UART_IRQ_PRIORITY 0U
 #define DMA_IRQ_PRIORITY  6U
 
 /* USART2_TX is DMA1 stream 6, channel 4 (RM0390 table 28). */

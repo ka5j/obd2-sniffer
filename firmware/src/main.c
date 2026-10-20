@@ -14,6 +14,7 @@
 #include "commands.h"
 #include "console.h"
 #include "fault.h"
+#include "obd.h"
 #include "reset_cause.h"
 #include "status_led.h"
 #include "timebase.h"
@@ -87,6 +88,7 @@ int main(void)
     if (!console_init() || !can_drv_init()) {
         board_panic();
     }
+    obd_init();
     commands_set_boot_info(cause, clk_src);
     print_banner(clk_src, cause);
     console_prompt();
@@ -103,6 +105,7 @@ int main(void)
         console_poll();
         can_gen_task();
         can_stream_task(now);
+        obd_task(now);
         status_led_task(now);
         button_task(now);
 

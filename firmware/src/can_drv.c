@@ -5,14 +5,20 @@
 #include "board.h"
 #include "can_timing.h"
 #include "frame_queue.h"
+#include "obd_client.h"
 #include "timebase.h"
 
-/* Highest priority in the system: frames are timestamped as soon as they
+/* Second only to the serial receive interrupt, whose one-byte buffer has a
+ * tighter deadline (uart_link.c): frames are timestamped as soon as they
  * arrive, and the 3-frame hardware FIFO is emptied before it can overflow. */
 #define CAN_RX_IRQ_PRIORITY 1U
 
 /* 8 KiB: about 400 frames, roughly 100 ms of a fully loaded bus. */
 #define RX_QUEUE_BYTES 8192U
+
+/* 1 KiB: 51 frames. OBD2 traffic comes a few frames per request, and the
+ * main loop empties this queue on every pass. */
+#define OBD_QUEUE_BYTES 1024U
 
 /* CAN2 shares CAN1's filter banks; banks from here on are CAN2's. */
 #define CAN2_FIRST_FILTER_BANK 14U
@@ -21,6 +27,7 @@ void CAN1_RX0_IRQHandler(void);
 
 static CAN_HandleTypeDef hcan1;
 static frame_queue_t rx_queue;
+static frame_queue_t obd_queue; /* copies of the frames for obd.c */
 static can_drv_mode_t mode = CAN_DRV_OFF;
 static uint32_t bitrate_bps;
 
@@ -58,6 +65,14 @@ static void read_frame(const CAN_RxHeaderTypeDef *header, const uint8_t *data, c
     capture_seq++;
 }
 
+/* Frames for the board's OBD2 tester and simulated ECU (obd.c): standard
+ * data frames to every ECU, to the engine ECU, and from it. */
+static bool for_obd(const can_frame_t *f)
+{
+    return (f->flags == 0U) && ((f->id == OBD_CLIENT_REQUEST_ID) || (f->id == OBD_CLIENT_FC_ID) ||
+                                (f->id == OBD_CLIENT_REPLY_ID));
+}
+
 void CAN1_RX0_IRQHandler(void)
 {
     uint32_t start = timebase_cycles();
@@ -76,6 +91,12 @@ void CAN1_RX0_IRQHandler(void)
             rx_frames++;
         } else {
             rx_dropped++;
+        }
+        /* A second queue, so OBD2 frames are handled even while the stream to
+         * the laptop is backed up or off. If it is ever full, the tester
+         * counts the missing replies as timeouts. */
+        if (for_obd(&frame)) {
+            (void)frame_queue_push(&obd_queue, &frame);
         }
     }
     /* A frame arrived while the FIFO was full: the controller lost it.
@@ -120,8 +141,10 @@ void HAL_CAN_MspInit(CAN_HandleTypeDef *hcan)
 bool can_drv_init(void)
 {
     static uint8_t rx_storage[RX_QUEUE_BYTES];
+    static uint8_t obd_storage[OBD_QUEUE_BYTES];
 
-    if (!frame_queue_init(&rx_queue, rx_storage, RX_QUEUE_BYTES)) {
+    if (!frame_queue_init(&rx_queue, rx_storage, RX_QUEUE_BYTES) ||
+        !frame_queue_init(&obd_queue, obd_storage, OBD_QUEUE_BYTES)) {
         return false;
     }
     hcan1.Instance = CAN1;
@@ -259,6 +282,11 @@ bool can_drv_send(const can_frame_t *frame)
 bool can_drv_receive(can_frame_t *frame)
 {
     return frame_queue_pop(&rx_queue, frame);
+}
+
+bool can_drv_receive_obd(can_frame_t *frame)
+{
+    return frame_queue_pop(&obd_queue, frame);
 }
 
 uint32_t can_drv_queued(void)

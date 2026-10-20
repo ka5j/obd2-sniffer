@@ -29,9 +29,13 @@ obdsniff crash bus                 # debug firmware: crash on purpose, show what
 obdsniff can loopback              # CAN in loopback: the board receives its own frames
 obdsniff can test                  # send 10,000 test frames and check that every one arrives
 obdsniff can send 7DF 0201050000000000   # one frame (hex, as in Linux's cansend)
+obdsniff can stream off            # stop sending frames to the laptop (the board still counts them)
 obdsniff can                       # CAN status: frames received, dropped, error counters
 obdsniff can off
-obdsniff monitor                   # print CAN frames and events as they happen
+obdsniff obd watch                 # OBD2 live data from the simulated ECU (starts loopback, Ctrl-C stops)
+obdsniff obd                       # the tester's latest answers once: values, trouble codes, VIN
+obdsniff obd start                 # start or stop the board's OBD2 tester (needs loopback)
+obdsniff monitor                   # print CAN frames and events as they happen (turns streaming on)
 obdsniff monitor --log trace.log   # ...and save the frames in candump format
 obdsniff shell                     # interactive session
 obdsniff gui                       # desktop app (see below)
@@ -129,6 +133,13 @@ lost and damaged packets:
 
 ![The CAN tab after 4,000 test frames in loopback, none lost](../docs/images/desktop-app-can.png)
 
+The **OBD2** tab starts the board's OBD2 tester (and CAN loopback, if it is off) and shows what it
+reads from the simulated engine ECU as it changes: engine speed, vehicle speed, throttle, engine
+load, coolant and intake temperature and run time, the warning light, stored trouble codes, the
+VIN, and the request counters. The tab also follows a tester started from the console.
+
+![The OBD2 tab on the board: 592 requests in about 6 seconds, every one answered](../docs/images/desktop-app-obd.png)
+
 The connection to the board runs on its own thread, so the window stays responsive even while the
 board restarts or thousands of frames a second stream in. When the app closes, the board is
 handed back in interactive mode.
@@ -149,7 +160,7 @@ with open_device("sim") as board:  # or a port path, or None to find the board
 ```sh
 pip install -e "host[dev]"
 cd host
-ruff check . && ruff format --check .
+ruff check . ../scripts && ruff format --check . ../scripts   # the repo's scripts too
 python -m pytest --cov            # 100% line and branch coverage is required
 ```
 
@@ -162,9 +173,11 @@ python -m pytest --cov            # 100% line and branch coverage is required
 | `packets.py` | Binary frame packets: COBS, CRC, decoding; separates them from the console text |
 | `cantest.py` | `can test`: runs a test series and checks every frame |
 | `sim_can.py` | The simulator's CAN controller (loopback, test traffic) |
+| `sim_obd.py` | The simulator's OBD2 side: the simulated engine ECU, the board's tester and the `obd` command, modelled on the C code |
 | `cli.py`, `shell.py`, `output.py` | Command line, interactive shell, formatting |
 | `gui/window.py` | Desktop app window: displays results, turns clicks into requests |
 | `gui/worker.py` | Desktop app's board connection, run on its own thread; talks to the window only through Qt signals |
 | `gui/can_panel.py` | The app's CAN tab: loopback, test traffic, live frame table and counters |
+| `gui/obd_panel.py` | The app's OBD2 tab: start the board's tester, live values, warning light, trouble codes, VIN |
 
 The serial protocol is described in [docs/protocol.md](../docs/protocol.md).

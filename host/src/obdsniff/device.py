@@ -240,11 +240,30 @@ class Device:
             line += f" {data.hex()}"
         self.command(line)
 
+    def can_stream(self, on: bool) -> None:
+        """Whether received frames are sent to the laptop. Off, the board still
+        receives and counts them."""
+        self.command(f"can stream {'on' if on else 'off'}")
+
     def can_test(self, count: int, per_second: int = 0) -> None:
         """Start a series of numbered test frames (loopback only); 0 frames per
         second means as fast as the bus allows. Returns at once: the frames
         arrive through poll_frames()."""
         self.command(f"can test {count} {per_second}")
+
+    # ---- OBD2 ----------------------------------------------------------------
+
+    def obd_status(self) -> dict[str, str]:
+        """The board's OBD2 tester: live values, trouble codes, VIN, counters."""
+        return self.query("obd")
+
+    def obd_start(self) -> None:
+        """Start the tester (CAN must be in loopback, where the board also
+        plays the car's engine ECU)."""
+        self.command("obd start")
+
+    def obd_stop(self) -> None:
+        self.command("obd stop")
 
     def reset(self) -> None:
         """Restart the board and reconnect once it is back."""

@@ -8,6 +8,7 @@ test_run_opens_and_closes.
 from __future__ import annotations
 
 import sys
+import time
 
 import pytest
 import serial
@@ -289,10 +290,80 @@ def test_can_tab_loopback_test_traffic_and_stop(connected, worker) -> None:
     assert not panel.test_button.isEnabled()
 
 
+def test_can_tab_streaming_switch(connected, worker) -> None:
+    panel = connected.can_panel
+    assert panel.stream_box.isChecked()
+    panel.start_button.click()
+    panel.stream_box.click()
+    assert not panel.stream_box.isChecked()
+    panel.count_box.setValue(20)
+    panel.test_button.click()
+    worker.poll()
+    assert panel.model.rowCount() == 0  # received on the board, not sent here
+    panel.stream_box.click()
+    assert panel.stream_box.isChecked()
+    panel.test_button.click()
+    worker.poll()
+    assert panel.model.rowCount() == 20
+
+
+def test_can_tab_shows_the_boards_streaming_state(window) -> None:
+    window.can_panel.on_can_state({"can_mode": "off", "can_stream": "off"})
+    assert not window.can_panel.stream_box.isChecked()
+
+
 def test_can_tab_is_disabled_when_disconnected(connected) -> None:
     connected.connect_button.click()
     assert not connected.can_panel.start_button.isEnabled()
     assert not connected.can_panel.test_button.isEnabled()
+    assert not connected.can_panel.stream_box.isEnabled()
+
+
+# ---- OBD2 tab -----------------------------------------------------------------------
+
+
+def poll_until(worker: DeviceWorker, done) -> None:
+    """Let the simulated board run, polling as the worker's timer would."""
+    for _ in range(50):
+        worker.poll()
+        if done():
+            return
+        time.sleep(0.01)
+    raise AssertionError("condition not reached")
+
+
+def test_obd_tab_reads_the_simulated_ecu(connected, worker) -> None:
+    panel = connected.obd_panel
+    assert panel.start_button.text() == "Start"
+    assert panel.value_labels["obd_rpm"].text() == "-"
+    panel.start_button.click()
+    assert panel.start_button.text() == "Stop"
+    assert connected.can_panel.start_button.text() == "Stop"  # loopback started for it
+    poll_until(worker, lambda: panel.vin_label.text().endswith("1M8GDM9AXKP042788"))
+    poll_until(worker, lambda: panel.value_labels["obd_run_time"].text() != "-")
+    assert panel.value_labels["obd_rpm"].text() == "800"
+    assert panel.dtc_label.text() == "Trouble codes: P0301 P0420"
+    assert panel.mil_label.text() == "Warning light: on"
+    assert "color" in panel.mil_label.styleSheet()
+    assert panel.counters_label.text().startswith("Requests ")
+
+    panel.start_button.click()
+    assert panel.start_button.text() == "Start"
+    panel.start_button.click()  # loopback is still on: just the tester again
+    assert panel.start_button.text() == "Stop"
+
+
+def test_obd_tab_follows_a_tester_started_from_the_console(connected) -> None:
+    type_command(connected, "can loopback")
+    type_command(connected, "obd start")
+    assert connected.obd_panel.start_button.text() == "Stop"
+    assert connected.obd_panel.mil_label.styleSheet() == ""  # nothing read yet
+
+
+def test_obd_tab_is_disabled_when_disconnected(connected) -> None:
+    assert connected.obd_panel.start_button.isEnabled()
+    connected.connect_button.click()
+    assert not connected.obd_panel.start_button.isEnabled()
 
 
 def test_frame_table_keeps_the_newest_rows(window) -> None:

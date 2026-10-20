@@ -7,6 +7,7 @@
 #include "console.h"
 #include "console_core.h"
 #include "fault.h"
+#include "obd.h"
 #include "status_led.h"
 #include "stm32f4xx_hal.h"
 #include "timebase.h"
@@ -205,6 +206,7 @@ static cli_status_t can_status(void *ctx)
     console_fieldf(ctx, "can_rx_overruns", "  overruns", "%lu", (unsigned long)s.rx_overruns);
     console_fieldf(ctx, "can_queue", "  queued", "%lu/%lu", (unsigned long)can_drv_queued(),
                    (unsigned long)can_drv_queue_capacity());
+    console_fieldf(ctx, "can_stream", "Streaming", "%s", can_stream_enabled() ? "on" : "off");
     console_fieldf(ctx, "can_streamed", "Sent to laptop", "%lu", (unsigned long)can_stream_sent());
     console_fieldf(ctx, "can_tx_frames", "Transmitted", "%lu", (unsigned long)s.tx_frames);
     console_fieldf(ctx, "can_test_frames", "Test frames", "%lu/%lu", (unsigned long)can_gen_sent(),
@@ -275,6 +277,24 @@ static cli_status_t can_test(int argc, char *argv[])
     return can_gen_start(count, per_second) ? CLI_OK : CLI_ERR_INVALID;
 }
 
+/* `can stream on|off`: whether received frames are sent to the terminal or
+ * the laptop. */
+static cli_status_t can_stream(int argc, char *argv[])
+{
+    if (argc != 3) {
+        return CLI_ERR_ARGS;
+    }
+    if (cli_streq(argv[2], "on")) {
+        can_stream_enable(true);
+        return CLI_OK;
+    }
+    if (cli_streq(argv[2], "off")) {
+        can_stream_enable(false);
+        return CLI_OK;
+    }
+    return CLI_ERR_INVALID;
+}
+
 static cli_status_t cmd_can(int argc, char *argv[], void *ctx)
 {
     if (argc == 1) {
@@ -288,6 +308,7 @@ static cli_status_t cmd_can(int argc, char *argv[], void *ctx)
             return CLI_ERR_ARGS;
         }
         can_gen_stop();
+        obd_stop();
         can_drv_stop();
         return CLI_OK;
     }
@@ -296,6 +317,91 @@ static cli_status_t cmd_can(int argc, char *argv[], void *ctx)
     }
     if (cli_streq(argv[1], "test")) {
         return can_test(argc, argv);
+    }
+    if (cli_streq(argv[1], "stream")) {
+        return can_stream(argc, argv);
+    }
+    return CLI_ERR_INVALID;
+}
+
+/* ---- obd ------------------------------------------------------------------ */
+
+#define DTC_LIST_LEN (OBD_CLIENT_DTC_MAX * OBD2_DTC_TEXT_LEN) /* codes, spaces, terminator */
+
+/* One live value per PID in lib/obd2.c's table, as its key and label
+ * there say: "-" until the tester has read it. */
+static void obd_values(void *ctx, const obd_client_t *t)
+{
+    for (size_t i = 0U; i < OBD2_PID_COUNT; i++) {
+        const obd2_pid_t *pid = obd2_pid_at(i);
+        int32_t value = t->values[i];
+        if (!t->value_valid[i]) {
+            console_fieldf(ctx, pid->key, pid->label, "-");
+        } else if (pid->decimals == 1U) {
+            console_fieldf(ctx, pid->key, pid->label, "%ld.%ld", (long)(value / 10),
+                           (long)(value % 10)); /* percentages: never negative */
+        } else {
+            console_fieldf(ctx, pid->key, pid->label, "%ld", (long)value);
+        }
+    }
+}
+
+/* The stored trouble codes as text, e.g. "P0301 P0420". */
+static void dtc_list(const obd_client_t *t, char out[DTC_LIST_LEN])
+{
+    size_t pos = 0U;
+    out[0] = '\0';
+    for (uint8_t i = 0U; i < t->dtc_count; i++) {
+        if (i > 0U) {
+            out[pos] = ' ';
+            pos++;
+        }
+        obd2_dtc_text(t->dtcs[i], &out[pos]); /* terminated after each code */
+        pos += OBD2_DTC_TEXT_LEN - 1U;
+    }
+}
+
+static cli_status_t obd_status(void *ctx)
+{
+    const obd_client_t *t = obd_tester();
+    char codes[DTC_LIST_LEN];
+    dtc_list(t, codes);
+    const char *codes_text = "-"; /* not read yet */
+    if (t->dtcs_valid) {
+        codes_text = (t->dtc_count == 0U) ? "none" : codes;
+    }
+
+    console_fieldf(ctx, "obd_tester", "Tester", "%s",
+                   obd_client_running(t) ? "running" : "stopped");
+    console_fieldf(ctx, "obd_ecu", "Simulated ECU", "%s", obd_ecu_on() ? "on" : "off");
+    obd_values(ctx, t);
+    if (t->status_valid) {
+        console_fieldf(ctx, "obd_mil", "Warning light", "%s", t->mil_on ? "on" : "off");
+        console_fieldf(ctx, "obd_dtc_count", "Codes stored", "%u", (unsigned int)t->dtc_reported);
+    } else {
+        console_fieldf(ctx, "obd_mil", "Warning light", "-");
+        console_fieldf(ctx, "obd_dtc_count", "Codes stored", "-");
+    }
+    console_fieldf(ctx, "obd_dtcs", "Trouble codes", "%s", codes_text);
+    console_fieldf(ctx, "obd_vin", "VIN", "%s", t->vin_valid ? t->vin : "-");
+    console_fieldf(ctx, "obd_requests", "Requests", "%lu", (unsigned long)t->requests);
+    console_fieldf(ctx, "obd_replies", "  answered", "%lu", (unsigned long)t->replies);
+    console_fieldf(ctx, "obd_timeouts", "  timed out", "%lu", (unsigned long)t->timeouts);
+    console_fieldf(ctx, "obd_errors", "  errors", "%lu", (unsigned long)t->errors);
+    return CLI_OK;
+}
+
+static cli_status_t cmd_obd(int argc, char *argv[], void *ctx)
+{
+    if (argc == 1) {
+        return obd_status(ctx);
+    }
+    if (cli_streq(argv[1], "start")) {
+        return obd_start() ? CLI_OK : CLI_ERR_FAILED; /* CAN must be in loopback */
+    }
+    if (cli_streq(argv[1], "stop")) {
+        obd_stop();
+        return CLI_OK;
     }
     return CLI_ERR_INVALID;
 }
@@ -318,8 +424,10 @@ static const cli_command_t table[] = {
     {"led", "on|off|auto", "Green LED: on, off, or heartbeat (auto)", 1U, 1U, cmd_led},
     {"mode", "interactive|host", "Console mode (host is for the laptop tool)", 1U, 1U, cmd_mode},
     {"fault", "[clear]", "Details of the last crash, or forget it", 0U, 1U, cmd_fault},
-    {"can", "[loopback [kbps] | off | send <id> [data] | test <count> [per_s]]",
-     "CAN bus: status, loopback test mode, send a frame, test traffic", 0U, 3U, cmd_can},
+    {"can", "[loopback [kbps] | off | send <id> [data] | test <count> [per_s] | stream on|off]",
+     "CAN bus: status, loopback, send, test traffic, frame output", 0U, 3U, cmd_can},
+    {"obd", "[start|stop]", "OBD2 tester: live data, trouble codes, VIN (loopback)", 0U, 1U,
+     cmd_obd},
     {"reset", "", "Restart the board", 0U, 0U, cmd_reset},
 #ifndef NDEBUG
     {"crash", "bus|usage|divzero|hard|watchdog", "Crash on purpose to test crash capture", 1U, 1U,
