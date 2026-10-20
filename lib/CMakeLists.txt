@@ -8,12 +8,14 @@ add_library(core STATIC
     src/cobs.c
     src/console_core.c
     src/crc16.c
+    src/ecu_node.c
     src/ecu_sim.c
     src/fault_record.c
     src/frame_queue.c
     src/isotp.c
     src/line_editor.c
     src/obd2.c
+    src/obd_client.c
     src/packet.c
     src/ring_buffer.c)
 target_include_directories(core PUBLIC include)

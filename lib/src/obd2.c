@@ -26,9 +26,12 @@ static const obd2_pid_t PIDS[] = {
     {OBD2_PID_RUN_TIME, OBD2_FORMULA_WORD, 0U, "obd_run_time", "Engine run time", "s"},
 };
 
+_Static_assert((sizeof(PIDS) / sizeof(PIDS[0])) == OBD2_PID_COUNT,
+               "OBD2_PID_COUNT must match the table");
+
 size_t obd2_pid_count(void)
 {
-    return sizeof(PIDS) / sizeof(PIDS[0]);
+    return OBD2_PID_COUNT;
 }
 
 const obd2_pid_t *obd2_pid_at(size_t index)

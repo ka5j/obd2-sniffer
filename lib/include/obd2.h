@@ -70,6 +70,7 @@ typedef struct {
 } obd2_pid_t;
 
 /* The numeric PIDs this project knows, in display order. */
+#define OBD2_PID_COUNT 7U
 size_t obd2_pid_count(void);
 const obd2_pid_t *obd2_pid_at(size_t index);
 
