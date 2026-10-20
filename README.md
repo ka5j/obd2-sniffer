@@ -39,8 +39,9 @@ This project is a scan tool and network analyzer I am building myself:
   Measured on the board: 100,000 messages in a row at 100% network load, none lost.
 - **Battery friendly.** When the car is off and the network goes quiet, the device sleeps and
   wakes up automatically when traffic resumes.
-- **Testable without a car.** The microcontroller has two network controllers. One acts as a fake
-  engine computer, so the whole system can be developed and tested on a desk.
+- **Testable without a car.** The board plays the car too: a simulated engine computer answers
+  the diagnostic requests through the real CAN controller in loopback. The microcontroller's
+  second network controller will let it play that part on a real two-node bus on the desk.
 - **Tested to safety-critical standards.** The core logic is unit-tested to 100% MC/DC coverage,
   the coverage standard used for flight-control and automotive safety software, and all C code
   follows the **MISRA C:2012** coding rules used in the automotive industry, with every exception
@@ -67,8 +68,8 @@ flowchart LR
 
 | Interface | What it looks like | Good for |
 |---|---|---|
-| Desktop app | `obdsniff gui`: a window with connection controls, board status and a console | Watching live data, demos |
-| Command-line tool | `obdsniff monitor`, `obdsniff can test`, `obdsniff shell`, ... | Watching and logging traffic, scripting, automated checks |
+| Desktop app | `obdsniff gui`: board status and controls, a console, live CAN frames, OBD2 live data | Watching live data, demos |
+| Command-line tool | `obdsniff obd watch`, `obdsniff monitor`, `obdsniff can test`, `obdsniff shell`, ... | Watching and logging traffic, scripting, automated checks |
 | Serial terminal | Open the board's USB serial port and type `help` | Using the device with no software installed |
 
 ![The desktop app's CAN tab: 4,000 test frames captured on the board, none lost](docs/images/desktop-app-can.png)
@@ -103,7 +104,7 @@ or `obdsniff --port sim gui`. See [host/README.md](host/README.md).
 | Unit tests with 100% MC/DC coverage gate, published test and coverage reports | Done |
 | MISRA C:2012 compliance check in CI, published compliance report | Done |
 | Capturing CAN messages and streaming them to the laptop | Done (tested in loopback), verified on hardware |
-| OBD2 requests: live data, VIN, trouble codes | Not started |
+| OBD2 requests: live data, VIN, trouble codes, from a simulated engine computer in loopback | Done, verified on hardware |
 | Two-controller test bus on the desk, performance measurements | Not started |
 | Safety layer with failure-mode analysis and fault-injection tests | Not started |
 | Live graphs and logging in the desktop app | Not started |
@@ -167,6 +168,7 @@ over the serial port and prints what it measured. See
 Each document starts with a short plain-language summary, followed by the engineering detail.
 
 - [CAN capture](docs/design/can-capture.md): from the bus to the laptop, with measured results
+- [OBD2](docs/design/obd2.md): asking the car for live data, trouble codes and its VIN
 - [Serial console and protocol](docs/protocol.md): commands, and how programs talk to the board
 - [Laptop tool](host/README.md): desktop app, command line, shell, simulator, Python library
 - [Hardware and wiring](docs/design/hardware.md)
