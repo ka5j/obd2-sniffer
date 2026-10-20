@@ -37,7 +37,7 @@ same capture path.
 
 ```
  CAN controller ──► receive FIFO (3 frames, hardware)
-                       │ interrupt, highest priority
+                       │ interrupt, high priority
                        ▼
           CAN1_RX0_IRQHandler: timestamp (TIM2, 1 µs) + capture number
                        │
@@ -63,8 +63,10 @@ same capture path.
   15 time quanta per bit, sampling at 86.7% (see [hardware.md](hardware.md#can-bit-timing)).
 - **Filter.** One filter bank in 32-bit mask mode with an all-zero mask, so every frame is
   accepted into FIFO 0. A sniffer wants everything.
-- **Interrupt.** The FIFO-0 "message pending" interrupt runs at the highest priority in the
-  system (1). For each frame waiting in the 3-deep hardware FIFO it:
+- **Interrupt.** The FIFO-0 "message pending" interrupt runs at priority 1, second only to the
+  serial receive interrupt, which has the tighter deadline (see
+  [serial-console.md](serial-console.md#receive-path-usart2_irqhandler)). For each frame waiting
+  in the 3-deep hardware FIFO it:
   1. reads the frame (`HAL_CAN_GetRxMessage`);
   2. reads the microsecond timer as its timestamp;
   3. gives it the next 16-bit capture number;

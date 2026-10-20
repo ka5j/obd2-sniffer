@@ -77,6 +77,7 @@ timing the watchdog) is checked by hand.
 | Serial console | Every command and error message; Backspace, Ctrl-C, the 96-character limit | Pass |
 | Serial console | The reply to `reset` arrives complete before the board restarts | Pass |
 | Serial console | Bursts of commands sent without waiting: 20 and 50 at 115200 baud, 100 at 1.5 Mbaud (28 KB at 99% of the line rate). Every reply intact, nothing dropped, no restart | Pass |
+| Serial console | Commands sent continuously while the CAN bus is full (500 kbit/s): 2,693 commands as 42,129 frames arrived, none failed, no received byte lost | Pass |
 | Button and LED | Button presses reported in both modes, with a half-typed line shown again; LED heartbeat | Pass |
 | Crash capture | `crash bus`, `usage`, `divzero`, `hard`: right fault type and cause after the restart; the saved code address points at the faulting line (`fault.c:87` for `bus`); bad address `0x08080000` | Pass |
 | Watchdog | Main loop stopped on purpose: reset after 535 ms (allowed: 340 to 940 ms), reported as a watchdog reset | Pass |
@@ -114,6 +115,13 @@ The checks found problems that the unit tests and the simulator had not, all fix
   numbered on arrival ([#29](https://github.com/ka5j/obd2-sniffer/pull/29)).
 - Two programs could open the board's port at once and split its output between them. The laptop
   tool now opens it exclusively ([#30](https://github.com/ka5j/obd2-sniffer/pull/30)).
+- With OBD2 running, about one command in 200 from the desktop app was rejected as an unknown
+  command. Bytes were being lost on the way in: the board counted receive overruns, and only
+  while CAN traffic ran. At 1.5 Mbaud the UART must be read within 6.7 µs of each byte, but the
+  CAN receive interrupt, which then had the higher priority, can run for 7 to 10 µs. Interrupt
+  priorities now follow deadlines, with the serial receive interrupt first. 20 s of commands
+  during OBD2 traffic went from 11 overruns and 15 failed commands to none, and the board check
+  now sends commands while the bus is full.
 
 ## Coverage measures
 

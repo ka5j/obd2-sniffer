@@ -90,6 +90,7 @@ class BoardCheck:
             lambda: self.capture(250, 2_000 if self.quick else 10_000),
             lambda: self.overload(5_000 if self.quick else 20_000),
             self.interrupt_time,
+            self.commands_under_can_load,
             self.reset,
         ]
         if crash:
@@ -263,6 +264,36 @@ class BoardCheck:
             f"{count:,} frames at 1000 kbit/s: {report.lost:,} lost; board counted "
             f"{dropped:,} dropped and {overruns} overruns, laptop saw {gaps.lost:,} "
             f"missing capture numbers{tail}",
+        )
+
+    def commands_under_can_load(self) -> None:
+        """Commands sent while the CAN interrupt is busy with a full bus. At
+        1.5 Mbaud the UART holds one received byte for 6.7 us; if another
+        interrupt keeps its handler waiting longer than that, a byte is lost
+        and the command arrives garbled."""
+        seconds = 3 if self.quick else 10
+        self.device.can_loopback(500)
+        self.device.can_stream(False)  # replies only on the link
+        before = self.device.status()
+        self.device.can_test(1_000_000)  # far more than the time allows: the bus stays full
+        sent = failed = 0
+        end = time.monotonic() + seconds
+        while time.monotonic() < end:
+            sent += 1
+            try:
+                self.device.can_status()
+            except DeviceError:
+                failed += 1
+        self.device.can_off()
+        self.device.can_stream(True)
+        after = self.device.status()
+        lost = int(after["uart_rx_overruns"]) - int(before["uart_rx_overruns"])
+        received = int(self.device.can_status()["can_rx_frames"])
+        self.record(
+            "Commands + CAN",
+            failed == 0 and lost == 0,
+            f"{sent:,} commands while {received:,} frames arrived at 500 kbit/s: "
+            f"{failed} failed, {lost} bytes lost to receive overruns",
         )
 
     def interrupt_time(self) -> None:
