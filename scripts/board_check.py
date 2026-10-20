@@ -182,7 +182,11 @@ class BoardCheck:
         after = self.device.status()
         counters = ("uart_rx_dropped", "uart_rx_overruns", "uart_rx_errors", "uart_tx_dropped")
         nothing_dropped = all(before[key] == after[key] for key in counters)
-        no_restart = int(after["uptime_ms"]) > int(before["uptime_ms"])
+        # Uptime starts again from 0 after a restart. The simulator answers
+        # the whole burst within a millisecond, so equal is fine.
+        no_restart = int(after["uptime_ms"]) >= int(before["uptime_ms"]) and (
+            after["reset_cause"] == before["reset_cause"]
+        )
         speed = f"{total / 1000:.1f} KB in {elapsed * 1000:.0f} ms"
         if self.on_board:
             speed += f" ({total / elapsed / LINK_BYTES_PER_S:.0%} of the line rate)"
@@ -230,7 +234,11 @@ class BoardCheck:
     def overload(self, count: int) -> None:
         """At 1 Mbit/s a full bus outruns the serial link: frames are dropped on
         the board. Every lost frame must be accounted for, by the board's
-        counters and by gaps in the capture numbers."""
+        counters and by gaps in the capture numbers.
+
+        A gap only shows once a later frame arrives, so frames dropped after
+        the last one received leave none. The test frames are the only
+        traffic and are numbered from 0, so those are counted separately."""
         self.device.can_loopback(1000)  # counters and capture numbers start at 0
         self.device.poll_frames()
         damaged_before = self.device.bad_packets
@@ -242,17 +250,19 @@ class BoardCheck:
         gaps = FrameGaps()
         for frame in frames:
             gaps.add(frame.seq)
+        after_last = count - 1 - frames[-1].seq if frames else count
         dropped = int(status["can_rx_dropped"])  # queue full: numbered, then dropped
         overruns = int(status["can_rx_overruns"])  # lost in the controller: never numbered
+        tail = f", plus {after_last} after the last frame received" if after_last else ""
         self.record(
             "CAN overload",
             report.wrong == 0
             and report.damaged == 0
-            and gaps.lost == dropped
+            and gaps.lost + after_last == dropped
             and report.lost == dropped + overruns,
             f"{count:,} frames at 1000 kbit/s: {report.lost:,} lost; board counted "
             f"{dropped:,} dropped and {overruns} overruns, laptop saw {gaps.lost:,} "
-            "missing capture numbers",
+            f"missing capture numbers{tail}",
         )
 
     def interrupt_time(self) -> None:

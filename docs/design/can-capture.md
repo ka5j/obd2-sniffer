@@ -113,6 +113,11 @@ gaps at all while the board was dropping thousands of frames, because dropped fr
 became packets. Moving the numbering into the interrupt fixed that; now the laptop's gap count
 equals the board's drop count exactly.
 
+One limit is built into any numbering scheme: a gap only shows once a later frame arrives. If
+the last few frames of a burst are dropped, the laptop learns of it with the next frame, whenever
+that comes. The board check (`scripts/board_check.py`) accounts for this: its test frames are
+numbered from 0, so it counts losses after the last frame received separately.
+
 ### Sending: `firmware/src/can_stream.c`, `lib/src/packet.c`, `lib/src/can_text.c`
 
 - **Host mode:** each frame becomes a packet (format in [protocol.md](../protocol.md#can-frame-packets)):
