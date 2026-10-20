@@ -181,7 +181,11 @@ class BoardCheck:
         after = self.device.status()
         counters = ("uart_rx_dropped", "uart_rx_overruns", "uart_rx_errors", "uart_tx_dropped")
         nothing_dropped = all(before[key] == after[key] for key in counters)
-        no_restart = int(after["uptime_ms"]) > int(before["uptime_ms"])
+        # Uptime starts again from 0 after a restart. The simulator answers
+        # the whole burst within a millisecond, so equal is fine.
+        no_restart = int(after["uptime_ms"]) >= int(before["uptime_ms"]) and (
+            after["reset_cause"] == before["reset_cause"]
+        )
         speed = f"{total / 1000:.1f} KB in {elapsed * 1000:.0f} ms"
         if self.on_board:
             speed += f" ({total / elapsed / LINK_BYTES_PER_S:.0%} of the line rate)"
