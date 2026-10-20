@@ -104,6 +104,17 @@ def build_parser() -> argparse.ArgumentParser:
     test.add_argument(
         "--bitrate", type=int, default=500, metavar="KBPS", help="if loopback isn't running yet"
     )
+    obd = sub.add_parser("obd", help="OBD2: live data, trouble codes and VIN (simulated ECU)")
+    obd_sub = obd.add_subparsers(dest="obd_command", metavar="ACTION")
+    obd_sub.add_parser("start", help="start the board's OBD2 tester (CAN must be in loopback)")
+    obd_sub.add_parser("stop", help="stop the tester")
+    watch = obd_sub.add_parser(
+        "watch", help="start loopback and the tester if needed, and show the values live"
+    )
+    watch.add_argument("--duration", type=float, help="stop after this many seconds")
+    watch.add_argument(
+        "--interval", type=float, default=0.5, help="seconds between updates (default 0.5)"
+    )
     monitor = sub.add_parser("monitor", help="print CAN frames and events as they happen")
     monitor.add_argument("--duration", type=float, help="stop after this many seconds")
     monitor.add_argument(
@@ -248,6 +259,54 @@ class FrameOutput:
             self._log.write("\n".join(log_lines) + "\n")
 
 
+CLEAR_SCREEN = "\x1b[H\x1b[J"  # cursor to the top left, clear to the end of the screen
+
+
+def watch_obd(device: Device, args: argparse.Namespace) -> int:
+    """Live view. Starts what it needs, and leaves streaming as it found it."""
+    can = device.can_status()
+    if can.get("can_mode") != "loopback":
+        device.can_loopback()
+    streaming = can.get("can_stream") != "off"
+    device.can_stream(False)  # the values matter here, not ~200 frames a second
+    device.obd_start()
+    redraw = sys.stdout.isatty() and not args.json
+    end = None if args.duration is None else time.monotonic() + args.duration
+    try:
+        while end is None or time.monotonic() < end:
+            fields = device.obd_status()
+            if args.json:
+                print(json.dumps(fields), flush=True)
+            else:
+                text = ["OBD2 live data from the board. Press Ctrl-C to stop.", ""]
+                text += format_fields(fields)
+                print((CLEAR_SCREEN if redraw else "") + "\n".join(text) + "\n", flush=True)
+            time.sleep(args.interval)
+    except KeyboardInterrupt:
+        pass
+    device.obd_stop()
+    device.can_stream(streaming)
+    return EXIT_OK
+
+
+def cmd_obd(device: Device, args: argparse.Namespace) -> int:
+    action = args.obd_command
+    if action == "watch":
+        return watch_obd(device, args)
+    if action == "start":
+        device.obd_start()
+        message = "OBD2 tester started."
+    elif action == "stop":
+        device.obd_stop()
+        message = "OBD2 tester stopped."
+    else:
+        fields = device.obd_status()
+        emit(fields, args.json, format_fields(fields))
+        return EXIT_OK
+    emit({"done": action}, args.json, [message])
+    return EXIT_OK
+
+
 def cmd_monitor(device: Device, args: argparse.Namespace) -> int:
     device.can_stream(True)  # the frames have to reach the laptop
     if not args.json:
@@ -285,6 +344,7 @@ HANDLERS: dict[str, Callable[[Device, argparse.Namespace], int]] = {
     "reset": cmd_reset,
     "crash": cmd_crash,
     "can": cmd_can,
+    "obd": cmd_obd,
     "monitor": cmd_monitor,
     "shell": cmd_shell,
 }
