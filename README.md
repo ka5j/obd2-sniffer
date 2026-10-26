@@ -10,7 +10,7 @@ microcontroller, with a desktop app and a command-line tool for the laptop side.
 
 > Under active development. See [Project status](#project-status) for what works today.
 
-## The idea in plain terms
+## The idea
 
 A modern car has dozens of small computers (ECUs) controlling the engine, brakes, airbags and
 dashboard. They talk to each other over a shared wired network called the **CAN bus**. Since 2008,
@@ -80,7 +80,7 @@ Try the laptop tool without a board: `pip install -e "host[gui]"`, then `obdsnif
 or `obdsniff --port sim gui`. See [host/README.md](host/README.md).
 
 
-## Skills demonstrated
+## Topics touched with this project
 
 | Area | Details |
 |---|---|
