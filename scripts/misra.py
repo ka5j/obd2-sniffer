@@ -120,6 +120,17 @@ def run_cppcheck(cfg: dict, cppcheck: str, workdir: Path) -> Path:
     return xml_out
 
 
+def scope_files(cfg: dict, pattern: str) -> list[Path]:
+    """Project files under the scope's source folders, without the excluded (vendor) code."""
+    excluded = [ROOT / p for p in cfg["scope"]["exclude"]]
+    return sorted(
+        path
+        for src in cfg["scope"]["sources"]
+        for path in (ROOT / src).rglob(pattern)
+        if not any(path.is_relative_to(e) for e in excluded)
+    )
+
+
 def parse_findings(xml_path: Path, cfg: dict) -> list[Finding]:
     findings = []
     excluded = [ROOT / p for p in cfg["scope"]["exclude"]]
@@ -236,15 +247,14 @@ def unused_tags(findings: list[Finding], cfg: dict) -> list[str]:
     """Deviation tags in the sources that no longer cover any finding."""
     deviated = {(f.file, f.line) for f in findings if f.status == "deviated"}
     stale = []
-    for src in cfg["scope"]["sources"] + ["lib/include", "firmware/include"]:
-        for path in sorted((ROOT / src).rglob("*.[ch]")):
-            rel = str(path.relative_to(ROOT))
-            for n, text in enumerate(path.read_text().splitlines(), start=1):
-                if not TAG_RE.search(text):
-                    continue
-                covers_next = is_comment_only(text) and (rel, n + 1) in deviated
-                if (rel, n) not in deviated and not covers_next:
-                    stale.append(f"{rel}:{n}")
+    for path in scope_files(cfg, "*.[ch]"):
+        rel = str(path.relative_to(ROOT))
+        for n, text in enumerate(path.read_text().splitlines(), start=1):
+            if not TAG_RE.search(text):
+                continue
+            covers_next = is_comment_only(text) and (rel, n + 1) in deviated
+            if (rel, n) not in deviated and not covers_next:
+                stale.append(f"{rel}:{n}")
     return stale
 
 
@@ -298,9 +308,7 @@ def main() -> int:
 
     open_items = [f for f in findings if f.status == "open"]
     counts = Counter(f.status for f in findings)
-    files = sorted(
-        {str(p.relative_to(ROOT)) for s in cfg["scope"]["sources"] for p in (ROOT / s).rglob("*.c")}
-    )
+    files = [str(p.relative_to(ROOT)) for p in scope_files(cfg, "*.c")]
 
     def rule_rows(kind: str, key: str) -> list[dict]:
         rows = []

@@ -26,7 +26,7 @@ target_compile_definitions(stm32_device INTERFACE
     HSE_VALUE=8000000U)
 # SYSTEM: vendor headers don't trip our stricter warning flags.
 target_include_directories(stm32_device SYSTEM INTERFACE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include   # stm32f4xx_hal_conf.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/hal       # stm32f4xx_hal_conf.h only
     ${HAL_DIR}/Inc
     ${DEVICE_DIR}/Include
     ${CORE_DIR}/Include)
@@ -57,7 +57,7 @@ set(GENERATED_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
 add_custom_target(version_header
     COMMAND ${CMAKE_COMMAND}
         -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
-        -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/include/version.h.in
+        -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/system/version.h.in
         -DOUTPUT=${GENERATED_DIR}/version.h
         -DFALLBACK_VERSION=${PROJECT_VERSION}
         -P ${PROJECT_SOURCE_DIR}/cmake/version.cmake
@@ -72,30 +72,31 @@ set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/linker/STM32F446RETx_FLASH.ld)
 
 add_executable(${FW_NAME}
     ${DEVICE_DIR}/Source/Templates/gcc/startup_stm32f446xx.s
-    src/main.c
-    src/board.c
-    src/can_drv.c
-    src/can_gen.c
-    src/can_stream.c
-    src/clock.c
-    src/commands.c
-    src/console.c
-    src/fault.c
-    src/fault_entry.S
-    src/obd.c
-    src/reset_cause.c
-    src/status_led.c
-    src/timebase.c
-    src/uart_link.c
-    src/watchdog.c
-    src/stm32f4xx_it.c
-    src/stm32f4xx_hal_msp.c
-    src/syscalls.c)
+    system/main.c
+    system/board.c
+    system/clock.c
+    system/reset_cause.c
+    system/status_led.c
+    system/timebase.c
+    system/watchdog.c
+    system/stm32f4xx_it.c
+    system/syscalls.c
+    hal/stm32f4xx_hal_msp.c
+    console/console.c
+    console/commands.c
+    console/uart_link.c
+    can/can_drv.c
+    can/can_gen.c
+    can/can_stream.c
+    obd/obd.c
+    fault/fault.c
+    fault/fault_entry.S)
 set_target_properties(${FW_NAME} PROPERTIES SUFFIX .elf)
 add_dependencies(${FW_NAME} version_header)
 
+# Our headers are included by folder: #include "can/can_drv.h".
 target_include_directories(${FW_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}
     ${GENERATED_DIR})
 # Our own code is held to a stricter standard than the vendor code.
 target_link_libraries(${FW_NAME} PRIVATE stm32_hal core project_warnings)

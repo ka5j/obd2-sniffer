@@ -8,7 +8,7 @@ its text replies:
 COBS removes every zero byte from the packet body and the console's text never
 contains one, so zeros mark where packets start and end. This module decodes
 packets (and encodes them, for the simulator) and splits the board's output
-into text and packets. It mirrors lib/src/cobs.c and lib/src/packet.c; both
+into text and packets. It mirrors lib/link/cobs.c and lib/link/packet.c; both
 sides are tested against the same golden vectors.
 """
 
@@ -45,7 +45,7 @@ class PacketError(ValueError):
 
 
 def crc16(data: bytes) -> int:
-    """CRC-16/CCITT-FALSE (poly 0x1021, init 0xFFFF), as lib/src/crc16.c."""
+    """CRC-16/CCITT-FALSE (poly 0x1021, init 0xFFFF), as lib/link/crc16.c."""
     crc = 0xFFFF
     for byte in data:
         crc ^= byte << 8
@@ -235,7 +235,7 @@ class TimestampUnwrapper:
 
 def format_frame(frame: CanFrame, seconds: float | None = None) -> str:
     """One line, as the board prints frames in interactive mode
-    (lib/src/can_text.c): time, ID, length, data."""
+    (lib/link/can_text.c): time, ID, length, data."""
     if seconds is None:
         whole, micros = divmod(frame.timestamp_us, 1_000_000)
     else:

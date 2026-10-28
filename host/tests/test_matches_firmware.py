@@ -2,7 +2,7 @@
 
 The simulator is a hand-written model of the board's console, and the
 command line labels the board's fields itself. If someone changes a
-command, a key or a label in firmware/src/commands.c and forgets the laptop
+command, a key or a label in firmware/console/commands.c and forgets the laptop
 side, everything built and tested against the simulator would quietly go
 out of date. These tests read the firmware source and fail if they
 disagree.
@@ -15,17 +15,17 @@ from pathlib import Path
 
 import pytest
 
-from obdsniff import sim_obd
 from obdsniff.output import LABELS
-from obdsniff.simulator import COMMANDS, HELP_WIDTH, LABEL_WIDTH, LINE_MAX, SimulatedBoard
+from obdsniff.sim import obd as sim_obd
+from obdsniff.sim.board import COMMANDS, HELP_WIDTH, LABEL_WIDTH, LINE_MAX, SimulatedBoard
 from obdsniff.transport import BAUD_RATE
 
 REPO = Path(__file__).resolve().parents[2]
-COMMANDS_C = REPO / "firmware" / "src" / "commands.c"
-OBD2_H = REPO / "lib" / "include" / "obd2.h"
-OBD2_C = REPO / "lib" / "src" / "obd2.c"
-ECU_SIM_H = REPO / "lib" / "include" / "ecu_sim.h"
-ECU_SIM_C = REPO / "lib" / "src" / "ecu_sim.c"
+COMMANDS_C = REPO / "firmware" / "console" / "commands.c"
+OBD2_H = REPO / "lib" / "obd" / "obd2.h"
+OBD2_C = REPO / "lib" / "obd" / "obd2.c"
+ECU_SIM_H = REPO / "lib" / "obd" / "ecu_sim.h"
+ECU_SIM_C = REPO / "lib" / "obd" / "ecu_sim.c"
 
 pytestmark = pytest.mark.skipif(
     not COMMANDS_C.exists(), reason="firmware sources not available (installed outside the repo)"
@@ -60,7 +60,7 @@ def c_hex_define(path: Path, name: str) -> int:
 
 
 def firmware_pids() -> list[tuple[int, str, int, str, str]]:
-    """lib/src/obd2.c's PID table: (pid, formula, decimals, key, label)."""
+    """lib/obd/obd2.c's PID table: (pid, formula, decimals, key, label)."""
     return [
         (
             c_hex_define(OBD2_H, m["pid"]),
@@ -86,7 +86,7 @@ def firmware_fields(name: str) -> list[tuple[str, str]]:
     """(key, label) pairs printed by a firmware command, in source order,
     without repeats (e.g. `fault` prints "fault" in two branches)."""
     body = handler_body(name)
-    # obd_values() prints one field per entry of lib/src/obd2.c's PID table.
+    # obd_values() prints one field per entry of lib/obd/obd2.c's PID table.
     before, _, after = body.partition("obd_values(")
     found = [(m["key"], m["label"]) for m in FIELD.finditer(before)]
     if after:
@@ -136,7 +136,7 @@ def test_obd2_pid_table_matches() -> None:
 
 
 def test_simulated_engine_matches() -> None:
-    """The drive, the VIN and the trouble codes of lib/src/ecu_sim.c."""
+    """The drive, the VIN and the trouble codes of lib/obd/ecu_sim.c."""
     source = ECU_SIM_C.read_text()
     table = source[source.index("drive[] = {") : source.index("};", source.index("drive[] = {"))]
     cycle = str(c_define(ECU_SIM_H, "ECU_SIM_CYCLE_MS"))
@@ -176,9 +176,9 @@ def c_define(path: Path, name: str) -> int:
 
 def test_layout_and_limits_match() -> None:
     lib = REPO / "lib"
-    assert c_define(lib / "include" / "console_core.h", "CONSOLE_LABEL_WIDTH") == LABEL_WIDTH
-    assert c_define(lib / "src" / "console_core.c", "HELP_USAGE_WIDTH") == HELP_WIDTH
-    assert c_define(lib / "include" / "line_editor.h", "LINE_EDITOR_MAX") == LINE_MAX
+    assert c_define(lib / "console" / "console_core.h", "CONSOLE_LABEL_WIDTH") == LABEL_WIDTH
+    assert c_define(lib / "console" / "console_core.c", "HELP_USAGE_WIDTH") == HELP_WIDTH
+    assert c_define(lib / "console" / "line_editor.h", "LINE_EDITOR_MAX") == LINE_MAX
 
 
 def all_firmware_fields() -> list[tuple[str, str]]:
@@ -209,7 +209,7 @@ def test_every_reply_fits_the_space_the_firmware_reserves() -> None:
     transmit buffer are free, so that the whole reply fits without waiting.
     Values on the real board (version string, compiler) can be longer than the
     simulator's, hence the margin."""
-    space = c_define(REPO / "firmware" / "include" / "console.h", "CONSOLE_REPLY_SPACE")
+    space = c_define(REPO / "firmware" / "console" / "console.h", "CONSOLE_REPLY_SPACE")
     margin = 128
     now = [1000.0]
     board = SimulatedBoard(clock=lambda: now[0])
@@ -227,5 +227,5 @@ def test_every_reply_fits_the_space_the_firmware_reserves() -> None:
 
 
 def test_serial_speed_matches() -> None:
-    uart_link_h = REPO / "firmware" / "include" / "uart_link.h"
+    uart_link_h = REPO / "firmware" / "console" / "uart_link.h"
     assert c_define(uart_link_h, "UART_LINK_BAUD") == BAUD_RATE

@@ -9,7 +9,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from obdsniff.device import Device
-from obdsniff.simulator import SimulatedBoard, SimulatedTransport
+from obdsniff.sim.board import SimulatedBoard, SimulatedTransport
 from obdsniff.transport import Transport
 
 

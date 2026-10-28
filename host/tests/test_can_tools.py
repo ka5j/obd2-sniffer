@@ -21,7 +21,7 @@ from obdsniff.packets import (
     frame_to_json,
 )
 from obdsniff.shell import run_shell
-from obdsniff.simulator import SimulatedBoard, SimulatedTransport
+from obdsniff.sim.board import SimulatedBoard, SimulatedTransport
 
 
 @pytest.fixture

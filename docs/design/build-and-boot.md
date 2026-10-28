@@ -63,7 +63,7 @@ with `-Wall -Wextra -Werror -Wshadow -Wdouble-promotion -Wformat=2 -Wundef -Wstr
 vendor headers don't fail the project build.
 
 Only the HAL modules the firmware needs are compiled: they are listed in `firmware/CMakeLists.txt`
-(`HAL_MODULES`) and enabled in `firmware/include/stm32f4xx_hal_conf.h`, and the two lists must
+(`HAL_MODULES`) and enabled in `firmware/hal/stm32f4xx_hal_conf.h`, and the two lists must
 match.
 
 ### Outputs

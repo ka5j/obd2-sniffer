@@ -10,7 +10,7 @@ import obdsniff.cli as cli
 from obdsniff.device import CommandError, Device, ProtocolError
 from obdsniff.ports import PortInfo
 from obdsniff.shell import run_shell
-from obdsniff.simulator import SimulatedBoard, SimulatedTransport
+from obdsniff.sim.board import SimulatedBoard, SimulatedTransport
 
 
 def run_cli(capsys, *args: str) -> tuple[int, str, str]:
