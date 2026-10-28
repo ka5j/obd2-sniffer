@@ -3,9 +3,9 @@
 ## In short
 
 Every change to this project is tested automatically before it can be merged. The logic that
-doesn't depend on the microcontroller's hardware (data buffers, message encoding, the diagnostic
-protocol, the safety rules) is written so it can also run on a normal computer, where it is
-checked by unit tests.
+doesn't depend on the microcontroller's hardware (data buffers, message encoding, the console,
+the diagnostic protocol) is written so it can also run on a normal computer, where it is checked
+by unit tests.
 
 Those tests must reach **100% MC/DC coverage**, or the change is rejected. MC/DC is the coverage
 standard used for flight-control software (DO-178C) and recommended for the highest safety level
@@ -26,8 +26,8 @@ Results are published automatically:
 
 | Code | Runs on | How it is tested |
 |---|---|---|
-| Portable core (`lib/`): buffers, encoding, protocol logic, safety rules | Laptop and CI | Unit tests, 100% MC/DC required |
-| Hardware drivers (`firmware/`): clocks, UART, CAN, watchdog | The STM32 board | On the board: serial output, logic analyzer, fault injection |
+| Portable core (`lib/`): buffers, encoding, console logic, CAN timing, ISO-TP and OBD2 | Laptop and CI | Unit tests, 100% MC/DC required |
+| Hardware drivers (`firmware/`): clocks, UART, CAN, watchdog | The STM32 board | On the board: `scripts/board_check.py`, deliberate crashes, and checks by hand |
 | Laptop tool (`host/`) | Laptop and CI (Python 3.10 and 3.12) | Python tests (pytest), 100% line and branch coverage required, plus lint (ruff) |
 
 Keeping hardware-specific code thin, and moving every decision that can be moved into the portable

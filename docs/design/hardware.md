@@ -2,21 +2,24 @@
 
 ## In short
 
-The project runs on an off-the-shelf STM32 development board. A small add-on chip, the CAN
-transceiver, sits between the board and the car, translating the car's network signals into
-signals the microcontroller understands. The laptop connects to the board with a normal USB
-cable, which both powers the board and carries the data.
+The project runs on an off-the-shelf STM32 development board. The laptop connects to it with a
+normal USB cable, which both powers the board and carries the data. Today that is all the
+hardware there is: the board's CAN controller runs in loopback, receiving its own messages, so
+everything can be developed and tested with no car and no extra parts.
 
-Nothing is powered from the car. That keeps the car's electrical system and the laptop separate,
-and it means a wiring mistake can't damage either one.
+To connect to a car, a small add-on chip, the CAN transceiver, will sit between the board and
+the car, translating the car's network signals into signals the microcontroller understands.
+That connection is designed below but not built yet. Even then, nothing will be powered from
+the car. That keeps the car's electrical system and the laptop separate, and it means a wiring
+mistake can't damage either one.
 
 ## Parts
 
-| Part | What it does |
-|---|---|
-| NUCLEO-F446RE | Development board with the STM32F446RE microcontroller and a built-in USB programmer/debugger (ST-LINK) |
-| SN65HVD230 module | CAN transceiver: converts between the car's two-wire differential CAN signal and the microcontroller's 3.3 V logic signals |
-| OBD2 cable | Connects to the car's diagnostic port. Only three of its 16 pins are used |
+| Part | What it does | Status |
+|---|---|---|
+| NUCLEO-F446RE | Development board with the STM32F446RE microcontroller and a built-in USB programmer/debugger (ST-LINK) | Used today |
+| SN65HVD230 module | CAN transceiver: converts between the car's two-wire differential CAN signal and the microcontroller's 3.3 V logic signals | For the car connection, not built yet |
+| OBD2 cable | Connects to the car's diagnostic port. Only three of its 16 pins are used | For the car connection, not built yet |
 
 ### Microcontroller at a glance
 
@@ -25,9 +28,11 @@ and it means a wiring mistake can't damage either one.
 | Core | Arm Cortex-M4 with floating-point unit |
 | Speed | 180 MHz |
 | Memory | 512 KB flash (program), 128 KB RAM (data) |
-| CAN controllers | 2 (one talks to the car; the other can act as a fake engine computer for testing) |
+| CAN controllers | 2: CAN1 captures (today in loopback); CAN2 is reserved for a second node on a test bus |
 
 ## Connecting to a car
+
+This is the design for the car connection; it has not been built or tested yet.
 
 | OBD2 pin | Signal | Connects to |
 |---|---|---|
