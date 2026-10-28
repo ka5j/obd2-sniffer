@@ -41,7 +41,7 @@ obdsniff shell                     # interactive session
 obdsniff gui                       # desktop app (see below)
 ```
 
-The board is found automatically. Use `--port /dev/tty.usbmodem1103` (or `COM5` on Windows) to
+The board is found automatically. Use `--port /dev/cu.usbmodem1103` (or `COM5` on Windows) to
 choose one, or `--port sim` for the simulator. Add `--json` for machine-readable output:
 
 ```sh

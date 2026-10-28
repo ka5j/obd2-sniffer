@@ -166,7 +166,7 @@ The firmware talks over the same USB cable, which also appears as a serial port.
 
 | System | Port | Command |
 |---|---|---|
-| macOS | `/dev/tty.usbmodem*` | `screen /dev/tty.usbmodem* 1500000` (quit: Ctrl-A, then K, then Y) |
+| macOS | `/dev/cu.usbmodem*` | `screen /dev/cu.usbmodem* 1500000` (quit: Ctrl-A, then K, then Y) |
 | Linux | `/dev/ttyACM0` | `screen /dev/ttyACM0 1500000` |
 | Windows | `COMx`: see Device Manager, "STMicroelectronics STLink Virtual COM Port" | PuTTY: Serial, the COM port, speed 1500000 |
 
