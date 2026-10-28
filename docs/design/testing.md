@@ -50,25 +50,51 @@ tool's library and prints one line per check with the number it measured, so any
 can repeat the results below:
 
 ```sh
-python3 scripts/board_check.py            # finds the board; about 35 s
+python3 scripts/board_check.py            # finds the board; about 75 s
 python3 scripts/board_check.py --crash    # also the crash and watchdog checks (restarts the board)
-python3 scripts/board_check.py --quick    # fewer frames, about 10 s
+python3 scripts/board_check.py --quick    # fewer frames, shorter waits; about 20 s
 ```
 
+The latest run, on 27 October 2026, with the **Debug build** and `--crash`:
+
 ```
-PASS  Clock accuracy  +15 ppm against the laptop over 20 s (limit 1000)
-PASS  Command burst   100 commands sent at once: 100 replies, 0 errors, nothing dropped; 27.8 KB in 187 ms (99% of the line rate)
+Board check on /dev/cu.usbmodem11303
+PASS  Identity        firmware 422c213, debug build, STM32F446RE rev 0x1000
+PASS  Clocks          180 MHz from HSE 8 MHz bypass
+PASS  Watchdog        500 ms nominal
+PASS  Clock accuracy  -10 ppm against the laptop over 20 s (limit 1000)
+PASS  Command burst   100 commands sent at once: 100 replies, 0 errors, nothing dropped; 27.9 KB in 187 ms (99% of the line rate)
+PASS  CAN safety      with CAN off, 2 of 2 transmit commands refused
 PASS  CAN capture     100,000 frames at 500 kbit/s: 0 lost, 0 wrong, 0 damaged; 4,230 frames/s (a full bus gives at least 3,704)
-PASS  CAN overload    20,000 frames at 1000 kbit/s: 2,744 lost; board counted 2,744 dropped and 0 overruns, laptop saw 2,744 missing capture numbers
-PASS  CAN interrupt   longest receive interrupt 7 us (limit 47)
-PASS  Crash capture   `crash bus`: BusFault (bus error on data access) at 0x08001822
+PASS  CAN capture     10,000 frames at 250 kbit/s: 0 lost, 0 wrong, 0 damaged; 2,097 frames/s (a full bus gives at least 1,852)
+PASS  CAN overload    20,000 frames at 1000 kbit/s: 2,602 lost; board counted 2,602 dropped and 0 overruns, laptop saw 2,602 missing capture numbers
+PASS  OBD2            951 requests in 10 s (95/s, at least 50): 951 replies, 0 timeouts, 0 errors; VIN right, trouble codes right
+PASS  CAN interrupt   longest receive interrupt 10 us (limit 47)
+PASS  Commands + CAN  2,703 commands while 42,124 frames arrived at 500 kbit/s: 0 failed, 0 bytes lost to receive overruns
+PASS  Reset           after `reset`: last reset software
+PASS  Crash capture   `crash bus`: BusFault (bus error on data access) at 0x080023B2
+PASS  Crash capture   `crash usage`: UsageFault (unaligned memory access) at 0x080024BE
+PASS  Crash capture   `crash divzero`: UsageFault (divide by zero) at 0x080024E8
+PASS  Crash capture   `crash hard`: HardFault (bus error on data access) at 0x080023B2
+PASS  Watchdog        main loop stopped: last reset independent watchdog
+18 checks: all passed.
 ```
+
+The **Release build** passes the same checks, with three differences:
+
+- **CAN overload:** 5,212 of 20,000 frames lost (the Debug build: 2,602), every one counted on
+  the board and seen as a gap on the laptop. The test traffic comes from the same main loop that
+  streams it, and only the optimised Release build keeps a 1 Mbit/s bus full while streaming, so
+  overload numbers are quoted from the Release build.
+- **CAN interrupt:** 6 µs at most, against 10 µs in the Debug build.
+- **Crash command:** absent, as it should be; 14 checks in all.
 
 CI runs the same script against the simulator (`--port sim`) on every change, so it keeps working
 as the code changes. The rest (the button, the LED, line editing in a terminal, the desktop app,
 timing the watchdog) is checked by hand.
 
-**Latest check:** 19 October 2026, Debug and Release builds, serial link at 1.5 Mbaud.
+**Latest checks by hand:** 19 and 20 October 2026, for v0.4.0, Debug and Release builds, serial
+link at 1.5 Mbaud.
 
 | Area | Check | Result |
 |---|---|---|
@@ -90,7 +116,7 @@ timing the watchdog) is checked by hand.
 | CAN capture | 1 Mbit/s overload: frames dropped on the board when the serial link can't keep up, and the laptop sees exactly that many gaps in the capture numbers | Pass |
 | CAN capture | Longest receive interrupt: 7 µs | Pass |
 | CAN capture | Streaming off (`can stream off`): no frame lines in a terminal during 1,000 test frames, all of them received and counted. At 1 Mbit/s and 100% load, 20,000 frames received and none dropped: the serial link is the only limit | Pass |
-| OBD2 | Tester and simulated ECU over loopback, in a serial terminal: refused with CAN off; after 2 s, 220 requests and 220 replies; VIN (a multi-frame reply), both trouble codes and the warning light right; live values follow the simulated drive; about 95 requests a second; 0 timeouts, 0 errors, 0 frames dropped; longest receive interrupt 10 µs | Pass |
+| OBD2 | Tester and simulated ECU over loopback, in a serial terminal: refused with CAN off; after 2 s, 220 requests and 220 replies; VIN (a multi-frame reply), both trouble codes and the warning light right; live values follow the simulated drive; about 95 requests a second; 0 timeouts, 0 errors, 0 frames dropped; longest receive interrupt 10 µs. Now also scripted in `board_check.py` | Pass |
 | CAN tools | `can test`, `monitor --log` (candump file), shell; desktop-app CAN tab: 4,000 test frames shown, none lost; a second program can't open the port | Pass |
 
 The checks found problems that the unit tests and the simulator had not, all fixed:
@@ -121,7 +147,7 @@ The checks found problems that the unit tests and the simulator had not, all fix
   CAN receive interrupt, which then had the higher priority, can run for 7 to 10 µs. Interrupt
   priorities now follow deadlines, with the serial receive interrupt first. 20 s of commands
   during OBD2 traffic went from 11 overruns and 15 failed commands to none, and the board check
-  now sends commands while the bus is full.
+  now sends commands while the bus is full ([#46](https://github.com/ka5j/obd2-sniffer/pull/46)).
 
 ## Coverage measures
 
