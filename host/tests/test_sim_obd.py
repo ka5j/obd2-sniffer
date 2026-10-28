@@ -1,4 +1,4 @@
-"""The simulator's OBD2 model matches the firmware's C code (lib/src/ecu_sim.c,
+"""The simulator's OBD2 model matches the firmware's C code (lib/obd/ecu_sim.c,
 obd2.c, ecu_node.c, obd_client.c). The worked values are the ones the C
 unit tests check."""
 
@@ -7,7 +7,8 @@ from __future__ import annotations
 import pytest
 
 from obdsniff.packets import StreamSplitter
-from obdsniff.sim_obd import (
+from obdsniff.sim.board import SimulatedBoard
+from obdsniff.sim.obd import (
     PID_BY_NUMBER,
     PIDS,
     SimulatedEcu,
@@ -20,7 +21,6 @@ from obdsniff.sim_obd import (
     engine_state,
     format_value,
 )
-from obdsniff.simulator import SimulatedBoard
 
 
 def run(board: SimulatedBoard, text: str) -> str:
@@ -32,7 +32,7 @@ def test_c_division_rounds_toward_zero() -> None:
     assert (c_div(7, 2), c_div(-7, 2), c_div(7, -2), c_div(-7, -2)) == (3, -3, -3, 3)
 
 
-# ---- formats (tests/test_obd2.c) ------------------------------------------------------
+# ---- formats (tests/obd/test_obd2.c) --------------------------------------------------
 
 
 def test_decode_examples() -> None:
@@ -67,7 +67,7 @@ def test_trouble_code_text_and_values() -> None:
     assert format_value(PID_BY_NUMBER[0x05], -40) == "-40"
 
 
-# ---- the engine (tests/test_ecu_sim.c) -----------------------------------------------
+# ---- the engine (tests/obd/test_ecu_sim.c) -------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -259,7 +259,7 @@ def test_obd_traffic_is_captured_like_any_other(clock) -> None:
 
 def test_device_obd_methods(clock) -> None:
     from obdsniff.device import CommandError, Device
-    from obdsniff.simulator import SimulatedTransport
+    from obdsniff.sim.board import SimulatedTransport
 
     board = SimulatedBoard(clock=clock)
     board.take_output()

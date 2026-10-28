@@ -33,7 +33,7 @@ Results are published automatically:
 Keeping hardware-specific code thin, and moving every decision that can be moved into the portable
 core, is what makes the high coverage target practical.
 
-The laptop tool is tested against a software model of the board's console (`host/src/obdsniff/simulator.py`)
+The laptop tool is tested against a software model of the board's console (`host/src/obdsniff/sim/board.py`)
 and against scripted fake connections for the failure cases: no reply, malformed replies, a
 board that doesn't come back after a restart, a release build that rejects test commands. The
 desktop app is tested the same way with pytest-qt: the real window is clicked through against the

@@ -24,7 +24,7 @@ from obdsniff.gui.window import SIMULATOR, MainWindow
 from obdsniff.gui.worker import DeviceWorker
 from obdsniff.packets import CanFrame
 from obdsniff.ports import PortInfo
-from obdsniff.simulator import SimulatedBoard, SimulatedTransport
+from obdsniff.sim.board import SimulatedBoard, SimulatedTransport
 
 BOARD_PORT = PortInfo("/dev/cu.usbmodem1", "STM32 STLink", True)
 OTHER_PORT = PortInfo("/dev/cu.Bluetooth", "n/a", False)

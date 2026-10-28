@@ -47,7 +47,7 @@ Rules for the car connection:
 ## Pin assignments
 
 These are the microcontroller pins the project uses. The LED, button, serial and CAN1 pins are
-defined in `firmware/include/board.h`; the CAN2 pins are reserved for the second controller (the
+defined in `firmware/system/board.h`; the CAN2 pins are reserved for the second controller (the
 test node).
 
 | Function | Pin | Board header | Notes |
@@ -86,7 +86,7 @@ its 45 MHz clock to get there. Each bit is split into small time slices (time qu
 controller samples the signal late in the bit, after it has settled along the whole bus.
 Automotive networks sample at about 87.5% of the bit (CiA 301, SAE J2284).
 
-The settings are not hard-coded. `lib/src/can_timing.c` searches every exact way to divide the
+The settings are not hard-coded. `lib/can/can_timing.c` searches every exact way to divide the
 clock (8 to 25 quanta per bit, within the controller's segment limits) and picks the sample point
 closest to 87.5%, preferring more quanta when two are equally close. It is unit-tested, and
 `can loopback <kbps>` refuses any rate it can't hit exactly.

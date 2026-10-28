@@ -14,7 +14,7 @@ from obdsniff.packets import (
     encode_can_frame,
 )
 
-# The same golden vectors as the firmware's tests (tests/test_packet.c): if
+# The same golden vectors as the firmware's tests (tests/link/test_packet.c): if
 # either side changes the format, both suites fail.
 GOLDEN_STANDARD = bytes.fromhex(
     "00 0A 01 02 01 78 56 34 12 E8 07 01 07 08 04 41 0C 1A F8 01 01 03 3D 84 00"

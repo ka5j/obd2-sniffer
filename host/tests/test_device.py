@@ -12,7 +12,7 @@ from obdsniff.device import (
     open_device,
     parse_fields,
 )
-from obdsniff.simulator import SimulatedBoard, SimulatedTransport
+from obdsniff.sim.board import SimulatedBoard, SimulatedTransport
 
 from .conftest import ScriptedTransport
 

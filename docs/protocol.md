@@ -193,7 +193,7 @@ second, more than a fully loaded 500 kbit/s bus produces. Example: an engine-spe
 00 0A 01 02 01 78 56 34 12 E8 07 01 07 08 04 41 0C 1A F8 01 01 03 3D 84 00
 ```
 
-The firmware's encoder (`lib/src/packet.c`) and the laptop tool's decoder
+The firmware's encoder (`lib/link/packet.c`) and the laptop tool's decoder
 (`host/src/obdsniff/packets.py`) are both tested against this exact sequence.
 
 A program reading the stream should treat a zero as the start of a packet and the next zero as its
@@ -220,7 +220,7 @@ one ends with the `obd> ` prompt, not `OK`. (The same rule is why `mode host` an
 ## Engineering detail
 
 The console logic (line editing, modes, command dispatch and reply formatting) lives in the
-portable library (`lib/src/console_core.c`, `lib/src/cli.c`, `lib/src/line_editor.c`) and is unit-tested to
-100% MC/DC coverage. The firmware side (`firmware/src/console.c`, `firmware/src/commands.c`) only
+portable library (`lib/console/`: `console_core.c`, `cli.c`, `line_editor.c`) and is unit-tested
+to 100% MC/DC coverage. The firmware side (`firmware/console/`: `console.c`, `commands.c`) only
 moves bytes and supplies the command table. How the bytes move is described in
 [design/serial-console.md](design/serial-console.md).

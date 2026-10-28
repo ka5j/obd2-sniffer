@@ -332,7 +332,7 @@ def open_device(port: str | None, timeout: float = DEFAULT_TIMEOUT) -> Device:
     port: a serial port path, "sim" for the built-in simulator, or None to
     find a connected Nucleo board automatically."""
     if port == "sim":
-        from obdsniff.simulator import SimulatedTransport
+        from obdsniff.sim.board import SimulatedTransport
 
         transport: Transport = SimulatedTransport()
     else:

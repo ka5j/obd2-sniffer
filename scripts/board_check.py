@@ -340,7 +340,7 @@ class BoardCheck:
 
 def open_transport(port: str | None) -> tuple[Transport, str]:
     if port == "sim":
-        from obdsniff.simulator import SimulatedTransport
+        from obdsniff.sim.board import SimulatedTransport
 
         return SimulatedTransport(), "simulator"
     port = port or find_board()

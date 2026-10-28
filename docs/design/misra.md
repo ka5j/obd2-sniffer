@@ -89,10 +89,10 @@ in [misra/config.toml](../../misra/config.toml) and on the live report.
 
 ### Assembly language
 
-All assembly is in one file, `firmware/src/fault_entry.S` (the fault entry stubs), as Directive 4.3
-requires. There is no inline assembly in the C code. The checker reports inline `asm` statements as
-implicitly declared functions (Rule 17.3, mandatory), so keeping assembly out of C also avoids a
-false report against a rule that must never be deviated.
+All assembly is in one file, `firmware/fault/fault_entry.S` (the fault entry stubs), as
+Directive 4.3 requires. There is no inline assembly in the C code. The checker reports inline
+`asm` statements as implicitly declared functions (Rule 17.3, mandatory), so keeping assembly out
+of C also avoids a false report against a rule that must never be deviated.
 
 ### Deviation tags
 

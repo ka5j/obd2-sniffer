@@ -21,10 +21,13 @@ std = "c11"
 
 [scope]
 # Project code only. ST's HAL and CMSIS are third-party code and are excluded.
-sources = ["lib/src", "firmware/src"]
+# Each folder is searched recursively, so a new subsystem folder is analysed
+# without a change here.
+sources = ["lib", "firmware"]
 include = [
-    "lib/include",
-    "firmware/include",
+    "lib",
+    "firmware",
+    "firmware/hal",
     "firmware/third_party/stm32f4xx-hal-driver/Inc",
     "firmware/third_party/cmsis-device-f4/Include",
     "firmware/third_party/cmsis-core/Include",
@@ -61,7 +64,7 @@ code and the HAL, which are also outside the analysed set."""
 [[disapplied]]
 rule = "11.4"
 category = "advisory"
-paths = ["firmware/src/*"]
+paths = ["firmware/*"]
 title = "A conversion should not be performed between a pointer to object and an integer type"
 reason = """\
 Peripheral registers are memory-mapped at fixed addresses. The CMSIS device \
@@ -73,7 +76,7 @@ is applied in full to the hardware-independent library (lib/)."""
 [[disapplied]]
 rule = "2.5"
 category = "advisory"
-paths = ["firmware/include/stm32f4xx_hal_conf.h"]
+paths = ["firmware/hal/stm32f4xx_hal_conf.h"]
 title = "A project should not contain unused macro declarations"
 reason = """\
 stm32f4xx_hal_conf.h is the configuration interface of ST's HAL: every macro \
@@ -87,7 +90,7 @@ HAL sources, which are outside the analysed set."""
 [[false_positive]]
 id = "FP-01"
 rule = "7.3"
-paths = ["firmware/src/*"]
+paths = ["firmware/*"]
 match = '\.Pull\b'
 title = "Identifier Pull reported as a lowercase literal suffix"
 reason = """\
@@ -110,7 +113,7 @@ reason = """\
 The serial console prints human-readable status (start-up report, command \
 replies) with printf-style formatting, which needs <stdarg.h> (Rule 17.1) \
 and vsnprintf from <stdio.h> (Rule 21.6). It is confined to two functions \
-in firmware/src/console.c, console_printf() and console_fieldf(), used only \
+in firmware/console/console.c, console_printf() and console_fieldf(), used only \
 for diagnostic text and never in interrupt handlers or the CAN data path."""
 mitigation = """\
 Format strings are compile-time literals checked against their arguments by \
@@ -146,9 +149,9 @@ not detected by the tool but listed here because it applies), \
 and _sbrk must report failure by returning (void *)-1 (Rule 11.6). The names \
 and the return convention are fixed by the C library."""
 mitigation = """\
-Confined to firmware/src/syscalls.c. _sbrk always fails, which enforces the \
+Confined to firmware/system/syscalls.c. _sbrk always fails, which enforces the \
 no-heap policy instead of providing a heap."""
-where = "firmware/src/syscalls.c"
+where = "firmware/system/syscalls.c"
 
 [[deviation]]
 id = "DEV-04"
@@ -167,4 +170,4 @@ Compiled only into debug builds (#ifndef NDEBUG around the command), never \
 into release firmware. Reachable only by typing `crash <kind>` on the \
 console. The CPU traps each case (divide-by-zero trap, bus error), so the \
 behaviour on this target is defined and is exactly what is being tested."""
-where = "firmware/src/fault.c: fault_trigger(), called only from cmd_crash() in firmware/src/commands.c (debug builds)"
+where = "firmware/fault/fault.c: fault_trigger(), called only from cmd_crash() in firmware/console/commands.c (debug builds)"
