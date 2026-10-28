@@ -119,7 +119,7 @@ pip install -e "host[gui]"         # adds PySide6 (Qt)
 obdsniff gui                       # or: obdsniff --port sim gui
 ```
 
-![The desktop app connected to the board, after a deliberate crash](../docs/images/desktop-app.png)
+![The desktop app connected to the board: the command list, then a deliberate crash, recorded and reported after the restart](../docs/images/desktop-app.png)
 
 Pick the port (the Nucleo is found and selected automatically; the simulator is always listed)
 and press **Connect**. The left side shows the board's version, status and last crash, and has
@@ -131,14 +131,14 @@ The **CAN bus** tab starts and stops loopback at a chosen bit rate, sends test f
 shows the newest frames as they arrive, with counts of frames received, frames per second, frames
 lost and damaged packets:
 
-![The CAN tab after 4,000 test frames in loopback, none lost](../docs/images/desktop-app-can.png)
+![The CAN tab after 10,000 test frames in loopback, none lost](../docs/images/desktop-app-can.png)
 
 The **OBD2** tab starts the board's OBD2 tester (and CAN loopback, if it is off) and shows what it
 reads from the simulated engine ECU as it changes: engine speed, vehicle speed, throttle, engine
 load, coolant and intake temperature and run time, the warning light, stored trouble codes, the
 VIN, and the request counters. The tab also follows a tester started from the console.
 
-![The OBD2 tab on the board: 592 requests in about 6 seconds, every one answered](../docs/images/desktop-app-obd.png)
+![The OBD2 tab on the board: 511 requests in about 5 seconds, every one answered](../docs/images/desktop-app-obd.png)
 
 The connection to the board runs on its own thread, so the window stays responsive even while the
 board restarts or thousands of frames a second stream in. When the app closes, the board is
