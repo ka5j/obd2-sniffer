@@ -28,6 +28,7 @@ from obdsniff.cantest import analyse, collect_test_frames, run_test
 from obdsniff.device import CommandError, Device, DeviceError
 from obdsniff.packets import FrameGaps
 from obdsniff.ports import find_board
+from obdsniff.sim.obd import DTCS, PIDS, VIN, dtc_text
 from obdsniff.transport import BAUD_RATE, SerialTransport, Transport
 
 SYSCLK_HZ = 180_000_000
@@ -54,6 +55,9 @@ FAULT_TYPES = {
     "hard": "HardFault",
 }
 REPLY_IDLE_TIMEOUT = 2.0  # seconds without output before giving up on burst replies
+# The tester waits 10 ms after each reply, so it asks about 100 times a second.
+# A stalled tester or slow replies would show as far fewer.
+OBD_MIN_RATE = 50
 
 
 @dataclass(frozen=True)
@@ -89,7 +93,8 @@ class BoardCheck:
             lambda: self.capture(500, 10_000 if self.quick else 100_000),
             lambda: self.capture(250, 2_000 if self.quick else 10_000),
             lambda: self.overload(5_000 if self.quick else 20_000),
-            self.interrupt_time,
+            self.obd2,
+            self.interrupt_time,  # after the OBD2 check: its traffic is the longest case
             self.commands_under_can_load,
             self.reset,
         ]
@@ -294,6 +299,45 @@ class BoardCheck:
             failed == 0 and lost == 0,
             f"{sent:,} commands while {received:,} frames arrived at 500 kbit/s: "
             f"{failed} failed, {lost} bytes lost to receive overruns",
+        )
+
+    def obd2(self) -> None:
+        """The board's OBD2 tester against its simulated engine ECU, through the
+        real CAN controller in loopback: every request answered in time, every
+        live value read, and the multi-frame VIN and both trouble codes right."""
+        seconds = 3 if self.quick else 10
+        self.device.can_loopback(500)
+        self.device.can_stream(False)  # the OBD2 frames stay on the board
+        self.device.obd_start()
+        time.sleep(seconds)
+        obd = self.device.obd_status()  # read while running: one request may be in flight
+        self.device.obd_stop()
+        self.note_interrupt_time()
+        self.device.can_off()
+        self.device.can_stream(True)
+        requests, replies = int(obd["obd_requests"]), int(obd["obd_replies"])
+        timeouts, errors = int(obd["obd_timeouts"]), int(obd["obd_errors"])
+        rate = requests / seconds
+        unread = [pid.key for pid in PIDS if obd[pid.key] == "-"]
+        vin_ok = obd["obd_vin"] == VIN
+        dtcs_ok = obd["obd_dtcs"] == " ".join(dtc_text(code) for code in DTCS)
+        self.record(
+            "OBD2",
+            rate >= OBD_MIN_RATE
+            and requests - replies in (0, 1)
+            and timeouts == 0
+            and errors == 0
+            and vin_ok
+            and dtcs_ok
+            and obd["obd_mil"] == "on"
+            and not unread,
+            f"{requests:,} requests in {seconds} s ({rate:.0f}/s, at least {OBD_MIN_RATE}): "
+            f"{replies:,} replies, "
+            f"{timeouts} timeouts, {errors} errors; VIN "
+            + ("right" if vin_ok else f"WRONG ({obd['obd_vin']})")
+            + ", trouble codes "
+            + ("right" if dtcs_ok else f"WRONG ({obd['obd_dtcs']})")
+            + (f"; NOT READ: {', '.join(unread)}" if unread else ""),
         )
 
     def interrupt_time(self) -> None:
