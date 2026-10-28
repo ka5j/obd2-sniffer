@@ -98,7 +98,7 @@ def self_test(cfg: dict, cppcheck: str, workdir: Path) -> bool:
     return {"misra-c2012-14.4", "misra-c2012-15.5"} <= ids
 
 
-def run_cppcheck(cfg: dict, cppcheck: str, workdir: Path) -> Path:
+def run_cppcheck(cfg: dict, cppcheck: str, workdir: Path, jobs: int) -> Path:
     scope = cfg["scope"]
     stub = workdir / "stub"
     stub.mkdir(parents=True, exist_ok=True)
@@ -110,6 +110,9 @@ def run_cppcheck(cfg: dict, cppcheck: str, workdir: Path) -> Path:
         *base_command(cfg, cppcheck),
         f"--output-file={xml_out}",
         f"--cppcheck-build-dir={workdir / 'cache'}",
+        # One file per core. Each firmware file pulls in all of ST's HAL and
+        # device headers (about 20 s of analysis each), so this sets the run time.
+        f"-j{jobs}",
     ]
     (workdir / "cache").mkdir(exist_ok=True)
     cmd += [f"-I{ROOT / p}" for p in scope["include"]] + [f"-I{stub}"]
@@ -274,6 +277,9 @@ def main() -> int:
     parser.add_argument("--out", type=Path, default=ROOT / "build" / "misra")
     parser.add_argument("--cppcheck", default="cppcheck")
     parser.add_argument("--summary-md", type=Path)
+    parser.add_argument(
+        "--jobs", type=int, default=os.cpu_count() or 1, help="files analysed in parallel"
+    )
     args = parser.parse_args()
 
     cfg = tomllib.loads(CONFIG.read_text())
@@ -298,7 +304,7 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 2
-        xml_path = run_cppcheck(cfg, args.cppcheck, Path(tmp))
+        xml_path = run_cppcheck(cfg, args.cppcheck, Path(tmp), args.jobs)
         shutil.copy(xml_path, args.out / "cppcheck.xml")
 
     findings = parse_findings(args.out / "cppcheck.xml", cfg)
