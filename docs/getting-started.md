@@ -174,7 +174,7 @@ Press the black **RESET** button on the board. You should see the start-up repor
 
 ```
 ========================================
- OBD2 CAN Sniffer  v0.4.0
+ OBD2 CAN Sniffer  v0.4.1
 ----------------------------------------
  MCU      STM32F446RE  rev 0x....
  UID      ........-........-........
