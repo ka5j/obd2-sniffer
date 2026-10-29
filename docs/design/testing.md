@@ -55,22 +55,22 @@ python3 scripts/board_check.py --crash    # also the crash and watchdog checks (
 python3 scripts/board_check.py --quick    # fewer frames, shorter waits; about 20 s
 ```
 
-The latest run, on 27 October 2026, with the **Debug build** and `--crash`:
+The latest run, on 28 October 2026, of the tagged v0.4.1 **Debug build** with `--crash`:
 
 ```
 Board check on /dev/cu.usbmodem11303
-PASS  Identity        firmware 422c213, debug build, STM32F446RE rev 0x1000
+PASS  Identity        firmware v0.4.1, debug build, STM32F446RE rev 0x1000
 PASS  Clocks          180 MHz from HSE 8 MHz bypass
 PASS  Watchdog        500 ms nominal
-PASS  Clock accuracy  -10 ppm against the laptop over 20 s (limit 1000)
+PASS  Clock accuracy  +19 ppm against the laptop over 20 s (limit 1000)
 PASS  Command burst   100 commands sent at once: 100 replies, 0 errors, nothing dropped; 27.9 KB in 187 ms (99% of the line rate)
 PASS  CAN safety      with CAN off, 2 of 2 transmit commands refused
 PASS  CAN capture     100,000 frames at 500 kbit/s: 0 lost, 0 wrong, 0 damaged; 4,230 frames/s (a full bus gives at least 3,704)
 PASS  CAN capture     10,000 frames at 250 kbit/s: 0 lost, 0 wrong, 0 damaged; 2,097 frames/s (a full bus gives at least 1,852)
-PASS  CAN overload    20,000 frames at 1000 kbit/s: 2,602 lost; board counted 2,602 dropped and 0 overruns, laptop saw 2,602 missing capture numbers
+PASS  CAN overload    20,000 frames at 1000 kbit/s: 2,618 lost; board counted 2,618 dropped and 0 overruns, laptop saw 2,618 missing capture numbers
 PASS  OBD2            951 requests in 10 s (95/s, at least 50): 951 replies, 0 timeouts, 0 errors; VIN right, trouble codes right
 PASS  CAN interrupt   longest receive interrupt 10 us (limit 47)
-PASS  Commands + CAN  2,703 commands while 42,124 frames arrived at 500 kbit/s: 0 failed, 0 bytes lost to receive overruns
+PASS  Commands + CAN  2,709 commands while 42,126 frames arrived at 500 kbit/s: 0 failed, 0 bytes lost to receive overruns
 PASS  Reset           after `reset`: last reset software
 PASS  Crash capture   `crash bus`: BusFault (bus error on data access) at 0x080023B2
 PASS  Crash capture   `crash usage`: UsageFault (unaligned memory access) at 0x080024BE
@@ -80,9 +80,9 @@ PASS  Watchdog        main loop stopped: last reset independent watchdog
 18 checks: all passed.
 ```
 
-The **Release build** passes the same checks, with three differences:
+The tagged **Release build** passed the same day, with three differences:
 
-- **CAN overload:** 5,212 of 20,000 frames lost (the Debug build: 2,602), every one counted on
+- **CAN overload:** 5,212 of 20,000 frames lost (the Debug build: 2,618), every one counted on
   the board and seen as a gap on the laptop. The test traffic comes from the same main loop that
   streams it, and only the optimised Release build keeps a 1 Mbit/s bus full while streaming, so
   overload numbers are quoted from the Release build.
@@ -93,8 +93,10 @@ CI runs the same script against the simulator (`--port sim`) on every change, so
 as the code changes. The rest (the button, the LED, line editing in a terminal, the desktop app,
 timing the watchdog) is checked by hand.
 
-**Latest checks by hand:** 19 and 20 October 2026, for v0.4.0, Debug and Release builds, serial
-link at 1.5 Mbaud.
+**Latest full checks by hand:** 19 and 20 October 2026, for v0.4.0, Debug and Release builds,
+serial link at 1.5 Mbaud. v0.4.1 changed no firmware behaviour, so for it, on 28 October 2026,
+only `obdsniff can test`, `obdsniff obd watch` and the desktop app's console, CAN and OBD2 tabs
+were repeated by hand, all passing.
 
 | Area | Check | Result |
 |---|---|---|
