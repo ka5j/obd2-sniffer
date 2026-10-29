@@ -4,13 +4,14 @@
 [![Quality report](https://img.shields.io/badge/quality%20report-tests%20%26%20coverage-0969da)](https://ka5j.github.io/obd2-sniffer/)
 [![Latest release](https://img.shields.io/github/v/release/ka5j/obd2-sniffer)](https://github.com/ka5j/obd2-sniffer/releases/latest)
 
-A small device that plugs into a car's diagnostic port, listens to the conversations between the
-car's computers, and shows live engine data on a laptop. It is built from scratch on an STM32
-microcontroller, with a desktop app and a command-line tool for the laptop side.
+A small device for a car's diagnostic port: it listens to the conversations between the car's
+computers, asks the engine computer for live data, and shows it all on a laptop. It is built from
+scratch on an STM32 microcontroller, with a desktop app and a command-line tool for the laptop
+side. Today it runs on the board alone, against a simulated engine computer.
 
 > Under active development. See [Project status](#project-status) for what works today.
 
-## The idea in plain terms
+## The idea
 
 A modern car has dozens of small computers (ECUs) controlling the engine, brakes, airbags and
 dashboard. They talk to each other over a shared wired network called the **CAN bus**. Since 2008,
@@ -28,20 +29,23 @@ This project is a scan tool and network analyzer I am building myself:
 
 ## Highlights
 
-- **Safety first.** A tool on a car's network must never disrupt it. The device starts in a
-  listen-only mode, can only send a short list of approved diagnostic requests, and goes silent
-  on its own if anything looks wrong. Each failure scenario is analysed in a written failure-mode
-  analysis and tested by deliberately causing it.
-- **Three ways to use it.** A desktop app with live graphs, a command-line tool for the terminal,
-  or plain typed commands in any serial terminal with nothing to install.
-- **Built to keep up with a busy network.** Messages are captured the moment they arrive and moved
-  to the laptop in a compact, error-checked format, so none are lost when traffic is heavy.
-  Measured on the board: 100,000 messages in a row at 100% network load, none lost.
-- **Battery friendly.** When the car is off and the network goes quiet, the device sleeps and
-  wakes up automatically when traffic resumes.
+- **Three ways to use it.** A desktop app, a command-line tool for the terminal, or plain typed
+  commands in any serial terminal with nothing to install. Every feature works in all three.
+- **Keeps up with a busy network.** Each message is captured the moment it arrives, timestamped
+  to the microsecond, numbered, and moved to the laptop in a compact, error-checked format.
+  Measured on the board: 100,000 messages in a row at 100% network load, none lost. When traffic
+  outgrows the USB link, every dropped message is counted and reported, never silently lost.
+- **Speaks the car's diagnostic language.** The board asks for live engine data, trouble codes
+  and the VIN using OBD2 and its multi-frame transport (ISO-TP), written from scratch. Measured:
+  838 requests in 9 seconds, every one answered.
 - **Testable without a car.** The board plays the car too: a simulated engine computer answers
-  the diagnostic requests through the real CAN controller in loopback. The microcontroller's
-  second network controller will let it play that part on a real two-node bus on the desk.
+  the diagnostic requests through the real CAN controller in loopback. The laptop tool also has
+  a software simulator of the whole board, so it runs with no hardware at all.
+- **Recovers from crashes and says why.** A watchdog restarts the board if the program ever
+  stops responding, and a crash handler records the fault type and code address, then reports
+  them after the restart.
+- **Careful by default.** CAN is off at start-up, and the board only transmits in loopback mode,
+  where nothing leaves the chip.
 - **Tested to safety-critical standards.** The core logic is unit-tested to 100% MC/DC coverage,
   the coverage standard used for flight-control and automotive safety software, and all C code
   follows the **MISRA C:2012** coding rules used in the automotive industry, with every exception
@@ -50,19 +54,26 @@ This project is a scan tool and network analyzer I am building myself:
 
 ## How it works
 
+Today the board works on its own, with no car and no extra parts:
+
 ```mermaid
 flowchart LR
-    Car["Car's computers<br/>(CAN bus)"] <--> Port["OBD2 port"]
-    Port <--> Chip["CAN transceiver<br/>(converts signal levels)"]
-    Chip <--> MCU["STM32 microcontroller<br/>(this project's firmware)"]
-    MCU <-- USB --> Laptop["Laptop<br/>desktop app or command line"]
+    Laptop["Laptop<br/>desktop app or command line"] <-- USB serial --> FW
+    subgraph Board["NUCLEO-F446RE board"]
+        FW["Firmware<br/>capture, timestamps, OBD2 tester"] <--> CAN["CAN controller<br/>in loopback"]
+        ECU["Simulated engine computer"] <--> CAN
+    end
 ```
 
-1. The **transceiver** chip converts the car's network signals into logic levels the
-   microcontroller can read.
-2. The **firmware** on the STM32 captures each message, timestamps it, and decides what to do:
-   pass it on, answer a request, or ignore it.
+1. The **CAN controller** runs in loopback: it receives its own messages and nothing leaves the
+   chip, so the firmware can play both the diagnostic tool and the car.
+2. The **firmware** captures each message, timestamps it and numbers it. Its OBD2 tester asks
+   the simulated engine computer for live data, trouble codes and the VIN.
 3. The **laptop software** receives the data over USB and displays it.
+
+To connect to a real car, a CAN transceiver chip goes between the board and the car's OBD2 port.
+That part is designed ([hardware.md](docs/design/hardware.md#connecting-to-a-car)) but not built
+yet; see [Project status](#project-status).
 
 ## Ways to use it
 
@@ -72,26 +83,49 @@ flowchart LR
 | Command-line tool | `obdsniff obd watch`, `obdsniff monitor`, `obdsniff can test`, `obdsniff shell`, ... | Watching and logging traffic, scripting, automated checks |
 | Serial terminal | Open the board's USB serial port and type `help` | Using the device with no software installed |
 
-![The desktop app's CAN tab: 4,000 test frames captured on the board, none lost](docs/images/desktop-app-can.png)
+![The desktop app's CAN tab: 10,000 test frames captured on the board at 4,115 a second, none lost](docs/images/desktop-app-can.png)
 
 ![The desktop app's OBD2 tab: live data, trouble codes and VIN read on the board from its simulated engine computer](docs/images/desktop-app-obd.png)
 
 Try the laptop tool without a board: `pip install -e "host[gui]"`, then `obdsniff --port sim shell`
 or `obdsniff --port sim gui`. See [host/README.md](host/README.md).
 
+## Measured on the board
 
-## Skills demonstrated
+| What | Result |
+|---|---|
+| CAN capture, 500 kbit/s at 100% load | 100,000 messages, 0 lost, 0 damaged |
+| CAN overload, 1 Mbit/s at 100% load (Release build) | The bus outruns the USB link: 5,210 of 20,000 dropped, each one counted on the board and seen as a gap on the laptop. With streaming off, 0 dropped |
+| Commands while the CAN bus is full | 2,693 commands as 42,129 messages arrived, none failed, no byte lost |
+| OBD2 against the simulated engine computer | 838 requests in 9 s, every one answered, 0 timeouts |
+| Longest CAN receive interrupt | 7 µs (10 µs with OBD2 traffic), against 238 µs between messages at full load |
+| Watchdog | A stuck board restarts after 535 ms and reports why |
+
+How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-board).
+
+## Topics touched with this project
 
 | Area | Details |
 |---|---|
 | Embedded C | Bare-metal firmware on an Arm Cortex-M4, no operating system |
-| Microcontroller peripherals | Clocks, UART serial, DMA, timers, watchdog, CAN controller, low-power modes |
+| Microcontroller peripherals | Clocks, UART serial, DMA, timers, interrupts, watchdog, CAN controller |
 | Automotive protocols | CAN, OBD2 (SAE J1979), ISO-TP multi-frame transport |
-| Reliability and safety | Watchdog, crash capture, fault injection, failure-mode analysis (FMEA) |
-| Python | Desktop app (PySide6), command-line tool, serial communication |
+| Reliability | Watchdog, crash capture and reporting, interrupt priorities set by deadline, flow control |
+| Python | Desktop app (PySide6), command-line tool, serial communication, board simulator |
 | Code quality | MISRA C:2012 compliance with documented deviations, static analysis (cppcheck) |
 | Testing and tooling | Unit tests in C (Unity) and Python, 100% MC/DC coverage, sanitizers, CMake, GitHub Actions CI, Git branching workflow |
-| Hardware | Bench wiring, logic analyzer debugging, custom PCB in KiCad |
+
+## Repository layout
+
+| Folder | What's in it |
+|---|---|
+| [`firmware/`](firmware) | STM32 firmware, one folder per subsystem: `system`, `console`, `can`, `obd`, `fault` (and `hal`, ST's driver settings) |
+| [`lib/`](lib) | Portable C with no hardware code: buffers, link encoding, console logic, CAN timing, ISO-TP and OBD2. Compiled into the firmware and unit-tested on a laptop |
+| [`tests/`](tests) | C unit tests, in the same folders as `lib/` |
+| [`host/`](host) | The laptop tool `obdsniff`: command line, desktop app, board simulator |
+| [`scripts/`](scripts) | Board check, coverage and MISRA gates, quality report |
+| [`docs/`](docs) | Design documents |
+| [`misra/`](misra) | MISRA policy: every deviation and its reason |
 
 ## Project status
 
@@ -116,10 +150,11 @@ or `obdsniff --port sim gui`. See [host/README.md](host/README.md).
 
 ## Hardware
 
-- **NUCLEO-F446RE** development board (STM32F446RE microcontroller: Arm Cortex-M4, 180 MHz,
-  512 KB flash, 128 KB RAM)
-- **SN65HVD230** CAN transceiver module
-- **OBD2 cable** to connect to the car
+Everything above runs on one **NUCLEO-F446RE** development board (STM32F446RE microcontroller:
+Arm Cortex-M4, 180 MHz, 512 KB flash, 128 KB RAM) and a USB cable.
+
+Connecting to a car will also take an **SN65HVD230** CAN transceiver module and an **OBD2
+cable** (not started yet).
 
 Wiring and pin assignments are in [docs/design/hardware.md](docs/design/hardware.md).
 
@@ -145,7 +180,7 @@ Load the firmware with either method:
 - **Command line:** `cmake --build --preset firmware --target flash` (uses OpenOCD).
 
 Then open the board's serial port at 1500000 baud (for example
-`screen /dev/tty.usbmodem* 1500000`) and press the black reset button to see the start-up report.
+`screen /dev/cu.usbmodem* 1500000`) and press the black reset button to see the start-up report.
 
 The **[full getting-started guide](docs/getting-started.md)** covers installation on macOS, Linux
 and Windows, the other ways to flash the board, ready-made firmware downloads, debugging, and

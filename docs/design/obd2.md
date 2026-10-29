@@ -69,7 +69,7 @@ All the protocol logic is portable C in `lib/`, unit-tested on the laptop to 100
 | `ecu_sim.c` | The simulated engine: a pure function of elapsed time, so tests check exact bytes |
 | `ecu_node.c` | ISO-TP around `ecu_sim`, so the simulated ECU sits on the bus like a real one |
 
-The firmware side is thin: `firmware/src/obd.c` routes frames between the CAN driver and the two
+The firmware side is thin: `firmware/obd/obd.c` routes frames between the CAN driver and the two
 nodes, and `commands.c` adds the `obd` command.
 
 ### State machines that never wait
@@ -121,7 +121,7 @@ host mode and its label in the terminal.
 
 `ecu_sim.c` follows a table of keyframes (time, engine speed, vehicle speed, throttle) and
 interpolates between them with integer arithmetic. Like a real ECU it stays silent for services
-and PIDs it doesn't support. The laptop's simulator (`host/src/obdsniff/sim_obd.py`) follows the
+and PIDs it doesn't support. The laptop's simulator (`host/src/obdsniff/sim/obd.py`) follows the
 same model, and a test reads the C sources to check that the keyframes, VIN, trouble codes and
 PID table match.
 

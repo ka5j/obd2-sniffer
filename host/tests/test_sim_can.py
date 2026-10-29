@@ -8,7 +8,8 @@ from itertools import pairwise
 import pytest
 
 from obdsniff.packets import CanFrame, StreamSplitter
-from obdsniff.sim_can import (
+from obdsniff.sim.board import FRAMES_PER_READ, SimulatedBoard
+from obdsniff.sim.can import (
     APB1_HZ,
     bit_timing_exists,
     format_line,
@@ -17,7 +18,6 @@ from obdsniff.sim_can import (
     parse_hex_bytes,
     parse_u32,
 )
-from obdsniff.simulator import FRAMES_PER_READ, SimulatedBoard
 
 USAGE_ERROR = "wrong number of arguments (usage: can "
 

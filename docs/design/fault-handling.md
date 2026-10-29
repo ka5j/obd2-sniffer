@@ -49,7 +49,7 @@ The PC can be turned into a file and line number on the development machine:
 ```sh
 arm-none-eabi-addr2line -f -e build/firmware/firmware/obd2_sniffer.elf 0x08000D8E
 # read_bad_address
-# .../firmware/src/fault.c:87
+# .../firmware/fault/fault.c:87
 ```
 
 Crash testing (debug builds only):
@@ -64,7 +64,7 @@ Crash testing (debug builds only):
 
 ## Engineering detail
 
-### Watchdog (`firmware/src/watchdog.c`)
+### Watchdog (`firmware/system/watchdog.c`)
 
 - Independent watchdog (IWDG), clocked by the internal low-speed oscillator (LSI, nominally
   32 kHz). Prescaler 64 gives a 2 ms tick; a reload value of 250 gives 500 ms nominal.
@@ -81,13 +81,13 @@ Crash testing (debug builds only):
 1. **Separate fault handlers.** `fault_init()` enables the MemManage, BusFault and UsageFault
    exceptions (otherwise everything escalates to HardFault), and the divide-by-zero trap (by
    default, integer division by zero silently returns 0 on Cortex-M).
-2. **Entry in assembly** (`firmware/src/fault_entry.S`). Each handler puts its fault type in `r1`
+2. **Entry in assembly** (`firmware/fault/fault_entry.S`). Each handler puts its fault type in `r1`
    and jumps to a shared routine. Bit 2 of the `EXC_RETURN` value in `LR` says whether the CPU
    stacked its registers on the main or the process stack; the routine passes that frame's address
    in `r0`. It then **switches to a dedicated 512-byte fault stack** before calling C. If the fault
    was a stack overflow, the normal stack is unusable, and running the capture code on it would
    fault again and lock up the CPU.
-3. **Capture in C** (`fault_capture()` in `firmware/src/fault.c`). Copies the stacked `r0`-`r3`,
+3. **Capture in C** (`fault_capture()` in `firmware/fault/fault.c`). Copies the stacked `r0`-`r3`,
    `r12`, `LR`, `PC` and `xPSR`, plus the fault status and address registers (`CFSR`, `HFSR`,
    `MMFAR`, `BFAR`) and the uptime, into a `fault_record_t` in the `.noinit` RAM section. Seals it
    with a magic number and CRC-16, and calls `NVIC_SystemReset()`.
@@ -97,8 +97,8 @@ Crash testing (debug builds only):
    the crash is reported once.
 
 Decoding the status registers into readable causes (`fault_cause_str()`) and the record's
-validation live in the portable library (`lib/fault_record.c`) and are unit-tested at 100% MC/DC.
-Only the register capture is hardware-specific.
+validation live in the portable library (`lib/fault/fault_record.c`) and are unit-tested at
+100% MC/DC. Only the register capture is hardware-specific.
 
 ### Design choices
 

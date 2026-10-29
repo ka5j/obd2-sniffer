@@ -41,7 +41,7 @@ obdsniff shell                     # interactive session
 obdsniff gui                       # desktop app (see below)
 ```
 
-The board is found automatically. Use `--port /dev/tty.usbmodem1103` (or `COM5` on Windows) to
+The board is found automatically. Use `--port /dev/cu.usbmodem1103` (or `COM5` on Windows) to
 choose one, or `--port sim` for the simulator. Add `--json` for machine-readable output:
 
 ```sh
@@ -119,7 +119,7 @@ pip install -e "host[gui]"         # adds PySide6 (Qt)
 obdsniff gui                       # or: obdsniff --port sim gui
 ```
 
-![The desktop app connected to the board, after a deliberate crash](../docs/images/desktop-app.png)
+![The desktop app connected to the board: the command list, then a deliberate crash, recorded and reported after the restart](../docs/images/desktop-app.png)
 
 Pick the port (the Nucleo is found and selected automatically; the simulator is always listed)
 and press **Connect**. The left side shows the board's version, status and last crash, and has
@@ -131,14 +131,14 @@ The **CAN bus** tab starts and stops loopback at a chosen bit rate, sends test f
 shows the newest frames as they arrive, with counts of frames received, frames per second, frames
 lost and damaged packets:
 
-![The CAN tab after 4,000 test frames in loopback, none lost](../docs/images/desktop-app-can.png)
+![The CAN tab after 10,000 test frames in loopback, none lost](../docs/images/desktop-app-can.png)
 
 The **OBD2** tab starts the board's OBD2 tester (and CAN loopback, if it is off) and shows what it
 reads from the simulated engine ECU as it changes: engine speed, vehicle speed, throttle, engine
 load, coolant and intake temperature and run time, the warning light, stored trouble codes, the
 VIN, and the request counters. The tab also follows a tester started from the console.
 
-![The OBD2 tab on the board: 592 requests in about 6 seconds, every one answered](../docs/images/desktop-app-obd.png)
+![The OBD2 tab on the board: 511 requests in about 5 seconds, every one answered](../docs/images/desktop-app-obd.png)
 
 The connection to the board runs on its own thread, so the window stays responsive even while the
 board restarts or thousands of frames a second stream in. When the app closes, the board is
@@ -168,13 +168,13 @@ python -m pytest --cov            # 100% line and branch coverage is required
 |---|---|
 | `device.py` | Protocol client: reliable connect, commands, `key=value` parsing, events, restarts |
 | `transport.py` | Byte transport: the serial port (pyserial) |
-| `simulator.py` | Software model of the board's console, used by `--port sim` and the tests |
 | `ports.py` | Finds the board by its ST-LINK USB IDs |
 | `packets.py` | Binary frame packets: COBS, CRC, decoding; separates them from the console text |
 | `cantest.py` | `can test`: runs a test series and checks every frame |
-| `sim_can.py` | The simulator's CAN controller (loopback, test traffic) |
-| `sim_obd.py` | The simulator's OBD2 side: the simulated engine ECU, the board's tester and the `obd` command, modelled on the C code |
 | `cli.py`, `shell.py`, `output.py` | Command line, interactive shell, formatting |
+| `sim/board.py` | Software model of the board's console, used by `--port sim` and the tests |
+| `sim/can.py` | The simulator's CAN controller (loopback, test traffic) |
+| `sim/obd.py` | The simulator's OBD2 side: the simulated engine ECU, the board's tester and the `obd` command, modelled on the C code |
 | `gui/window.py` | Desktop app window: displays results, turns clicks into requests |
 | `gui/worker.py` | Desktop app's board connection, run on its own thread; talks to the window only through Qt signals |
 | `gui/can_panel.py` | The app's CAN tab: loopback, test traffic, live frame table and counters |

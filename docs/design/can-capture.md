@@ -42,7 +42,7 @@ same capture path.
           CAN1_RX0_IRQHandler: timestamp (TIM2, 1 µs) + capture number
                        │
                        ▼
-          frame queue (lock-free, 8 KB = 409 frames)          board: firmware/src/
+          frame queue (lock-free, 8 KB = 409 frames)          board: firmware/
                        │ main loop
                        ▼
           can_stream_task: packet (host mode) or text line (interactive)
@@ -56,10 +56,10 @@ same capture path.
 
 ## Engineering detail
 
-### Receiving: `firmware/src/can_drv.c`
+### Receiving: `firmware/can/can_drv.c`
 
 - **Pins and clock.** CAN1 on PB8 (receive) and PB9 (transmit), clocked from the 45 MHz APB1 bus.
-  Bit timing comes from the calculator in `lib/src/can_timing.c`: at 500 kbit/s, prescaler 6 and
+  Bit timing comes from the calculator in `lib/can/can_timing.c`: at 500 kbit/s, prescaler 6 and
   15 time quanta per bit, sampling at 86.7% (see [hardware.md](hardware.md#can-bit-timing)).
 - **Filter.** One filter bank in 32-bit mask mode with an all-zero mask, so every frame is
   accepted into FIFO 0. A sniffer wants everything.
@@ -72,7 +72,7 @@ same capture path.
   3. gives it the next 16-bit capture number;
   4. pushes it into the frame queue, or counts it as dropped if the queue is full;
   5. if it is an OBD2 frame (to 0x7DF or 0x7E0, from 0x7E8), also pushes a copy into a second,
-     small queue for the board's own OBD2 tester and simulated ECU (`firmware/src/obd.c`).
+     small queue for the board's own OBD2 tester and simulated ECU (`firmware/obd/obd.c`).
      They then get their frames at once, even while the stream to the laptop is backed up or
      switched off, and each queue keeps exactly one producer and one consumer.
 
@@ -83,7 +83,7 @@ same capture path.
 - **Off at start-up.** CAN is only started by a command, and sending is only allowed in loopback.
   A tool on a car's network must never transmit by accident.
 
-### Timestamps: `firmware/src/timebase.c`
+### Timestamps: `firmware/system/timebase.c`
 
 TIM2 is a 32-bit timer. Clocked at 90 MHz with a prescaler of 90, it counts microseconds and wraps
 after 71.6 minutes; the laptop tool unwraps it. The timestamp is taken when the interrupt
@@ -95,7 +95,7 @@ An alternative is the controller's time-triggered mode, which stamps each frame 
 its start, but only with a 16-bit counter of bit times. The interrupt timestamp is precise enough
 for traffic analysis and works the same at every bit rate.
 
-### The frame queue: `lib/src/frame_queue.c`
+### The frame queue: `lib/buffers/frame_queue.c`
 
 One producer (the interrupt) and one consumer (the main loop) share it without locks or
 switching interrupts off. It is built on the project's lock-free ring buffer:
@@ -125,7 +125,7 @@ the last few frames of a burst are dropped, the laptop learns of it with the nex
 that comes. The board check (`scripts/board_check.py`) accounts for this: its test frames are
 numbered from 0, so it counts losses after the last frame received separately.
 
-### Sending: `firmware/src/can_stream.c`, `lib/src/packet.c`, `lib/src/can_text.c`
+### Sending: `firmware/can/can_stream.c`, `lib/link/packet.c`, `lib/link/can_text.c`
 
 - **Host mode:** each frame becomes a packet (format in [protocol.md](../protocol.md#can-frame-packets)):
   `0x00 | COBS(type, capture number, timestamp, ID, length, data, CRC-16) | 0x00`.
@@ -159,7 +159,7 @@ step:
 Damaged packets are counted and never mistaken for text. The decoder is tested against the same
 golden byte sequences as the firmware's encoder.
 
-### Test traffic: `firmware/src/can_gen.c`
+### Test traffic: `firmware/can/can_gen.c`
 
 `can test <count> [per_s]` sends frames with ID `123` whose data is a 32-bit sequence number and
 its bitwise inverse. That is enough for the laptop to check content, order and completeness of

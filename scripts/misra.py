@@ -98,7 +98,7 @@ def self_test(cfg: dict, cppcheck: str, workdir: Path) -> bool:
     return {"misra-c2012-14.4", "misra-c2012-15.5"} <= ids
 
 
-def run_cppcheck(cfg: dict, cppcheck: str, workdir: Path) -> Path:
+def run_cppcheck(cfg: dict, cppcheck: str, workdir: Path, jobs: int) -> Path:
     scope = cfg["scope"]
     stub = workdir / "stub"
     stub.mkdir(parents=True, exist_ok=True)
@@ -110,6 +110,9 @@ def run_cppcheck(cfg: dict, cppcheck: str, workdir: Path) -> Path:
         *base_command(cfg, cppcheck),
         f"--output-file={xml_out}",
         f"--cppcheck-build-dir={workdir / 'cache'}",
+        # One file per core. Each firmware file pulls in all of ST's HAL and
+        # device headers (about 20 s of analysis each), so this sets the run time.
+        f"-j{jobs}",
     ]
     (workdir / "cache").mkdir(exist_ok=True)
     cmd += [f"-I{ROOT / p}" for p in scope["include"]] + [f"-I{stub}"]
@@ -118,6 +121,17 @@ def run_cppcheck(cfg: dict, cppcheck: str, workdir: Path) -> Path:
     cmd += [str(ROOT / s) for s in scope["sources"]]
     subprocess.run(cmd, check=True, cwd=ROOT)
     return xml_out
+
+
+def scope_files(cfg: dict, pattern: str) -> list[Path]:
+    """Project files under the scope's source folders, without the excluded (vendor) code."""
+    excluded = [ROOT / p for p in cfg["scope"]["exclude"]]
+    return sorted(
+        path
+        for src in cfg["scope"]["sources"]
+        for path in (ROOT / src).rglob(pattern)
+        if not any(path.is_relative_to(e) for e in excluded)
+    )
 
 
 def parse_findings(xml_path: Path, cfg: dict) -> list[Finding]:
@@ -236,15 +250,14 @@ def unused_tags(findings: list[Finding], cfg: dict) -> list[str]:
     """Deviation tags in the sources that no longer cover any finding."""
     deviated = {(f.file, f.line) for f in findings if f.status == "deviated"}
     stale = []
-    for src in cfg["scope"]["sources"] + ["lib/include", "firmware/include"]:
-        for path in sorted((ROOT / src).rglob("*.[ch]")):
-            rel = str(path.relative_to(ROOT))
-            for n, text in enumerate(path.read_text().splitlines(), start=1):
-                if not TAG_RE.search(text):
-                    continue
-                covers_next = is_comment_only(text) and (rel, n + 1) in deviated
-                if (rel, n) not in deviated and not covers_next:
-                    stale.append(f"{rel}:{n}")
+    for path in scope_files(cfg, "*.[ch]"):
+        rel = str(path.relative_to(ROOT))
+        for n, text in enumerate(path.read_text().splitlines(), start=1):
+            if not TAG_RE.search(text):
+                continue
+            covers_next = is_comment_only(text) and (rel, n + 1) in deviated
+            if (rel, n) not in deviated and not covers_next:
+                stale.append(f"{rel}:{n}")
     return stale
 
 
@@ -264,6 +277,9 @@ def main() -> int:
     parser.add_argument("--out", type=Path, default=ROOT / "build" / "misra")
     parser.add_argument("--cppcheck", default="cppcheck")
     parser.add_argument("--summary-md", type=Path)
+    parser.add_argument(
+        "--jobs", type=int, default=os.cpu_count() or 1, help="files analysed in parallel"
+    )
     args = parser.parse_args()
 
     cfg = tomllib.loads(CONFIG.read_text())
@@ -288,7 +304,7 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 2
-        xml_path = run_cppcheck(cfg, args.cppcheck, Path(tmp))
+        xml_path = run_cppcheck(cfg, args.cppcheck, Path(tmp), args.jobs)
         shutil.copy(xml_path, args.out / "cppcheck.xml")
 
     findings = parse_findings(args.out / "cppcheck.xml", cfg)
@@ -298,9 +314,7 @@ def main() -> int:
 
     open_items = [f for f in findings if f.status == "open"]
     counts = Counter(f.status for f in findings)
-    files = sorted(
-        {str(p.relative_to(ROOT)) for s in cfg["scope"]["sources"] for p in (ROOT / s).rglob("*.c")}
-    )
+    files = [str(p.relative_to(ROOT)) for p in scope_files(cfg, "*.c")]
 
     def rule_rows(kind: str, key: str) -> list[dict]:
         rows = []
