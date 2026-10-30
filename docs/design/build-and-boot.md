@@ -127,6 +127,21 @@ FLASH 0x0800_0000 (512 KiB)            RAM 0x2000_0000 (128 KiB)
 - **Stack guard.** `._stack_check` reserves `_Min_Stack_Size` (8 KiB) after all static data. If
   static RAM grows too large, the link fails instead of the stack silently overflowing into
   `.bss` at runtime.
+- **Worst-case stack use** is checked in CI against those 8 KiB by `scripts/stack_usage.py`. It
+  disassembles the linked ELF, reads how many bytes each function takes from the stack, and
+  follows the deepest call chain from the reset handler and from each interrupt handler. The
+  total assumes every handler is nested on top of the main loop at once, each with the CPU's
+  108-byte exception frame (FPU registers included): an upper bound. It is 2,544 bytes in the
+  Release build and 2,764 in the Debug build (about a third of the 8 KiB). The deepest path is a
+  console command formatting text with `vsnprintf`. The fault handlers run on their own 512-byte
+  stack, of which the crash capture uses 24 bytes (96 in Debug).
+
+  The check fails on recursion (MISRA C:2012 rule 17.2), on an instruction that moves the stack
+  pointer by an amount it can't work out, and on a call through a function pointer that is not in
+  its reviewed list of targets (the command handlers, the console's output function, newlib's
+  `printf` internals). Every frame is also compared with GCC's own figure from `-fstack-usage`,
+  so a mistake in reading the disassembly shows up as a mismatch. The C library has no such
+  figures; its frames come from the disassembly alone.
 - **No heap.** `_sbrk` in `syscalls.c` always fails, so `malloc` returns NULL. All buffers are
   sized at compile time.
 - **Read-only flash segment.** GCC emits `.init_array` and `.fini_array` as writable sections,

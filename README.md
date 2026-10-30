@@ -112,7 +112,7 @@ How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-
 | Automotive protocols | CAN, OBD2 (SAE J1979), ISO-TP multi-frame transport |
 | Reliability | Watchdog, crash capture and reporting, interrupt priorities set by deadline, flow control |
 | Python | Desktop app (PySide6), command-line tool, serial communication, board simulator |
-| Code quality | MISRA C:2012 compliance with documented deviations, static analysis (cppcheck) |
+| Code quality | MISRA C:2012 compliance with documented deviations, static analysis (cppcheck), worst-case stack analysis |
 | Testing and tooling | Unit tests in C (Unity) and Python, 100% MC/DC coverage, sanitizers, CMake, GitHub Actions CI, Git branching workflow |
 
 ## Repository layout
@@ -123,7 +123,7 @@ How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-
 | [`lib/`](lib) | Portable C with no hardware code: buffers, link encoding, console logic, CAN timing, ISO-TP and OBD2. Compiled into the firmware and unit-tested on a laptop |
 | [`tests/`](tests) | C unit tests, in the same folders as `lib/` |
 | [`host/`](host) | The laptop tool `obdsniff`: command line, desktop app, board simulator |
-| [`scripts/`](scripts) | Board check, coverage and MISRA gates, quality report, screenshots, release-file check |
+| [`scripts/`](scripts) | Board check, coverage, MISRA and stack-use gates, quality report, screenshots, release-file check |
 | [`docs/`](docs) | Design documents |
 | [`misra/`](misra) | MISRA policy: every deviation and its reason |
 
@@ -139,6 +139,7 @@ How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-
 | Laptop tool: desktop app with board status, controls and console | Done, verified on hardware |
 | Unit tests with 100% MC/DC coverage gate, published test and coverage reports | Done |
 | MISRA C:2012 compliance check in CI, published compliance report | Done |
+| Worst-case stack use worked out and checked in CI | Done |
 | Capturing CAN messages and streaming them to the laptop | Done (tested in loopback), verified on hardware |
 | OBD2 requests: live data, VIN, trouble codes, from a simulated engine computer in loopback | Done, verified on hardware |
 | Two-controller test bus on the desk, performance measurements | Not started |

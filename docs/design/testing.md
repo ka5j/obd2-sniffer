@@ -14,6 +14,8 @@ condition in it was shown to change the outcome on its own. The tests also run u
 detect memory errors, undefined behaviour and race conditions between threads.
 
 All C code is also checked against the MISRA C:2012 coding standard; see [misra.md](misra.md).
+The firmware's worst-case stack use is worked out from each build and must fit the reserved
+stack; see [build-and-boot.md](build-and-boot.md#memory-layout).
 
 Results are published automatically:
 
