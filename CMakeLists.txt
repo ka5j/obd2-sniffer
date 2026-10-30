@@ -47,6 +47,12 @@ if(NOT CMAKE_CROSSCOMPILING)
     endif()
 endif()
 
+if(CMAKE_CROSSCOMPILING)
+    # Each function's stack frame, in a .su file beside its object file, for
+    # scripts/stack_usage.py to check. The generated code is unchanged.
+    add_compile_options($<$<COMPILE_LANGUAGE:C>:-fstack-usage>)
+endif()
+
 add_subdirectory(lib)
 
 if(CMAKE_CROSSCOMPILING)
