@@ -80,6 +80,24 @@ example `v0.2.0`, or `v0.2.0-3-gabc1234-dirty` for a modified tree) into `versio
 `configure_file` only rewrites the header when the string changes, so it doesn't trigger a
 rebuild every time. The banner therefore always identifies the exact source the image came from.
 
+### Release files
+
+The files attached to a GitHub Release are built by CI from the tag, not on a laptop. Pushing a
+tag `vX.Y.Z` runs `.github/workflows/release.yml`, which:
+
+1. fails unless the version in `CMakeLists.txt`, the laptop tool and the sample start-up report
+   in `getting-started.md` is `X.Y.Z`;
+2. builds both firmware builds with the same toolchain as every CI run;
+3. fails unless both report exactly `vX.Y.Z` (not `vX.Y.Z-dirty`, or a later commit);
+4. attaches the Debug and Release `.bin`, `.hex` and `.elf` files and `SHA256SUMS.txt` to a
+   **draft** release.
+
+The tag is first built locally and checked on the board. Before the draft is published,
+`scripts/release_check.py vX.Y.Z` compares CI's files with that local build: the `.bin` and
+`.hex` files must be byte-identical, and the `.elf` files identical once debug info is stripped.
+The debug info records the folder each build ran in, so it differs between machines; the code
+and data do not. So the published files are the ones that passed the board checks.
+
 ## Memory layout
 
 `firmware/linker/STM32F446RETx_FLASH.ld` is written for this project rather than taken from a
