@@ -92,11 +92,18 @@ tag `vX.Y.Z` runs `.github/workflows/release.yml`, which:
 4. attaches the Debug and Release `.bin`, `.hex` and `.elf` files and `SHA256SUMS.txt` to a
    **draft** release.
 
-The tag is first built locally and checked on the board. Before the draft is published,
-`scripts/release_check.py vX.Y.Z` compares CI's files with that local build: the `.bin` and
-`.hex` files must be byte-identical, and the `.elf` files identical once debug info is stripped.
-The debug info records the folder each build ran in, so it differs between machines; the code
-and data do not. So the published files are the ones that passed the board checks.
+The tag is first built locally and checked on the board, before it is pushed. CI's files
+can't be byte-identical to that build: the macOS and Linux toolchains ship separately built C
+libraries, and the linker places newlib's functions in a different order (in v0.4.1, 17 symbols
+sit at other addresses; every size is the same). So before the draft is published:
+
+1. `scripts/release_check.py vX.Y.Z` downloads CI's files and checks the checksums, that each
+   `.bin` is exactly its `.elf`'s program image, and that each `.elf` has the same functions and
+   variables, each of the same size, and the same section sizes as the local build;
+2. `--flash release`, then `--flash debug`, loads CI's own files onto the board, and
+   `scripts/board_check.py --crash` checks each one.
+
+So the published files are the ones that passed the board checks.
 
 ## Memory layout
 
