@@ -1,0 +1,121 @@
+name: Release
+
+# Builds the release files from a version tag, so what is published is built from the tag alone,
+# by the same toolchain CI uses for every change.
+#
+# Tag push: builds both firmware builds and attaches the files to a draft GitHub Release. The
+# notes are written, and the draft published, by hand after checking the files against the
+# builds tested on the board (docs/design/build-and-boot.md, "Release files").
+#
+# Manual run: builds an existing tag and uploads the files as a workflow artifact only; no
+# release is created or changed. Used to check that a tag still builds to the same files.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to build, e.g. v0.4.1 (no release is created)'
+        required: true
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ inputs.tag || github.ref_name }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # create the draft release
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          submodules: recursive
+          fetch-depth: 0 # full history + tags for `git describe`
+
+      - name: Check the version numbers match the tag
+        # The release-prep PR bumps these; a tag without it would ship the old numbers.
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::$TAG is not vX.Y.Z"; exit 1; }
+          v=${TAG#v}
+          ok=1
+          check() {
+            if grep -qE "$2" "$1"; then echo "ok    $1"; else echo "::error file=$1::does not say $v"; ok=0; fi
+          }
+          check CMakeLists.txt                "^ +VERSION ${v//./\\.}$"
+          check host/pyproject.toml           "^version = \"${v//./\\.}\"$"
+          check host/src/obdsniff/__init__.py "^__version__ = \"${v//./\\.}\"$"
+          check docs/getting-started.md       "OBD2 CAN Sniffer  v${v//./\\.}$"
+          [ "$ok" = 1 ]
+
+      - name: Install Arm GNU Toolchain
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: '15.2.Rel1' # same as the CI builds and the laptop
+
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build
+
+      - name: Build
+        run: |
+          for preset in firmware firmware-release; do
+            cmake --preset "$preset"
+            cmake --build --preset "$preset"
+          done
+
+      - name: Check the firmware reports the tag
+        # A dirty tree or a tag on another commit would give e.g. v0.4.1-dirty or v0.4.1-2-g...
+        run: |
+          for preset in firmware firmware-release; do
+            header=build/$preset/firmware/generated/version.h
+            grep -q "^#define FW_VERSION \"$TAG\"$" "$header" || {
+              echo "::error::$preset reports $(grep FW_VERSION "$header"), not $TAG"
+              exit 1
+            }
+          done
+
+      - name: Collect the release files
+        run: |
+          mkdir dist
+          for build in debug:firmware release:firmware-release; do
+            name=${build%%:*} preset=${build#*:}
+            for ext in bin hex elf; do
+              cp "build/$preset/firmware/obd2_sniffer.$ext" "dist/obd2_sniffer-$TAG-$name.$ext"
+            done
+          done
+          (cd dist && sha256sum -- * > SHA256SUMS.txt)
+          {
+            echo "### Release files for $TAG"
+            echo '```'
+            cat dist/SHA256SUMS.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the files
+        uses: actions/upload-artifact@v4
+        with:
+          name: obd2_sniffer-${{ env.TAG }}
+          path: dist
+          if-no-files-found: error
+
+      - name: Attach the files to a draft release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if draft=$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null); then
+            # A re-run may replace a draft's files, never a published release's.
+            [ "$draft" = true ] || { echo "::error::release $TAG is already published"; exit 1; }
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* --draft --verify-tag --title "$TAG" \
+              --notes "Draft: files built by CI from $TAG. Notes are added before publishing."
+          fi
