@@ -177,11 +177,8 @@ jobs:
       - name: Bisect exit crash (temporary)
         run: |
           set +e
+          for i in 1 2 3; do python -m pytest -q tests/test_gui.py::test_run_opens_and_closes > /dev/null 2>&1; echo "run test alone: $?"; done
           python -m pytest -q tests/test_gui.py > /dev/null 2>&1; echo "gui only: $?"
-          python -m pytest -q tests/test_gui.py -k "not test_run_opens_and_closes" > /dev/null 2>&1; echo "gui without run test: $?"
-          python -m pytest -q -k "not test_run_opens_and_closes" > /dev/null 2>&1; echo "all without run test: $?"
-          python -m pytest -q tests/test_gui.py::test_run_opens_and_closes > /dev/null 2>&1; echo "run test alone: $?"
-          python -m pytest -q tests/test_gui.py -k "test_run_opens_and_closes or test_starts_disconnected" > /dev/null 2>&1; echo "run test + one window test: $?"
           true
 
       - name: Test (100% line and branch coverage required)

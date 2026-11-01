@@ -24,6 +24,10 @@ def run(port: str | None = None) -> int:
     thread = QThread()
     worker = DeviceWorker()
     worker.moveToThread(thread)
+    # Delete the worker on its own thread as that thread ends. Left to Python,
+    # it would be freed on this thread after its thread was gone, and Qt can
+    # then corrupt memory.
+    thread.finished.connect(worker.deleteLater)
     window = MainWindow(worker, port)
     thread.start()
     window.show()
