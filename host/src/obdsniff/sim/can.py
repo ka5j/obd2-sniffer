@@ -10,7 +10,7 @@ from __future__ import annotations
 import struct
 from collections.abc import Callable
 
-from obdsniff.packets import CanFrame, format_frame
+from obdsniff.packets import CanFrame
 from obdsniff.sim.obd import GAP_US, REQUEST_ID, SimulatedEcu, SimulatedTester, single_frame
 
 APB1_HZ = 45_000_000  # the board's CAN clock
@@ -49,11 +49,6 @@ def frame_bits(frame: CanFrame) -> int:
     return 55 + (20 if frame.extended else 0) + 8 * len(frame.data)
 
 
-def format_line(frame: CanFrame) -> str:
-    """The board's text form of a frame (lib/link/can_text.c)."""
-    return format_frame(frame) + "\r\n"
-
-
 class SimulatedCan:
     def __init__(self, clock: Callable[[], float]) -> None:
         self._clock = clock
@@ -62,7 +57,7 @@ class SimulatedCan:
     def reset(self) -> None:
         """Start-up state: CAN off."""
         self.mode = "off"
-        self.stream = True  # frames go to the terminal or laptop
+        self.stream = True  # frames go to the laptop
         self.bitrate = 0
         self.rx_frames = 0
         self.tx_frames = 0
@@ -80,7 +75,7 @@ class SimulatedCan:
 
     # ---- the `can` command ----------------------------------------------------
 
-    def command(self, args: list[str], field: Callable[[str, str, str], None]) -> str | None:
+    def command(self, args: list[str], field: Callable[[str, str], None]) -> str | None:
         """Run `can <args>`; returns an error message, or None for OK."""
         if not args:
             self._status(field)
@@ -100,22 +95,22 @@ class SimulatedCan:
             return self._stream(rest)
         return "invalid argument"
 
-    def _status(self, field: Callable[[str, str, str], None]) -> None:
+    def _status(self, field: Callable[[str, str], None]) -> None:
         on = self.mode == "loopback"
-        field("can_mode", "Mode", self.mode)
-        field("can_bitrate", "Bit rate (bit/s)", str(self.bitrate))
-        field("can_bus", "Bus state", "error-active" if on else "off")
-        field("can_rx_frames", "Received", str(self.rx_frames))
-        field("can_rx_dropped", "  dropped", "0")
-        field("can_rx_overruns", "  overruns", "0")
-        field("can_queue", "  queued", f"0/{QUEUE_FRAMES}")
-        field("can_stream", "Streaming", "on" if self.stream else "off")
-        field("can_streamed", "Sent to laptop", str(self.streamed))
-        field("can_tx_frames", "Transmitted", str(self.tx_frames))
-        field("can_test_frames", "Test frames", f"{self.gen_sent}/{self.gen_count}")
-        field("can_isr_max_us", "Longest IRQ (us)", "0")
-        field("can_tec", "TX error count", "0")
-        field("can_rec", "RX error count", "0")
+        field("can_mode", self.mode)
+        field("can_bitrate", str(self.bitrate))
+        field("can_bus", "error-active" if on else "off")
+        field("can_rx_frames", str(self.rx_frames))
+        field("can_rx_dropped", "0")
+        field("can_rx_overruns", "0")
+        field("can_queue", f"0/{QUEUE_FRAMES}")
+        field("can_stream", "on" if self.stream else "off")
+        field("can_streamed", str(self.streamed))
+        field("can_tx_frames", str(self.tx_frames))
+        field("can_test_frames", f"{self.gen_sent}/{self.gen_count}")
+        field("can_isr_max_us", "0")
+        field("can_tec", "0")
+        field("can_rec", "0")
 
     def _loopback(self, rest: list[str]) -> str | None:
         if len(rest) > 1:

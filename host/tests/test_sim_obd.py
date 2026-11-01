@@ -184,7 +184,6 @@ def test_tester_ignores_frames_until_started() -> None:
 def host_board(clock) -> SimulatedBoard:
     board = SimulatedBoard(clock=clock)
     board.take_output()
-    run(board, "mode host\r")
     return board
 
 

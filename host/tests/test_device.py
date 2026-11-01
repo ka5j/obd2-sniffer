@@ -20,15 +20,14 @@ from .conftest import ScriptedTransport
 
 
 def test_connect_recovers_from_half_typed_line(board) -> None:
-    board.feed(b"can loopba")  # someone left a partial command in the terminal
+    board.feed(b"can loopba")  # a program stopped half-way through a command
     board.take_output()
     dev = Device(SimulatedTransport(board), timeout=0.5)
     dev.connect()
-    assert board.mode == "host"
     assert board.can.mode == "off"  # the partial command was discarded, not run
 
 
-def test_connect_keeps_events_from_a_board_already_in_host_mode() -> None:
+def test_connect_keeps_events() -> None:
     dev = Device(ScriptedTransport([b"!button pressed\r\n", b"OK\r\n"]), timeout=0.05)
     dev.connect()
     assert dev.poll_events() == ["button pressed"]
@@ -130,7 +129,6 @@ def test_reset_reconnects(device, board) -> None:
     device.command("can loopback")
     device.reset()
     assert board.reset_cause == "software"
-    assert board.mode == "host"
     assert board.can.mode == "off"
 
 
@@ -143,7 +141,6 @@ def test_reset_fails_if_board_does_not_come_back(monkeypatch) -> None:
 
 def test_crash_waits_for_restart(device, board) -> None:
     device.crash("usage")
-    assert board.mode == "host"
     assert device.fault()["fault"] == "UsageFault"
 
 
@@ -156,7 +153,7 @@ def test_crash_rejected_by_release_firmware() -> None:
 
 def test_crash_fails_if_board_does_not_restart(monkeypatch) -> None:
     monkeypatch.setattr(device_module, "BOOT_TIMEOUT", 0.05)
-    # Start-up text arrives, but never the prompt.
+    # Start-up text arrives, but never the "started" event.
     dev = Device(ScriptedTransport([b"========\r\n"]), timeout=0.05)
     with pytest.raises(ProtocolError, match="did not restart"):
         dev.crash("bus")
@@ -173,24 +170,14 @@ def test_context_manager_closes_transport() -> None:
     assert transport.written == []  # never connected: maybe not the board, send nothing
 
 
-def test_close_hands_the_console_back_in_interactive_mode(device, board) -> None:
-    assert board.mode == "host"
-    device.close()
-    assert board.mode == "interactive"  # a serial terminal opened next gets prompt and echo
-
-
-def test_close_still_closes_the_port_if_the_board_was_unplugged() -> None:
-    class UnpluggedTransport(ScriptedTransport):
-        def write(self, data: bytes) -> None:
-            if self.closed or data == b"mode interactive\r":
-                raise serial.SerialException("device disconnected")
-            super().write(data)
-
-    transport = UnpluggedTransport([b"", b"OK\r\n"])
+def test_close_sends_nothing() -> None:
+    transport = ScriptedTransport([b"OK\r\n"])
     dev = Device(transport, timeout=0.05)
     dev.connect()
+    sent = list(transport.written)
     dev.close()
     assert transport.closed
+    assert transport.written == sent  # the board needs no goodbye
 
 
 def test_open_simulator() -> None:
@@ -292,7 +279,7 @@ def test_empty_lines_are_ignored() -> None:
 
 def test_crash_is_detected_while_frames_stream() -> None:
     dev, _ = connected_scripted(
-        GOLDEN + GOLDEN + b"\r\n========\r\n Crash    BusFault\r\nobd> ", b"", b"OK\r\n"
+        GOLDEN + GOLDEN + b"\r\n========\r\n Crash    BusFault\r\n!started\r\n", b"", b"OK\r\n"
     )
-    dev.crash("bus")  # finds the prompt among the packets, then reconnects
+    dev.crash("bus")  # finds "started" among the packets, then reconnects
     assert len(dev.poll_frames()) == 2

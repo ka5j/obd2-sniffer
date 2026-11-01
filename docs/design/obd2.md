@@ -22,8 +22,7 @@ turning?", "which fault codes are stored?", "what is your vehicle identification
 - **Read-only.** The tester asks only service 01 (live data), 03 (stored trouble codes) and 09
   (vehicle information) questions. Clearing trouble codes (service 04), or anything else that
   changes an ECU, is not built in, on purpose ([safety.md](safety.md#what-read-only-means)).
-- **Three ways to use it.** `obd` in a serial terminal, `obdsniff obd watch` on the laptop, or
-  the desktop app's OBD2 tab.
+- **Two ways to use it.** `obdsniff obd watch` on the laptop, or the desktop app's OBD2 tab.
 
 Measured on the board: **838 questions in the first 9 seconds (about 95 a second), every one
 answered, 0 timeouts, 0 errors**; the multi-frame VIN and both trouble codes read correctly.
@@ -117,8 +116,8 @@ load.
 
 Each PID's reply bytes map to a value by a formula from SAE J1979, e.g. engine speed is
 (256·A + B) / 4 rpm and throttle is A·100/255 %. Values are kept as integers scaled by
-10^decimals: 23.5% throttle is 235 with one decimal. The same table gives each value its key in
-host mode and its label in the terminal.
+10^decimals: 23.5% throttle is 235 with one decimal. The same table gives each value the key it
+is reported under; the laptop tool gives it a label.
 
 ### The simulated ECU
 

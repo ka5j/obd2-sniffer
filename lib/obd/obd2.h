@@ -63,9 +63,8 @@ typedef enum {
 typedef struct {
     uint8_t pid;
     obd2_formula_t formula;
-    uint8_t decimals;  /* value = display value x 10^decimals */
-    const char *key;   /* field name in host mode */
-    const char *label; /* name shown to people, with the unit, e.g. "Engine (rpm)" */
+    uint8_t decimals; /* value = display value x 10^decimals */
+    const char *key;  /* field name in the command's reply */
 } obd2_pid_t;
 
 /* The numeric PIDs this project knows, in display order. */

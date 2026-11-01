@@ -1,7 +1,7 @@
 """Binary packets in the board's output (format: docs/protocol.md).
 
-In host mode the board sends captured CAN frames as binary packets mixed into
-its text replies:
+The board sends captured CAN frames as binary packets mixed into its text
+replies:
 
     0x00 | COBS( type | payload | CRC-16 ) | 0x00
 
@@ -233,13 +233,10 @@ class TimestampUnwrapper:
         return (self._base + timestamp_us) / 1_000_000
 
 
-def format_frame(frame: CanFrame, seconds: float | None = None) -> str:
-    """One line, as the board prints frames in interactive mode
-    (lib/link/can_text.c): time, ID, length, data."""
-    if seconds is None:
-        whole, micros = divmod(frame.timestamp_us, 1_000_000)
-    else:
-        whole, micros = divmod(round(seconds * 1_000_000), 1_000_000)
+def format_frame(frame: CanFrame, seconds: float) -> str:
+    """One line per frame, as the shell and `monitor` show it: time, ID,
+    length, data."""
+    whole, micros = divmod(round(seconds * 1_000_000), 1_000_000)
     ident = f"{frame.id:08X}" if frame.extended else f"{frame.id:03X}"
     if frame.rtr:
         tail = "  remote request"

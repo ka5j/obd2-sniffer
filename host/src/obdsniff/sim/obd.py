@@ -47,17 +47,16 @@ class Pid:
     formula: str
     decimals: int
     key: str
-    label: str
 
 
 PIDS = (
-    Pid(0x0C, "rpm", 0, "obd_rpm", "Engine (rpm)"),
-    Pid(0x0D, "byte", 0, "obd_speed", "Speed (km/h)"),
-    Pid(0x11, "percent", 1, "obd_throttle", "Throttle (%)"),
-    Pid(0x04, "percent", 1, "obd_load", "Engine load (%)"),
-    Pid(0x05, "temperature", 0, "obd_coolant", "Coolant (C)"),
-    Pid(0x0F, "temperature", 0, "obd_intake", "Intake air (C)"),
-    Pid(0x1F, "word", 0, "obd_run_time", "Run time (s)"),
+    Pid(0x0C, "rpm", 0, "obd_rpm"),
+    Pid(0x0D, "byte", 0, "obd_speed"),
+    Pid(0x11, "percent", 1, "obd_throttle"),
+    Pid(0x04, "percent", 1, "obd_load"),
+    Pid(0x05, "temperature", 0, "obd_coolant"),
+    Pid(0x0F, "temperature", 0, "obd_intake"),
+    Pid(0x1F, "word", 0, "obd_run_time"),
 )
 PID_BY_NUMBER = {p.pid: p for p in PIDS}
 
@@ -348,27 +347,26 @@ class SimulatedTester:
             return valid
         return False
 
-    def fields(self, ecu_on: bool, field_out: Callable[[str, str, str], None]) -> None:
+    def fields(self, ecu_on: bool, field_out: Callable[[str, str], None]) -> None:
         """The `obd` command's output (commands.c)."""
-        field_out("obd_tester", "Tester", "running" if self.running else "stopped")
-        field_out("obd_ecu", "Simulated ECU", "on" if ecu_on else "off")
+        field_out("obd_tester", "running" if self.running else "stopped")
+        field_out("obd_ecu", "on" if ecu_on else "off")
         for pid in PIDS:
             value = self.values.get(pid.key)
-            field_out(pid.key, pid.label, "-" if value is None else format_value(pid, value))
+            field_out(pid.key, "-" if value is None else format_value(pid, value))
         mil = "-" if self.mil_on is None else ("on" if self.mil_on else "off")
-        field_out("obd_mil", "Warning light", mil)
+        field_out("obd_mil", mil)
         field_out(
             "obd_dtc_count",
-            "Codes stored",
             "-" if self.dtc_reported is None else str(self.dtc_reported),
         )
         if self.dtcs is None:
             codes = "-"
         else:
             codes = " ".join(dtc_text(code) for code in self.dtcs[:DTC_MAX]) or "none"
-        field_out("obd_dtcs", "Trouble codes", codes)
-        field_out("obd_vin", "VIN", self.vin or "-")
-        field_out("obd_requests", "Requests", str(self.requests))
-        field_out("obd_replies", "  answered", str(self.replies))
-        field_out("obd_timeouts", "  timed out", str(self.timeouts))
-        field_out("obd_errors", "  errors", str(self.errors))
+        field_out("obd_dtcs", codes)
+        field_out("obd_vin", self.vin or "-")
+        field_out("obd_requests", str(self.requests))
+        field_out("obd_replies", str(self.replies))
+        field_out("obd_timeouts", str(self.timeouts))
+        field_out("obd_errors", str(self.errors))

@@ -12,7 +12,6 @@ from obdsniff.sim.board import FRAMES_PER_READ, SimulatedBoard
 from obdsniff.sim.can import (
     APB1_HZ,
     bit_timing_exists,
-    format_line,
     frame_bits,
     parse_u32,
 )
@@ -23,11 +22,6 @@ USAGE_ERROR = "wrong number of arguments (usage: can "
 def run(board: SimulatedBoard, text: str) -> str:
     board.feed(text.encode())
     return board.take_output().decode("latin-1")
-
-
-def host(board: SimulatedBoard) -> SimulatedBoard:
-    run(board, "mode host\r")
-    return board
 
 
 def host_frames(board: SimulatedBoard, command: str) -> tuple[str, list[CanFrame]]:
@@ -69,14 +63,8 @@ def test_number_parsers() -> None:
         assert parse_u32(bad) is None
 
 
-def test_text_lines_match_the_firmware_format() -> None:
-    std = CanFrame(timestamp_us=12_345_678, id=0x7E8, data=bytes.fromhex("04410C1AF8000000"))
-    assert format_line(std) == "  12.345678  7E8       [8]  04 41 0C 1A F8 00 00 00\r\n"
+def test_extended_frames_take_longer_on_the_bus() -> None:
     ext = CanFrame(timestamp_us=1_000_005, id=0x18DAF110, data=b"\x02\x10\x03", extended=True)
-    assert format_line(ext) == "  1.000005  18DAF110  [3]  02 10 03\r\n"
-    remote = CanFrame(timestamp_us=0, id=0x7DF, dlc=8, rtr=True)
-    assert format_line(remote) == "  0.000000  7DF       [8]  remote request\r\n"
-    assert format_line(CanFrame(timestamp_us=999_999, id=1)) == "  0.999999  001       [0]\r\n"
     assert frame_bits(ext) == frame_bits(CanFrame(timestamp_us=0, id=1, data=b"\x02\x10\x03")) + 20
 
 
@@ -85,13 +73,12 @@ def test_text_lines_match_the_firmware_format() -> None:
 
 def test_starts_off(board) -> None:
     out = run(board, "can\r")
-    assert "  Mode              off\r\n" in out
-    assert "  Bus state         off\r\n" in out
-    assert "error: command failed" in run(board, "can test 5\r")
+    assert "can_mode=off\r\n" in out
+    assert "can_bus=off\r\n" in out
+    assert run(board, "can test 5\r") == "ERR command failed\r\n"
 
 
 def test_loopback_and_off(board) -> None:
-    host(board)
     assert run(board, "can loopback\r") == "OK\r\n"
     assert "can_bitrate=500000\r\n" in run(board, "can\r")
     assert run(board, "can loopback 250\r") == "OK\r\n"
@@ -122,13 +109,11 @@ def test_loopback_and_off(board) -> None:
     ],
 )
 def test_errors(board, command: str, error: str) -> None:
-    host(board)
     run(board, "can loopback\r")
     assert run(board, command + "\r").startswith("ERR " + error)
 
 
 def test_streaming_off_receives_frames_without_sending_them(board) -> None:
-    host(board)
     run(board, "can loopback\r")
     assert "can_stream=on\r\n" in run(board, "can\r")  # on after start-up
     assert run(board, "can stream off\r") == "OK\r\n"
@@ -144,7 +129,6 @@ def test_streaming_off_receives_frames_without_sending_them(board) -> None:
 
 
 def test_standard_and_extended_frames_reach_the_laptop(board) -> None:
-    host(board)
     run(board, "can loopback\r")
     loop_frame(board, 0x321, bytes.fromhex("0201050000000000"))
     _, frames = host_frames(board, "can stream on")
@@ -163,7 +147,6 @@ def test_standard_and_extended_frames_reach_the_laptop(board) -> None:
 
 
 def test_test_traffic_is_numbered_and_spaced_like_a_bus(board) -> None:
-    host(board)
     run(board, "can loopback 500\r")
     _, frames = host_frames(board, f"can test {FRAMES_PER_READ * 2 + 5}")
     assert len(frames) == FRAMES_PER_READ * 2 + 5
@@ -178,14 +161,12 @@ def test_test_traffic_is_numbered_and_spaced_like_a_bus(board) -> None:
 
 
 def test_test_traffic_at_a_set_rate(board) -> None:
-    host(board)
     run(board, "can loopback\r")
     _, frames = host_frames(board, "can test 3 1000")
     assert [b.timestamp_us - a.timestamp_us for a, b in pairwise(frames)] == [1000, 1000]
 
 
 def test_restarting_or_stopping_ends_a_series(board) -> None:
-    host(board)
     run(board, "can loopback\r")
     board.feed(b"can test 1000\r")
     board.take_output()  # the first batch only
@@ -202,38 +183,8 @@ def test_restarting_or_stopping_ends_a_series(board) -> None:
 
 
 def test_restart_switches_can_off(board) -> None:
-    host(board)
     run(board, "can loopback\r")
     run(board, "reset\r")
     board.run_pending()
     board.take_output()
-    assert "Mode              off" in run(board, "can\r")
-
-
-def test_interactive_lines_then_prompt_with_typed_text(board) -> None:
-    run(board, "can loopback\r")
-    out = run(board, "can test 1\r")
-    assert out == "can test 1\r\nobd> \r\n" + out.split("\r\n")[2] + "\r\nobd> "
-    assert "123       [8]  00 00 00 00 FF FF FF FF" in out
-    # typed text survives the traffic
-    run(board, "fault c")
-    loop_frame(board, 0x7DF)
-    assert run(board, "").endswith("[0]\r\nobd> fault c")
-
-
-def test_interactive_burst_shows_one_line_per_frame(board) -> None:
-    run(board, "can loopback\r")
-    out = run(board, "can test 3\r")
-    assert out.count("  123       [8]  ") == 3
-    assert out.endswith("obd> ")
-
-
-def test_switching_to_host_mode_mid_traffic_shows_no_prompt(board) -> None:
-    run(board, "can loopback\r")
-    board.feed(b"can test 1000\r")
-    board.take_output()  # interactive lines for the first batch
-    host(board)
-    rest = bytearray()
-    while board.can.busy():
-        rest += board.take_output()
-    assert b"obd> " not in rest  # the rest arrives as packets, without a prompt
+    assert "can_mode=off\r\n" in run(board, "can\r")

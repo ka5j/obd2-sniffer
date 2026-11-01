@@ -26,6 +26,7 @@ from pathlib import Path
 from obdsniff.gui.window import MainWindow
 from obdsniff.gui.worker import DeviceWorker
 from PySide6.QtWidgets import QApplication
+from shiboken6 import delete
 
 ROOT = Path(__file__).resolve().parents[1]
 POLL_S = 0.1  # how often the app polls the board when it runs normally
@@ -111,8 +112,11 @@ class Shooter:
         self.worker.can_off()
 
     def close(self) -> None:
-        self.worker.close_port()  # hands the board back in interactive mode
+        self.worker.close_port()
         self.window.close()
+        # Delete the window while the application still exists: one destroyed
+        # during Python's exit, after the application, corrupts memory.
+        delete(self.window)
 
 
 def main() -> int:

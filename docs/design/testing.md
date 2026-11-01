@@ -92,8 +92,8 @@ The tagged **Release build** passed the same day, with three differences:
 - **Crash command:** absent, as it should be; 14 checks in all.
 
 CI runs the same script against the simulator (`--port sim`) on every change, so it keeps working
-as the code changes. The rest (the button, the LED, line editing in a terminal, the desktop app,
-timing the watchdog) is checked by hand.
+as the code changes. The rest (the button, the LED, the desktop app, timing the watchdog) is
+checked by hand.
 
 **Latest full checks by hand:** 19 and 20 October 2026, for v0.4.0, Debug and Release builds,
 serial link at 1.5 Mbaud. v0.4.1 changed no firmware behaviour, so for it, on 28 October 2026,

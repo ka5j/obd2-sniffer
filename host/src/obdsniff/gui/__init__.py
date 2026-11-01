@@ -29,8 +29,8 @@ def run(port: str | None = None) -> int:
     thread.start()
     window.show()
     code = app.exec()
-    # Disconnect on the worker's own thread (handing the board back in
-    # interactive mode), wait for that to finish, then stop the thread.
+    # Disconnect on the worker's own thread, wait for that to finish, then
+    # stop the thread.
     QMetaObject.invokeMethod(worker, "close_port", Qt.ConnectionType.BlockingQueuedConnection)
     thread.quit()
     thread.wait()

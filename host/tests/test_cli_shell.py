@@ -85,7 +85,6 @@ def test_reset(capsys, sim_board) -> None:
 
 
 def test_monitor_prints_events(capsys, sim_board) -> None:
-    sim_board.mode = "host"
     sim_board.press_button()  # queued before the monitor starts reading
     code, out, _ = run_cli(capsys, "monitor", "--duration", "0.3")
     assert code == 0
@@ -94,7 +93,6 @@ def test_monitor_prints_events(capsys, sim_board) -> None:
 
 
 def test_monitor_json(capsys, sim_board) -> None:
-    sim_board.mode = "host"
     sim_board.press_button()
     _, out, _ = run_cli(capsys, "--json", "monitor", "--duration", "0.3")
     events = [json.loads(line) for line in out.splitlines()]
@@ -185,7 +183,6 @@ def test_shell_session(device, board) -> None:
             "status",
             "help",
             "fault blue",
-            "mode interactive",
             "reset",
             "crash bus",
             "crash",
@@ -197,7 +194,6 @@ def test_shell_session(device, board) -> None:
     assert "  Uptime (ms)" in text
     assert "  fault [clear]" in text
     assert "error: invalid argument" in text
-    assert "The laptop tool manages the console mode itself." in text
     assert "Board restarted." in text
     assert "Board restarted after the crash. What it recorded:" in text
     assert "error: wrong number of arguments (usage: crash bus|usage|divzero|hard|watchdog)" in text

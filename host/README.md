@@ -1,8 +1,9 @@
 # obdsniff: laptop tool
 
 `obdsniff` is the laptop side of the OBD2 CAN Sniffer. It connects to the board over USB and lets
-you check its status, control it, watch events as they happen, and work with it interactively,
-from the command line or from a desktop app. A built-in **simulator** (`--port sim`) behaves like
+you check its status, control it, watch events as they happen, and type commands in a shell,
+from the command line or from a desktop app. The board formats nothing for people; this tool
+does all the presenting. A built-in **simulator** (`--port sim`) behaves like
 the real board, so everything can be tried without hardware.
 
 ## Install
@@ -76,7 +77,7 @@ Passed.
 ```
 
 Each test frame carries its own number, so `can test` checks every frame arrived, in order and
-undamaged. `monitor` shows frames as the board prints them:
+undamaged. `monitor` shows one line per frame: receive time, ID, length, data:
 
 ```
   1277.564848  123       [8]  24 00 00 00 DB FF FF FF
@@ -87,9 +88,6 @@ undamaged. `monitor` shows frames as the board prints them:
 SavvyCAN can open. With `--json`, each frame is one JSON object per line. When `monitor` stops it
 reports how many frames arrived and how many were lost, from the gaps in the board's capture
 numbers.
-
-When it finishes, the tool switches the board back to interactive mode, so a serial terminal
-opened afterwards works as usual.
 
 ### Interactive shell
 
@@ -107,8 +105,8 @@ Board restarted after the crash. What it recorded:
   ...
 ```
 
-Commands are passed to the board. The shell keeps the board in host mode underneath, formats the
-replies, shows events as they arrive, and reconnects automatically after `reset` or `crash`.
+Commands are passed to the board. The shell formats the replies, shows events and frames as they
+arrive, and reconnects automatically after `reset` or `crash`.
 
 ## Desktop app
 
@@ -139,8 +137,7 @@ VIN, and the request counters. The tab also follows a tester started from the co
 ![The OBD2 tab on the board: 511 requests in about 5 seconds, every one answered](../docs/images/desktop-app-obd.png)
 
 The connection to the board runs on its own thread, so the window stays responsive even while the
-board restarts or thousands of frames a second stream in. When the app closes, the board is
-handed back in interactive mode.
+board restarts or thousands of frames a second stream in.
 
 ## As a library
 

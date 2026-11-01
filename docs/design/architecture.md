@@ -45,8 +45,8 @@ design documents go into each part in detail; this one shows how they connect.
 | `firmware/obd` | `obd.c` | Connects the OBD2 tester and, in loopback, the simulated engine ECU to the CAN driver |
 | `firmware/fault` | `fault.c`, `fault_entry.S` | Crash capture on a separate stack, reported after the restart |
 | `lib/buffers` | `ring_buffer.c`, `frame_queue.c` | The lock-free queues between interrupts and the main loop |
-| `lib/link` | `packet.c`, `cobs.c`, `crc16.c`, `can_text.c` | The error-checked packet format to the laptop, and frames as text lines |
-| `lib/console` | `console_core.c`, `cli.c`, `line_editor.c` | Console behaviour, command parsing, line editing |
+| `lib/link` | `packet.c`, `cobs.c`, `crc16.c` | The error-checked packet format for frames to the laptop |
+| `lib/console` | `console_core.c`, `cli.c`, `line_reader.c` | Reading command lines, command parsing, replies |
 | `lib/can` | `can_timing.c` | Works out the CAN bit timing for a bit rate |
 | `lib/obd` | `isotp.c`, `obd2.c`, `obd_client.c` | Multi-frame transport, OBD2 messages, the tester |
 | | `ecu_sim.c`, `ecu_node.c` | The simulated engine ECU used in loopback |
@@ -88,7 +88,7 @@ Each pass does, in order:
  frame queue (lock-free, 409 frames)
       |  main loop: can_stream_task
       v
- packet: COBS framing + CRC-16 (host mode), or a text line (interactive mode)
+ packet: COBS framing + CRC-16
       |
       v
  transmit ring buffer (4 KB) --> DMA --> serial port, 1.5 Mbaud --> ST-LINK USB --> laptop

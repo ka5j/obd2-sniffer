@@ -44,10 +44,9 @@ static void print_banner(clock_source_t clk_src, reset_cause_t cause)
     if (crash != NULL) {
         console_printf(" Crash    %s at 0x%08lX: %s\r\n", fault_type_str(crash->type),
                        (unsigned long)crash->pc, fault_cause_str(crash->cfsr, crash->hfsr));
-        console_puts("          details: 'fault'\r\n");
+        console_puts("          details: obdsniff fault\r\n");
     }
     console_puts("========================================\r\n");
-    console_puts("Type 'help' for a list of commands.\r\n");
 }
 
 /* Report presses of the blue button. Lockout debounce: act on the first
@@ -91,12 +90,13 @@ int main(void)
     obd_init();
     commands_set_boot_info(cause, clk_src);
     print_banner(clk_src, cause);
-    console_prompt();
 
     /* Started last, once start-up can no longer take long. */
     if (!watchdog_init()) {
         board_panic();
     }
+    /* Tells the laptop that start-up is over and commands can be sent. */
+    console_event("started");
 
     for (;;) {
         uint32_t now = HAL_GetTick();
@@ -104,7 +104,7 @@ int main(void)
         watchdog_kick();
         console_poll();
         can_gen_task();
-        can_stream_task(now);
+        can_stream_task();
         obd_task(now);
         status_led_task(now);
         button_task(now);
