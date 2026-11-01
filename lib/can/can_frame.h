@@ -11,9 +11,7 @@
 
 #include <stdint.h>
 
-#define CAN_MAX_DLC    8U
-#define CAN_ID_STD_MAX 0x7FFU      /* 11-bit identifier */
-#define CAN_ID_EXT_MAX 0x1FFFFFFFU /* 29-bit identifier */
+#define CAN_MAX_DLC 8U
 
 /* can_frame_t.flags */
 #define CAN_FLAG_EXTENDED 0x01U /* 29-bit identifier */

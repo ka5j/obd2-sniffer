@@ -230,13 +230,6 @@ class Device:
     def can_off(self) -> None:
         self.command("can off")
 
-    def can_send(self, ident: int, data: bytes = b"") -> None:
-        """Send one frame (loopback only). IDs above 0x7FF are 29-bit."""
-        line = f"can send {ident:X}"
-        if data:
-            line += f" {data.hex()}"
-        self.command(line)
-
     def can_stream(self, on: bool) -> None:
         """Whether received frames are sent to the laptop. Off, the board still
         receives and counts them."""

@@ -17,9 +17,7 @@ APB1_HZ = 45_000_000  # the board's CAN clock
 QUEUE_FRAMES = 409  # 8 KiB of 20-byte frames, as on the board
 GEN_ID = 0x123
 GEN_MAX_COUNT = 10_000_000
-CAN_ID_STD_MAX = 0x7FF
-CAN_ID_EXT_MAX = 0x1FFF_FFFF
-USAGE = "[loopback [kbps] | off | send <id> [data] | test <count> [per_s] | stream on|off]"
+USAGE = "[loopback [kbps] | off | test <count> [per_s] | stream on|off]"
 
 
 def bit_timing_exists(clock_hz: int, bitrate: int) -> bool:
@@ -43,22 +41,6 @@ def parse_u32(text: str) -> int | None:
         return None
     value = int(digits, base)
     return value if value <= 0xFFFF_FFFF else None
-
-
-def parse_hex(text: str) -> int | None:
-    """cli_parse_hex_u32: 1-8 hex digits, no prefix."""
-    if not 1 <= len(text) <= 8 or any(c not in "0123456789abcdef" for c in text):
-        return None
-    return int(text, 16)
-
-
-def parse_hex_bytes(text: str) -> bytes | None:
-    """cli_parse_hex_bytes: pairs of hex digits, 1-8 bytes."""
-    if not text or len(text) % 2 or len(text) > 16:
-        return None
-    if any(c not in "0123456789abcdef" for c in text):
-        return None
-    return bytes.fromhex(text)
 
 
 def frame_bits(frame: CanFrame) -> int:
@@ -112,8 +94,6 @@ class SimulatedCan:
             self.mode, self.bitrate, self.gen_running = "off", 0, False
             self.tester.stop()
             return None
-        if sub == "send":
-            return self._send(rest)
         if sub == "test":
             return self._test(rest)
         if sub == "stream":
@@ -150,18 +130,6 @@ class SimulatedCan:
         self.rx_frames = self.tx_frames = self._seq = 0
         self.gen_running = False
         self._bus_time_us = self._now_us()
-        return None
-
-    def _send(self, rest: list[str]) -> str | None:
-        if not 1 <= len(rest) <= 2:
-            return f"wrong number of arguments (usage: can {USAGE})"
-        ident = parse_hex(rest[0])
-        data = parse_hex_bytes(rest[1]) if len(rest) == 2 else b""
-        if ident is None or ident > CAN_ID_EXT_MAX or data is None:
-            return "invalid argument"
-        if self.mode != "loopback":
-            return "command failed"
-        self._transmit(ident, data, extended=ident > CAN_ID_STD_MAX)
         return None
 
     def _test(self, rest: list[str]) -> str | None:

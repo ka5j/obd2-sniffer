@@ -29,7 +29,6 @@ end with CR, LF or CR LF. (Why this speed: [serial-console.md](design/serial-con
 | `can` | CAN status: mode, bit rate, bus state, frames received, dropped and sent to the laptop, error counters |
 | `can loopback [kbps]` | Start CAN in silent loopback at 125, 250, 500 (default) or 1000 kbit/s: frames the board sends are received internally, nothing reaches the pins |
 | `can off` | Stop CAN (CAN is off after every start-up) |
-| `can send <id> [data]` | Loopback only: send one frame. Hex, as in Linux's `cansend`: `can send 7DF 0201050000000000`. IDs above `7FF` are 29-bit |
 | `can test <count> [per_s]` | Loopback only: send numbered test frames (ID `123`), as fast as the bus allows or at `per_s` frames per second |
 | `can stream on\|off` | Whether received frames are sent to the terminal or laptop (on after every start-up). Off, they are still received and counted, but not sent: useful in a terminal while the board is busy with other traffic |
 | `obd` | The board's OBD2 tester: whether it is running, the latest live values (engine speed, vehicle speed, throttle, engine load, coolant and intake temperature, engine run time), warning light, stored trouble codes, VIN, and request counters. A value shows `-` until it has been read |

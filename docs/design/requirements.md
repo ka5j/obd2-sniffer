@@ -48,7 +48,7 @@ The reasons behind these are in [safety.md](safety.md).
 
 | ID | Requirement | Pass when | Status |
 |---|---|---|---|
-| SAF-1 | The device sends only OBD2 read requests: service 01 (live data), 03 (stored trouble codes) and 09 (vehicle information, such as the VIN), plus the flow-control frame that multi-frame replies need | A test build tries to send every other service and any other ID, and each attempt is refused | **Partly met.** The tester only ever sends those three services, but no allowlist checks frames on their way out, and the `can send` test command sends any frame (in loopback only, where nothing leaves the chip) |
+| SAF-1 | The device sends only OBD2 read requests: service 01 (live data), 03 (stored trouble codes) and 09 (vehicle information, such as the VIN), plus the flow-control frame that multi-frame replies need | A test build tries to send every other service and any other ID, and each attempt is refused | **Partly met.** The tester only ever sends those three services, but no allowlist checks frames on their way out. The only other frames are the numbered test frames of `can test` (in loopback only, where nothing leaves the chip) |
 | SAF-2 | The device never transmits on its own initiative: every frame it sends answers a request from the laptop | A board left connected, with no laptop request, sends nothing (checked with a logic analyzer on the transmit pin) | **Not built.** Once started with `obd start`, the tester runs on its own (in loopback only) |
 | SAF-3 | A LISTEN/OBD switch disables the transmitter electrically in LISTEN. After reset, a crash, a brown-out or with a blank chip, the transmitter is disabled too | In LISTEN, a test build trying to transmit leaves the bus untouched | **Design** |
 | SAF-4 | The CAN controller stays in silent mode except while it sends an allowed request | The bus never sees an acknowledge or error frame from the device in LISTEN mode | **Met in loopback.** CAN is off at start-up and runs only in silent loopback, where nothing leaves the chip; sending is refused in any other state |
@@ -56,7 +56,7 @@ The reasons behind these are in [safety.md](safety.md).
 | SAF-6 | The bit rate is found by listening only | Detection on a busy bus produces no frame, acknowledge or error frame from the device | **Not built.** The bit rate is set by command today |
 | SAF-7 | On a CAN FD bus, the device stays silent and reports an unsupported bus | Connected to CAN FD traffic, it reports "unsupported bus" and never leaves silent mode | **Not built** |
 | SAF-8 | One request at a time, at most 20 a second on a real bus | Measured request rate during a car session | **Partly met.** One request at a time today; about 95 a second against the simulated ECU, a rate only used in loopback |
-| SAF-9 | Nothing that clears trouble codes, writes to an ECU, resets an ECU or opens a diagnostic session exists in the firmware | Code review of every transmit path | **Met.** No such request is built in; `can send` works only in loopback |
+| SAF-9 | Nothing that clears trouble codes, writes to an ECU, resets an ECU or opens a diagnostic session exists in the firmware | Code review of every transmit path | **Met.** No such request is built in, and no command sends a frame typed by hand |
 
 ## Power
 

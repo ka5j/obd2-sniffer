@@ -22,13 +22,11 @@ obdsniff ports                     # list serial ports; the Nucleo is marked
 obdsniff info                      # firmware version and board status
 obdsniff version                   # firmware version and chip identity only
 obdsniff status                    # uptime, last reset, clocks, serial statistics
-obdsniff led on                    # on | off | auto (heartbeat)
 obdsniff fault                     # details of the last crash, if any (--clear forgets it)
 obdsniff reset                     # restart the board and reconnect
 obdsniff crash bus                 # debug firmware: crash on purpose, show what was recorded
 obdsniff can loopback              # CAN in loopback: the board receives its own frames
 obdsniff can test                  # send 10,000 test frames and check that every one arrives
-obdsniff can send 7DF 0201050000000000   # one frame (hex, as in Linux's cansend)
 obdsniff can stream off            # stop sending frames to the laptop (the board still counts them)
 obdsniff can                       # CAN status: frames received, dropped, error counters
 obdsniff can off

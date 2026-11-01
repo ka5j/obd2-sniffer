@@ -210,15 +210,21 @@ class BoardCheck:
     def can_off_refuses_to_send(self) -> None:
         self.device.can_off()
         refused = []
-        for command in ("can send 123", "can test 1"):
+        for command in ("can test 1", "obd start"):
             try:
                 self.device.command(command)
             except CommandError:
                 refused.append(command)
+        try:
+            self.device.command("can send 123 01")
+            no_raw_send = False
+        except CommandError as err:
+            no_raw_send = err.reason == "invalid argument"
         self.record(
             "CAN safety",
-            len(refused) == 2,
-            f"with CAN off, {len(refused)} of 2 transmit commands refused",
+            len(refused) == 2 and no_raw_send,
+            f"with CAN off, {len(refused)} of 2 transmit commands refused; "
+            + ("no command sends a frame by hand" if no_raw_send else "`can send` STILL EXISTS"),
         )
 
     def note_interrupt_time(self) -> None:
