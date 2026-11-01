@@ -107,14 +107,6 @@ class DeviceWorker(QObject):
     def refresh(self) -> None:
         self._run(self._send_info)
 
-    @Slot(str)
-    def set_led(self, mode: str) -> None:
-        def action(device: Device) -> None:
-            device.set_led(mode)
-            self._send_info(device)
-
-        self._run(action)
-
     @Slot()
     def clear_fault(self) -> None:
         def action(device: Device) -> None:

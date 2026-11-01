@@ -61,8 +61,6 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("info", help="firmware version and board status")
     sub.add_parser("version", help="firmware version and chip identity")
     sub.add_parser("status", help="uptime, last reset, clocks and serial statistics")
-    led = sub.add_parser("led", help="control the green LED")
-    led.add_argument("mode", choices=["on", "off", "auto"])
     fault = sub.add_parser("fault", help="details of the last crash")
     fault.add_argument("--clear", action="store_true", help="forget the recorded crash")
     sub.add_parser("reset", help="restart the board")
@@ -152,12 +150,6 @@ def cmd_version(device: Device, args: argparse.Namespace) -> int:
 def cmd_status(device: Device, args: argparse.Namespace) -> int:
     fields = device.status()
     emit(fields, args.json, format_fields(fields))
-    return EXIT_OK
-
-
-def cmd_led(device: Device, args: argparse.Namespace) -> int:
-    device.set_led(args.mode)
-    emit({"led": args.mode}, args.json, [f"LED set to {args.mode}."])
     return EXIT_OK
 
 
@@ -339,7 +331,6 @@ HANDLERS: dict[str, Callable[[Device, argparse.Namespace], int]] = {
     "info": cmd_info,
     "version": cmd_version,
     "status": cmd_status,
-    "led": cmd_led,
     "fault": cmd_fault,
     "reset": cmd_reset,
     "crash": cmd_crash,

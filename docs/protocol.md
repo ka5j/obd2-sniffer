@@ -23,8 +23,7 @@ end with CR, LF or CR LF. (Why this speed: [serial-console.md](design/serial-con
 |---|---|
 | `help [command]` | List all commands, or show how to use one |
 | `version` | Firmware version, build type, chip revision and unique ID, compiler |
-| `status` | Uptime, reason for the last reset, clock source and speed, LED mode, serial statistics |
-| `led on\|off\|auto` | Green LED on, off, or blinking once per second (`auto`, the default) |
+| `status` | Uptime, reason for the last reset, clock source and speed, serial statistics |
 | `mode interactive\|host` | Switch the console mode |
 | `fault [clear]` | Details of the last crash (type, cause, code address, bad memory address), or forget it. A crash is reported after the restart it caused; any later restart forgets it |
 | `can` | CAN status: mode, bit rate, bus state, frames received, dropped and sent to the laptop, error counters |
@@ -50,16 +49,15 @@ obd> status
   CPU clock (Hz)    180000000
   Watchdog (ms)     500
   Last crash        none
-  LED               auto
   Serial received   7
     dropped         0
   ...
-obd> led blue
+obd> fault blue
 error: invalid argument
 obd> lde on
 error: unknown command (type 'help' for a list)
-obd> led
-error: wrong number of arguments (usage: led on|off|auto)
+obd> mode
+error: wrong number of arguments (usage: mode interactive|host)
 ```
 
 Editing keys: **Backspace** deletes the last character, **Ctrl-C** discards the line. If an event
@@ -139,7 +137,6 @@ For programs that talk to the board. Enter it with `mode host`; leave it with
 < sysclk_hz=180000000
 < watchdog_timeout_ms=500
 < last_fault=none
-< led=auto
 < uart_rx_bytes=7
 < uart_rx_dropped=0
 < uart_rx_overruns=0

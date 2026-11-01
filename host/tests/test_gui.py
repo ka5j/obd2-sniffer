@@ -83,7 +83,7 @@ def test_starts_disconnected_with_the_board_selected(window) -> None:
     assert window.selected_port() == BOARD_PORT.device
     assert window.connect_button.text() == "Connect"
     assert not window.console_input.isEnabled()
-    assert not window.led_buttons["on"].isEnabled()
+    assert not window.reset_button.isEnabled()
     assert window.port_box.isEnabled()
 
 
@@ -111,10 +111,9 @@ def test_connect_shows_the_board(connected, opened) -> None:
     assert opened == [BOARD_PORT.device]
     assert connected.connect_button.text() == "Disconnect"
     assert connected.info_value("Board", "Firmware") == "simulator"
-    assert connected.info_value("Status", "LED") == "auto"
+    assert connected.info_value("Status", "Last crash") == "none"
     assert connected.info_value("Last crash", "Last crash") == "none"
     assert connected.info_value("Board", "No such label") is None
-    assert connected.led_buttons["auto"].isChecked()
     assert not connected.clear_fault_button.isEnabled()
     assert not connected.port_box.isEnabled()
     assert f"Connected to {BOARD_PORT.device}." in connected.console_text()
@@ -157,18 +156,6 @@ def test_lost_connection(connected, worker, monkeypatch) -> None:
 
 
 # ---- controls -----------------------------------------------------------------
-
-
-def test_led_buttons(connected, sim) -> None:
-    connected.led_buttons["on"].click()
-    assert sim.led == "on"
-    assert connected.info_value("Status", "LED") == "on"
-    assert connected.led_buttons["on"].isChecked()
-
-
-def test_unknown_led_mode_checks_no_button(window) -> None:
-    window._on_info({}, {"led": "blink"}, {"fault": "none"})
-    assert window._led_group.checkedButton() is None
 
 
 def test_restart_button(connected) -> None:
@@ -214,8 +201,8 @@ def test_console_ignores_empty_lines(connected) -> None:
 
 
 def test_console_reports_board_errors(connected) -> None:
-    type_command(connected, "led blue")
-    assert "error: led blue: invalid argument" in connected.console_text()
+    type_command(connected, "fault blue")
+    assert "error: fault blue: invalid argument" in connected.console_text()
 
 
 def test_events_appear_as_they_happen(connected, sim, qtbot) -> None:

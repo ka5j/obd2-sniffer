@@ -73,7 +73,6 @@ static cli_status_t cmd_status(int argc, char *argv[], void *ctx)
                    (unsigned long)WATCHDOG_TIMEOUT_MS);
     console_fieldf(ctx, "last_fault", "Last crash", "%s",
                    (fault_last() != NULL) ? fault_type_str(fault_last()->type) : "none");
-    console_fieldf(ctx, "led", "LED", "%s", status_led_mode_name(status_led_mode()));
     console_fieldf(ctx, "uart_rx_bytes", "Serial received", "%lu", (unsigned long)link.rx_bytes);
     console_fieldf(ctx, "uart_rx_dropped", "  dropped", "%lu", (unsigned long)link.rx_dropped);
     console_fieldf(ctx, "uart_rx_overruns", "  overruns", "%lu", (unsigned long)link.rx_overruns);
@@ -82,22 +81,6 @@ static cli_status_t cmd_status(int argc, char *argv[], void *ctx)
     console_fieldf(ctx, "uart_tx_dropped", "  dropped", "%lu", (unsigned long)link.tx_dropped);
     console_fieldf(ctx, "uart_tx_dma_errors", "  DMA errors", "%lu",
                    (unsigned long)link.tx_dma_errors);
-    return CLI_OK;
-}
-
-static cli_status_t cmd_led(int argc, char *argv[], void *ctx)
-{
-    (void)argc;
-    (void)ctx;
-    if (cli_streq(argv[1], "on")) {
-        status_led_set_mode(STATUS_LED_ON);
-    } else if (cli_streq(argv[1], "off")) {
-        status_led_set_mode(STATUS_LED_OFF);
-    } else if (cli_streq(argv[1], "auto")) {
-        status_led_set_mode(STATUS_LED_AUTO);
-    } else {
-        return CLI_ERR_INVALID;
-    }
     return CLI_OK;
 }
 
@@ -421,7 +404,6 @@ static const cli_command_t table[] = {
     {"help", "[command]", "List commands, or show how to use one", 0U, 1U, cmd_help},
     {"version", "", "Firmware version and chip identity", 0U, 0U, cmd_version},
     {"status", "", "Uptime, last reset, clocks and serial statistics", 0U, 0U, cmd_status},
-    {"led", "on|off|auto", "Green LED: on, off, or heartbeat (auto)", 1U, 1U, cmd_led},
     {"mode", "interactive|host", "Console mode (host is for the laptop tool)", 1U, 1U, cmd_mode},
     {"fault", "[clear]", "Details of the last crash, or forget it", 0U, 1U, cmd_fault},
     {"can", "[loopback [kbps] | off | send <id> [data] | test <count> [per_s] | stream on|off]",

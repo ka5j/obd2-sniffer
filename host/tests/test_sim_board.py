@@ -30,13 +30,13 @@ def test_boot_report_ends_with_prompt(clock) -> None:
 
 
 def test_echo_and_command(board) -> None:
-    assert run(board, "led") == "led"
-    assert run(board, " on\r") == " on\r\nobd> "
-    assert board.led == "on"
+    assert run(board, "can") == "can"
+    assert run(board, " loopback\r") == " loopback\r\nobd> "
+    assert board.can.mode == "loopback"
 
 
 def test_crlf_counts_once(board) -> None:
-    assert run(board, "led off\r\n") == "led off\r\nobd> "
+    assert run(board, "can off\r\n") == "can off\r\nobd> "
 
 
 def test_backspace_and_delete(board) -> None:
@@ -49,10 +49,10 @@ def test_ctrl_c_discards_line(board) -> None:
     assert run(board, "reset\x03") == "reset^C\r\nobd> "
 
 
-def overlong_led_on() -> str:
-    """`led on` padded to the line limit plus one byte: it would still run
-    `led on` if the extra byte were simply dropped."""
-    return "led on".ljust(LINE_MAX) + "x"
+def overlong_loopback() -> str:
+    """`can loopback` padded to the line limit plus one byte: it would still
+    run `can loopback` if the extra byte were simply dropped."""
+    return "can loopback".ljust(LINE_MAX) + "x"
 
 
 def test_overflow_rings_bell_and_rejects_line(board) -> None:
@@ -62,18 +62,18 @@ def test_overflow_rings_bell_and_rejects_line(board) -> None:
 
 
 def test_overlong_command_is_never_run(board) -> None:
-    run(board, overlong_led_on())
+    run(board, overlong_loopback())
     run(board, "\r")
-    assert board.led == "auto"
+    assert board.can.mode == "off"
     host(board)
-    assert run(board, overlong_led_on() + "\r") == "ERR line too long\r\n"
-    assert board.led == "auto"
+    assert run(board, overlong_loopback() + "\r") == "ERR line too long\r\n"
+    assert board.can.mode == "off"
 
 
 def test_ctrl_c_clears_overflow(board) -> None:
-    run(board, overlong_led_on() + "\x03")
-    assert run(board, "led on\r") == "led on\r\nobd> "
-    assert board.led == "on"
+    run(board, overlong_loopback() + "\x03")
+    assert run(board, "can loopback\r") == "can loopback\r\nobd> "
+    assert board.can.mode == "loopback"
 
 
 def test_other_bytes_ignored(board) -> None:
@@ -92,10 +92,10 @@ def test_interactive_errors(board) -> None:
     assert run(board, "lde on\r") == (
         "lde on\r\nerror: unknown command (type 'help' for a list)\r\nobd> "
     )
-    assert run(board, "led\r") == (
-        "led\r\nerror: wrong number of arguments (usage: led on|off|auto)\r\nobd> "
+    assert run(board, "mode\r") == (
+        "mode\r\nerror: wrong number of arguments (usage: mode interactive|host)\r\nobd> "
     )
-    assert run(board, "led blue\r").endswith("error: invalid argument\r\nobd> ")
+    assert run(board, "fault blue\r").endswith("error: invalid argument\r\nobd> ")
 
 
 def test_host_errors(board) -> None:
@@ -111,7 +111,7 @@ def test_host_errors(board) -> None:
 
 def test_switch_modes(board) -> None:
     assert run(board, "mode host\r") == "mode host\r\nOK\r\n"
-    assert run(board, "led on\r") == "OK\r\n"
+    assert run(board, "fault clear\r") == "OK\r\n"
     assert run(board, "\r") == ""
     assert run(board, "x" * (LINE_MAX + 1) + "\b\x03") == ""  # silent editing
     assert run(board, "mode interactive\r") == "obd> "
@@ -119,8 +119,8 @@ def test_switch_modes(board) -> None:
 
 def test_commands_are_case_insensitive(board) -> None:
     host(board)
-    assert run(board, "LED ON\r") == "OK\r\n"
-    assert board.led == "on"
+    assert run(board, "CAN LOOPBACK\r") == "OK\r\n"
+    assert board.can.mode == "loopback"
 
 
 def test_status_and_version_fields(board, clock) -> None:
@@ -141,11 +141,11 @@ def test_interactive_field_alignment(board) -> None:
 
 def test_help(board) -> None:
     out = run(board, "help\r")
-    assert "  led on|off|auto         Green LED: on, off, or heartbeat (auto)\r\n" in out
+    assert "  fault [clear]           Details of the last crash, or forget it\r\n" in out
     # Too wide for the column: the text goes on the next line, aligned.
     assert "  crash bus|usage|divzero|hard|watchdog\r\n" + " " * 26 + "Crash on purpose" in out
-    assert run(board, "help LED\r") == (
-        "help LED\r\nusage: led on|off|auto\r\n  Green LED: on, off, or heartbeat (auto)\r\nobd> "
+    assert run(board, "help FAULT\r") == (
+        "help FAULT\r\nusage: fault [clear]\r\n  Details of the last crash, or forget it\r\nobd> "
     )
 
 
@@ -164,7 +164,7 @@ def test_event_restores_partial_line(board) -> None:
 
 
 def test_event_after_completed_line(board) -> None:
-    run(board, "led on\r")
+    run(board, "fault clear\r")
     board.press_button()
     assert board.take_output() == b"\r\nbutton pressed\r\nobd> "
 

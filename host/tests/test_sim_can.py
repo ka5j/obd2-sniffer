@@ -219,9 +219,9 @@ def test_interactive_lines_then_prompt_with_typed_text(board) -> None:
     assert out == "can send 123 01\r\nobd> \r\n" + out.split("\r\n")[2] + "\r\nobd> "
     assert "123       [1]  01" in out
     # typed text survives the traffic
-    run(board, "led o")
+    run(board, "fault c")
     board.can.command(["send", "7df"], lambda *_: None)
-    assert run(board, "").endswith("[0]\r\nobd> led o")
+    assert run(board, "").endswith("[0]\r\nobd> fault c")
 
 
 def test_interactive_burst_shows_one_line_per_frame(board) -> None:

@@ -190,7 +190,7 @@ obd>
 The silicon revision and unique ID differ from board to board. The green **LD2** LED blinks once
 per second, and pressing the blue **USER** button prints `button pressed`.
 
-At the `obd>` prompt, try `help`, `status`, `version` or `led on`. All commands are described in
+At the `obd>` prompt, try `help`, `status`, `version` or `fault`. All commands are described in
 [protocol.md](protocol.md).
 
 To see the diagnostic side, let the board talk to its own simulated engine computer:

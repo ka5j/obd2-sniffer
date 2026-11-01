@@ -60,14 +60,6 @@ def test_version_and_status(capsys, command) -> None:
     assert isinstance(json.loads(out), dict)
 
 
-def test_led(capsys, sim_board) -> None:
-    code, out, _ = run_cli(capsys, "led", "off")
-    assert (code, out) == (0, "LED set to off.\n")
-    assert sim_board.led == "off"
-    code, out, _ = run_cli(capsys, "--json", "led", "on")
-    assert json.loads(out) == {"led": "on"}
-
-
 def test_crash_then_fault_then_clear(capsys, sim_board) -> None:
     code, out, _ = run_cli(capsys, "crash", "bus")
     assert code == 0
@@ -146,11 +138,11 @@ def test_connection_error_exit_code(capsys, monkeypatch) -> None:
 
 
 def test_command_error_exit_code(capsys, monkeypatch, sim_board) -> None:
-    def refuse(self, mode: str) -> None:
-        raise CommandError(f"led {mode}", "invalid argument")
+    def refuse(self) -> None:
+        raise CommandError("fault clear", "invalid argument")
 
-    monkeypatch.setattr(Device, "set_led", refuse)
-    code, _, err = run_cli(capsys, "led", "on")
+    monkeypatch.setattr(Device, "clear_fault", refuse)
+    code, _, err = run_cli(capsys, "fault", "--clear")
     assert (code, err) == (cli.EXIT_COMMAND_FAILED, "error: invalid argument\n")
 
 
@@ -192,7 +184,7 @@ def test_shell_session(device, board) -> None:
             "",
             "status",
             "help",
-            "led blue",
+            "fault blue",
             "mode interactive",
             "reset",
             "crash bus",
@@ -203,7 +195,7 @@ def test_shell_session(device, board) -> None:
     text = "\n".join(output)
     assert "[event] button pressed" in text
     assert "  Uptime (ms)" in text
-    assert "  led on|off|auto" in text
+    assert "  fault [clear]" in text
     assert "error: invalid argument" in text
     assert "The laptop tool manages the console mode itself." in text
     assert "Board restarted." in text

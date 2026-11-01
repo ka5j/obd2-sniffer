@@ -17,7 +17,6 @@ LABELS: dict[str, str] = {
     "sysclk_hz": "CPU clock (Hz)",
     "watchdog_timeout_ms": "Watchdog (ms)",
     "last_fault": "Last crash",
-    "led": "LED",
     "uart_rx_bytes": "Serial received",
     "uart_rx_dropped": "  dropped",
     "uart_rx_overruns": "  overruns",

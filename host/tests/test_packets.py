@@ -136,9 +136,9 @@ def test_text_and_packets_are_separated() -> None:
 
 def test_packets_split_across_reads() -> None:
     splitter = StreamSplitter()
-    stream = GOLDEN_STANDARD + b"led=on\r\n" + GOLDEN_STANDARD
+    stream = GOLDEN_STANDARD + b"last_fault=none\r\n" + GOLDEN_STANDARD
     text = b"".join(splitter.feed(stream[i : i + 1]) for i in range(len(stream)))
-    assert text == b"led=on\r\n"
+    assert text == b"last_fault=none\r\n"
     assert len(splitter.frames) == 2
 
 
