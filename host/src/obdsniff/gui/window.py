@@ -13,9 +13,7 @@ from collections.abc import Callable
 from PySide6.QtCore import Signal
 from PySide6.QtGui import QFontDatabase
 from PySide6.QtWidgets import (
-    QButtonGroup,
     QComboBox,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -37,7 +35,6 @@ from obdsniff.output import LABELS
 from obdsniff.ports import PortInfo, list_serial_ports
 
 SIMULATOR = "sim"
-LED_MODES = ("on", "off", "auto")
 
 
 class MainWindow(QMainWindow):
@@ -45,7 +42,6 @@ class MainWindow(QMainWindow):
     open_requested = Signal(str)
     close_requested = Signal()
     refresh_requested = Signal()
-    led_requested = Signal(str)
     clear_fault_requested = Signal()
     reset_requested = Signal()
     line_requested = Signal(str)
@@ -109,20 +105,6 @@ class MainWindow(QMainWindow):
         self.info_tree.setHeaderHidden(True)
         self.info_tree.setColumnWidth(0, 190)
 
-        self.led_buttons: dict[str, QPushButton] = {}
-        self._led_group = QButtonGroup(self)
-        led_row = QHBoxLayout()
-        for mode in LED_MODES:
-            button = QPushButton(mode.capitalize())
-            button.setCheckable(True)
-            # `clicked` fires for the user only, not when the display is updated.
-            button.clicked.connect(lambda _=False, m=mode: self.led_requested.emit(m))
-            self._led_group.addButton(button)
-            self.led_buttons[mode] = button
-            led_row.addWidget(button)
-        led_box = QGroupBox("Green LED")
-        led_box.setLayout(led_row)
-
         self.refresh_button = QPushButton("Refresh")
         self.refresh_button.clicked.connect(self.refresh_requested)
         self.reset_button = QPushButton("Restart board")
@@ -138,7 +120,6 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.info_tree, 1)
-        layout.addWidget(led_box)
         layout.addLayout(actions)
         self._board_panel = panel
 
@@ -161,7 +142,6 @@ class MainWindow(QMainWindow):
         self.open_requested.connect(worker.open_port)
         self.close_requested.connect(worker.close_port)
         self.refresh_requested.connect(worker.refresh)
-        self.led_requested.connect(worker.set_led)
         self.clear_fault_requested.connect(worker.clear_fault)
         self.reset_requested.connect(worker.reset)
         self.line_requested.connect(worker.run_line)
@@ -256,7 +236,6 @@ class MainWindow(QMainWindow):
         self.port_box.setEnabled(not enabled)
         self.ports_button.setEnabled(not enabled)
         for widget in (
-            *self.led_buttons.values(),
             self.refresh_button,
             self.reset_button,
             self.console_input,
@@ -276,9 +255,6 @@ class MainWindow(QMainWindow):
                 section.addChild(QTreeWidgetItem([LABELS.get(key, key), value]))
             self.info_tree.addTopLevelItem(section)
             section.setExpanded(True)
-        led = self.led_buttons.get(status.get("led", ""))
-        if led is not None:
-            led.setChecked(True)
         crashed = fault.get("fault", "none") != "none"
         self.clear_fault_button.setEnabled(crashed)
 

@@ -30,7 +30,6 @@ COMMANDS: list[tuple[str, str, str, int, int]] = [
     ("help", "[command]", "List commands, or show how to use one", 0, 1),
     ("version", "", "Firmware version and chip identity", 0, 0),
     ("status", "", "Uptime, last reset, clocks and serial statistics", 0, 0),
-    ("led", "on|off|auto", "Green LED: on, off, or heartbeat (auto)", 1, 1),
     ("mode", "interactive|host", "Console mode (host is for the laptop tool)", 1, 1),
     ("fault", "[clear]", "Details of the last crash, or forget it", 0, 1),
     ("can", CAN_USAGE, "CAN bus: status, loopback, send, test traffic, frame output", 0, 3),
@@ -101,7 +100,6 @@ class SimulatedBoard:
         self.fault, self._surviving_record = self._surviving_record, None
         self.reset_cause = reset_cause
         self.mode = "interactive"
-        self.led = "auto"
         self._line = ""
         self._last_was_cr = False
         self._line_done = False
@@ -301,7 +299,6 @@ class SimulatedBoard:
         self._field("sysclk_hz", "CPU clock (Hz)", "180000000")
         self._field("watchdog_timeout_ms", "Watchdog (ms)", "500")
         self._field("last_fault", "Last crash", self.fault.type if self.fault else "none")
-        self._field("led", "LED", self.led)
         self._field("uart_rx_bytes", "Serial received", str(self.rx_bytes))
         self._field("uart_rx_dropped", "  dropped", "0")
         self._field("uart_rx_overruns", "  overruns", "0")
@@ -309,12 +306,6 @@ class SimulatedBoard:
         self._field("uart_tx_bytes", "Serial sent", str(self.tx_bytes))
         self._field("uart_tx_dropped", "  dropped", "0")
         self._field("uart_tx_dma_errors", "  DMA errors", "0")
-        return None
-
-    def _cmd_led(self, args: list[str]) -> str | None:
-        if args[0] not in ("on", "off", "auto"):
-            return "invalid argument"
-        self.led = args[0]
         return None
 
     def _cmd_mode(self, args: list[str]) -> str | None:

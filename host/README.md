@@ -123,7 +123,7 @@ obdsniff gui                       # or: obdsniff --port sim gui
 
 Pick the port (the Nucleo is found and selected automatically; the simulator is always listed)
 and press **Connect**. The left side shows the board's version, status and last crash, and has
-buttons for the LED, restarting the board and clearing the crash record. The console on the right
+buttons for restarting the board and clearing the crash record. The console on the right
 takes the same commands as the shell, and events such as button presses appear there as they
 happen.
 
@@ -151,7 +151,6 @@ from obdsniff import open_device
 
 with open_device("sim") as board:  # or a port path, or None to find the board
     print(board.status()["uptime_ms"])
-    board.set_led("on")
     print(board.poll_events(timeout=1.0))  # e.g. ['button pressed']
 ```
 

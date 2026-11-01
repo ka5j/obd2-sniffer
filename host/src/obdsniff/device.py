@@ -214,9 +214,6 @@ class Device:
     def clear_fault(self) -> None:
         self.command("fault clear")
 
-    def set_led(self, mode: str) -> None:
-        self.command(f"led {mode}")
-
     def help(self) -> list[str]:
         return self.command("help")
 
