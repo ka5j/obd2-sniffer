@@ -25,7 +25,7 @@ Each step is explained below, with a troubleshooting section at the end.
 |---|---|---|
 | [NUCLEO-F446RE](https://www.st.com/en/evaluation-tools/nucleo-f446re.html) | Everything | ST development board. The programmer/debugger (ST-LINK) is built in, so nothing else is needed to load firmware. |
 | USB Mini-B cable | Everything | Must be a data cable; some cables only carry power |
-| SN65HVD230 CAN transceiver module, OBD2 cable | Connecting to a car's CAN bus | Wiring and safety rules in [hardware.md](design/hardware.md). Check the [project status](../README.md#project-status) for which CAN features the current firmware includes. |
+| SN65HVD230 CAN transceiver module, OBD2 cable | Connecting to a car's CAN bus | Wiring rules in [hardware.md](design/hardware.md); read [safety.md](design/safety.md) before connecting to a car. Check the [project status](../README.md#project-status) for which CAN features the current firmware includes. |
 
 The board takes its power from USB. No external supply is needed.
 

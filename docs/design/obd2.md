@@ -19,6 +19,9 @@ turning?", "which fault codes are stored?", "what is your vehicle identification
 - **Long answers.** A CAN frame carries at most 8 bytes, but the VIN answer is 20. ISO-TP, the
   transport layer OBD2 uses on CAN, splits it into numbered frames, and the receiver paces the
   sender with *flow control*.
+- **Read-only.** The tester asks only service 01 (live data), 03 (stored trouble codes) and 09
+  (vehicle information) questions. Clearing trouble codes (service 04), or anything else that
+  changes an ECU, is not built in, on purpose ([safety.md](safety.md#what-read-only-means)).
 - **Three ways to use it.** `obd` in a serial terminal, `obdsniff obd watch` on the laptop, or
   the desktop app's OBD2 tab.
 
