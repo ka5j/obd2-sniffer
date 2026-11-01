@@ -92,7 +92,7 @@ which also runs from the car's 12 V supply. See [Project status](#project-status
 | Command-line tool | `obdsniff obd watch`, `obdsniff monitor`, `obdsniff can test`, `obdsniff shell`, ... | Watching and logging traffic, scripting, automated checks |
 | Serial terminal | Open the board's USB serial port and type `help` | Using the device with no software installed |
 
-![The desktop app's CAN tab: 10,000 test frames captured on the board at 4,115 a second, none lost](docs/images/desktop-app-can.png)
+![The desktop app's CAN tab: 10,000 test frames captured on the board, none lost](docs/images/desktop-app-can.png)
 
 ![The desktop app's OBD2 tab: live data, trouble codes and VIN read on the board from its simulated engine computer](docs/images/desktop-app-obd.png)
 
