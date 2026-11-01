@@ -11,6 +11,7 @@ import sys
 
 from PySide6.QtCore import QMetaObject, Qt, QThread
 from PySide6.QtWidgets import QApplication
+from shiboken6 import delete
 
 from obdsniff.gui.window import MainWindow
 from obdsniff.gui.worker import DeviceWorker
@@ -24,10 +25,6 @@ def run(port: str | None = None) -> int:
     thread = QThread()
     worker = DeviceWorker()
     worker.moveToThread(thread)
-    # Delete the worker on its own thread as that thread ends. Left to Python,
-    # it would be freed on this thread after its thread was gone, and Qt can
-    # then corrupt memory.
-    thread.finished.connect(worker.deleteLater)
     window = MainWindow(worker, port)
     thread.start()
     window.show()
@@ -37,4 +34,8 @@ def run(port: str | None = None) -> int:
     QMetaObject.invokeMethod(worker, "close_port", Qt.ConnectionType.BlockingQueuedConnection)
     thread.quit()
     thread.wait()
+    # Delete the window now, while the application still exists. Left to
+    # Python, the signal connections that refer to it can keep it alive until
+    # exit, and a window destroyed after the application corrupts memory.
+    delete(window)
     return code
