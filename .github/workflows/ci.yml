@@ -177,8 +177,8 @@ jobs:
       - name: Bisect exit crash (temporary)
         run: |
           set +e
-          for i in 1 2 3; do python -m pytest -q tests/test_gui.py::test_run_opens_and_closes > /dev/null 2>&1; echo "run test alone: $?"; done
-          python -m pytest -q tests/test_gui.py > /dev/null 2>&1; echo "gui only: $?"
+          sudo apt-get install -y --no-install-recommends gdb > /dev/null 2>&1
+          gdb -batch -ex run -ex bt -ex "info threads" --args python -m pytest -q -p no:cacheprovider tests/test_gui.py::test_run_opens_and_closes 2>&1 | grep -v "^\[New Thread\|^\[Thread .* exited" | tail -60
           true
 
       - name: Test (100% line and branch coverage required)
