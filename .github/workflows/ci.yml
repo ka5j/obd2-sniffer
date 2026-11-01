@@ -174,15 +174,7 @@ jobs:
       - name: Lint (the laptop tool and the repo's scripts)
         run: ruff check . ../scripts && ruff format --check . ../scripts
 
-      - name: Bisect exit crash (temporary)
-        run: |
-          set +e
-          for i in 1 2 3; do python -m pytest -q tests/test_gui.py::test_run_opens_and_closes > /dev/null 2>&1; echo "run test alone: $?"; done
-          true
-
       - name: Test (100% line and branch coverage required)
-        env:
-          PYTHONFAULTHANDLER: "1"
         run: >
           python -m pytest --cov --cov-report=term-missing
           --cov-report=json:coverage.json --cov-report=html:htmlcov
