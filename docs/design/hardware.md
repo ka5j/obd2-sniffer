@@ -9,8 +9,8 @@ everything can be developed and tested with no car and no extra parts.
 
 To connect to a car, a small add-on chip, the CAN transceiver, will sit between the board and
 the car, translating the car's network signals into signals the microcontroller understands.
-That connection is designed below but not built yet. Even then, nothing will be powered from
-the car. That keeps the car's electrical system and the laptop separate, and it means a wiring
+That connection is designed below but not built yet. Even then, the development board takes
+nothing from the car's power supply. That keeps the car's electrical system and the laptop separate, and it means a wiring
 mistake can't damage either one.
 
 ## Parts
@@ -48,18 +48,25 @@ Rules for the car connection:
   electrical behaviour of the bus.
 - **Run the laptop on battery** while it is connected to the car, to avoid ground loops through
   the laptop's charger.
+- **Check every cable for continuity before it goes near the car**, pin by pin, and check that
+  pin 16 (battery) connects to nothing. A wrong pinout could put 12 V on the CAN wires.
+- **Follow the order of car tests** in [safety.md](safety.md#the-order-of-car-tests): listening
+  only, with the engine off, comes first.
+
+The project's own circuit board, which also runs from pin 16, is described in
+[circuit-board.md](circuit-board.md).
 
 ## Pin assignments
 
 These are the microcontroller pins the project uses. The LED, button, serial and CAN1 pins are
-defined in `firmware/system/board.h`; the CAN2 pins are reserved for the second controller (the
-test node).
+defined in `firmware/system/board.h`; the CAN2 pins are reserved for the second controller,
+which tests the first over a short desk bus (the self-test).
 
 | Function | Pin | Board header | Notes |
 |---|---|---|---|
 | CAN1 receive | PB8 | Arduino D15 | Main CAN controller (sniffer) |
 | CAN1 transmit | PB9 | Arduino D14 | |
-| CAN2 receive | PB12 | Morpho CN10 | Second controller (test ECU) |
+| CAN2 receive | PB12 | Morpho CN10 | Second controller (self-test) |
 | CAN2 transmit | PB13 | Morpho CN10 | |
 | Serial to laptop (TX) | PA2 | Internal | Routed to the ST-LINK USB serial port |
 | Serial to laptop (RX) | PA3 | Internal | |

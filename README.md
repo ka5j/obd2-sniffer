@@ -7,7 +7,9 @@
 A small device for a car's diagnostic port: it listens to the conversations between the car's
 computers, asks the engine computer for live data, and shows it all on a laptop. It is built from
 scratch on an STM32 microcontroller, with a desktop app and a command-line tool for the laptop
-side. Today it runs on the board alone, against a simulated engine computer.
+side. It is designed as a **read-only scanner**: it only ever asks the car standard questions,
+and can't change anything in it. Today it runs on a development board alone, against a simulated
+engine computer; its own circuit board, which plugs into the car, is designed.
 
 > Under active development. See [Project status](#project-status) for what works today.
 
@@ -44,8 +46,14 @@ This project is a scan tool and network analyzer I am building myself:
 - **Recovers from crashes and says why.** A watchdog restarts the board if the program ever
   stops responding, and a crash handler records the fault type and code address, then reports
   them after the restart.
-- **Careful by default.** CAN is off at start-up, and the board only transmits in loopback mode,
-  where nothing leaves the chip.
+- **Read-only by design.** The board only asks the car standard read-only questions (live data,
+  trouble codes, the VIN); nothing that could clear a code or change a setting is built in.
+  Today CAN is off at start-up, and the board only transmits in loopback mode, where nothing
+  leaves the chip. The circuit board adds a hardware LISTEN switch that turns the transmitter off
+  electrically, whatever the firmware does. See [safety.md](docs/design/safety.md).
+- **Requirements with a test for each.** What the device must do, survive and never do is
+  written down as numbered requirements, each with the test that proves it and its honest status
+  today ([requirements.md](docs/design/requirements.md)).
 - **Tested to safety-critical standards.** The core logic is unit-tested to 100% MC/DC coverage,
   the coverage standard used for flight-control and automotive safety software, and all C code
   follows the **MISRA C:2012** coding rules used in the automotive industry, with every exception
@@ -73,7 +81,8 @@ flowchart LR
 
 To connect to a real car, a CAN transceiver chip goes between the board and the car's OBD2 port.
 That part is designed ([hardware.md](docs/design/hardware.md#connecting-to-a-car)) but not built
-yet; see [Project status](#project-status).
+yet, and so is the project's own circuit board ([circuit-board.md](docs/design/circuit-board.md)),
+which also runs from the car's 12 V supply. See [Project status](#project-status).
 
 ## Ways to use it
 
@@ -111,6 +120,7 @@ How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-
 | Microcontroller peripherals | Clocks, UART serial, DMA, timers, interrupts, watchdog, CAN controller |
 | Automotive protocols | CAN, OBD2 (SAE J1979), ISO-TP multi-frame transport |
 | Reliability | Watchdog, crash capture and reporting, interrupt priorities set by deadline, flow control |
+| Safety engineering | Numbered requirements each with a test, a layered read-only safety design with a hardware interlock, failure-mode analysis (FMEA) |
 | Python | Desktop app (PySide6), command-line tool, serial communication, board simulator |
 | Code quality | MISRA C:2012 compliance with documented deviations, static analysis (cppcheck), worst-case stack analysis |
 | Testing and tooling | Unit tests in C (Unity) and Python, 100% MC/DC coverage, sanitizers, CMake, GitHub Actions CI, Git branching workflow |
@@ -142,12 +152,14 @@ How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-
 | Worst-case stack use worked out and checked in CI | Done |
 | Capturing CAN messages and streaming them to the laptop | Done (tested in loopback), verified on hardware |
 | OBD2 requests: live data, VIN, trouble codes, from a simulated engine computer in loopback | Done, verified on hardware |
-| Two-controller test bus on the desk, performance measurements | Not started |
-| Safety layer with failure-mode analysis and fault-injection tests | Not started |
-| Live graphs and logging in the desktop app | Not started |
+| Requirements, read-only safety design, failure-mode analysis, circuit board design | Done (written down; see [Documentation](#documentation)) |
+| Real CAN bus on the desk with two transceivers, bus fault tests | Not started |
+| USB straight from the microcontroller, with no programmer chip in between | Not started |
+| Read-only safety layers in the firmware: allowlist, silent bit-rate detection, error latch | Not started |
+| Circuit board revision A: schematic, layout, bring-up | Not started |
 | Sleep mode when the car is off | Not started |
 | Testing in a real car | Not started |
-| Custom circuit board | Not started |
+| Circuit board revision B: the device that plugs into the car | Not started |
 
 ## Hardware
 
@@ -156,6 +168,10 @@ Arm Cortex-M4, 180 MHz, 512 KB flash, 128 KB RAM) and a USB cable.
 
 Connecting to a car will also take an **SN65HVD230** CAN transceiver module and an **OBD2
 cable** (not started yet).
+
+The project's own circuit board, designed but not built yet, replaces all of this with one
+device that plugs into the car and the laptop:
+[docs/design/circuit-board.md](docs/design/circuit-board.md).
 
 Wiring and pin assignments are in [docs/design/hardware.md](docs/design/hardware.md).
 
@@ -205,6 +221,10 @@ over the serial port and prints what it measured. See
 
 Each document starts with a short plain-language summary, followed by the engineering detail.
 
+- [Requirements](docs/design/requirements.md): what the device must do, each with its test and status
+- [Safety](docs/design/safety.md): the read-only design, its layers, and the risks that remain
+- [How the firmware fits together](docs/design/architecture.md): the parts, interrupts and main loop
+- [Circuit board](docs/design/circuit-board.md): the design of the device's own board
 - [CAN capture](docs/design/can-capture.md): from the bus to the laptop, with measured results
 - [OBD2](docs/design/obd2.md): asking the car for live data, trouble codes and its VIN
 - [Serial console and protocol](docs/protocol.md): commands, and how programs talk to the board
