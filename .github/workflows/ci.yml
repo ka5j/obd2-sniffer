@@ -175,6 +175,8 @@ jobs:
         run: ruff check . ../scripts && ruff format --check . ../scripts
 
       - name: Test (100% line and branch coverage required)
+        env:
+          PYTHONFAULTHANDLER: "1"
         run: >
           python -m pytest --cov --cov-report=term-missing
           --cov-report=json:coverage.json --cov-report=html:htmlcov
