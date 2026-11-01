@@ -30,20 +30,6 @@ EXIT_COMMAND_FAILED = 1
 EXIT_NO_CONNECTION = 2
 
 
-def hex_int(text: str) -> int:
-    try:
-        return int(text, 16)
-    except ValueError:
-        raise argparse.ArgumentTypeError(f"not a hex number: {text!r}") from None
-
-
-def hex_bytes(text: str) -> bytes:
-    try:
-        return bytes.fromhex(text)
-    except ValueError:
-        raise argparse.ArgumentTypeError(f"not hex bytes: {text!r}") from None
-
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="obdsniff",
@@ -79,11 +65,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="125, 250, 500 or 1000 (default 500)",
     )
     can_sub.add_parser("off", help="stop CAN")
-    send = can_sub.add_parser("send", help="send one frame (loopback only)")
-    send.add_argument("id", type=hex_int, help="identifier in hex, e.g. 7DF; above 7FF is 29-bit")
-    send.add_argument(
-        "data", nargs="?", type=hex_bytes, default=b"", help="data in hex, e.g. 0201050000000000"
-    )
     stream = can_sub.add_parser(
         "stream", help="send received frames to the laptop (on), or only count them (off)"
     )
@@ -196,9 +177,6 @@ def cmd_can(device: Device, args: argparse.Namespace) -> int:
     elif action == "off":
         device.can_off()
         message = "CAN off."
-    elif action == "send":
-        device.can_send(args.id, args.data)
-        message = "Frame sent."
     elif action == "stream":
         device.can_stream(args.state == "on")
         message = f"Streaming {args.state}."

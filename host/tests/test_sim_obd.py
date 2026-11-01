@@ -280,7 +280,7 @@ def test_can_off_stops_the_tester_and_a_raw_request_is_answered(clock) -> None:
     board = host_board(clock)
     run(board, "can loopback\r")
     splitter = StreamSplitter()
-    board.feed(b"can send 7df 02010d\r")  # a request typed by hand
+    board.can._transmit(0x7DF, bytes.fromhex("02010d"))  # a request from outside the tester
     splitter.feed(board.take_output())
     assert [(f.id, f.data[:4].hex()) for f in splitter.frames] == [
         (0x7DF, "02010d"),

@@ -126,7 +126,7 @@ def test_describe() -> None:
 def test_run_test_against_the_simulator(sim) -> None:
     dev = connected(sim)
     dev.can_loopback()
-    dev.can_send(0x7DF)  # earlier traffic: not part of the test
+    sim.can._transmit(0x7DF, b"")  # earlier traffic: not part of the test
     report = run_test(dev, 450)
     assert report.passed
     assert report.received == 450
@@ -156,7 +156,7 @@ def test_run_test_starts_loopback_and_gives_up_when_frames_stop(sim, monkeypatch
 def test_device_can_methods(sim) -> None:
     dev = connected(sim)
     dev.can_loopback(250)
-    dev.can_send(0x18DAF110, b"\x02\x10\x03")
+    sim.can._transmit(0x18DAF110, b"\x02\x10\x03", extended=True)
     (frame,) = dev.poll_frames(0.2)
     assert (frame.id, frame.extended, frame.data) == (0x18DAF110, True, b"\x02\x10\x03")
     dev.can_test(3, 1000)
@@ -164,7 +164,7 @@ def test_device_can_methods(sim) -> None:
     dev.can_off()
     assert dev.can_status()["can_mode"] == "off"
     with pytest.raises(CommandError, match="command failed"):
-        dev.can_send(0x123)
+        dev.can_test(3)  # CAN is off
 
 
 def run(capsys, *args: str) -> tuple[int, str, str]:
@@ -182,22 +182,14 @@ def test_cli_can_commands(capsys, sim) -> None:
     code, out, _ = run(capsys, "can")
     assert "Bit rate (bit/s)" in out
     assert "250000" in out
-    assert run(capsys, "can", "send", "7df", "0201")[1] == "Frame sent.\n"
     assert run(capsys, "can", "stream", "off")[1] == "Streaming off.\n"
     assert sim.can.stream is False
     assert run(capsys, "can", "stream", "on")[1] == "Streaming on.\n"
     assert sim.can.stream is True
     assert json.loads(run(capsys, "--json", "can", "off")[1]) == {"done": "off"}
-    code, _, err = run(capsys, "can", "send", "123")
-    assert code == cli.EXIT_COMMAND_FAILED
+    code, _, err = run(capsys, "obd", "start")
+    assert code == cli.EXIT_COMMAND_FAILED  # the tester needs CAN in loopback
     assert "command failed" in err
-
-
-def test_cli_rejects_bad_hex(capsys) -> None:
-    for args in (["can", "send", "7zz"], ["can", "send", "7df", "0g"]):
-        with pytest.raises(SystemExit):
-            cli.main(args)
-        assert "hex" in capsys.readouterr().err
 
 
 def test_cli_can_test(capsys, sim) -> None:
@@ -240,7 +232,7 @@ def test_monitor_shows_frames_and_writes_a_log(capsys, sim, tmp_path) -> None:
 def test_monitor_json_frames(capsys, sim) -> None:
     sim.mode = "host"
     sim.can.command(["loopback"], lambda *_: None)
-    sim.can.command(["send", "7df", "02"], lambda *_: None)
+    sim.can._transmit(0x7DF, b"\x02")
     _, out, err = run(capsys, "--json", "monitor", "--duration", "0.2")
     (frame,) = [json.loads(line) for line in out.splitlines()]
     assert (frame["id"], frame["data"], frame["seq"]) == ("7DF", "02", 0)
@@ -316,8 +308,7 @@ def shell_output(dev: Device, lines: list[str]) -> list[str]:
 
 def test_shell_shows_frames_between_commands(sim) -> None:
     dev = connected(sim)
-    output = shell_output(dev, ["can loopback", "can send 7df 02", "", "can test 25", "", "exit"])
+    output = shell_output(dev, ["can loopback", "", "can test 25", "", "exit"])
     text = "\n".join(output)
-    assert "  7DF       [1]  02" in text
     assert text.count("  123       [8]  ") == 20
     assert "... and 5 more frames" in text

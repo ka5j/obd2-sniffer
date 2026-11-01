@@ -219,31 +219,6 @@ static cli_status_t can_loopback(int argc, char *argv[])
     return can_drv_start_loopback(kbps * BPS_PER_KBPS) ? CLI_OK : CLI_ERR_FAILED;
 }
 
-/* `can send <id> [data]`: hex, as in Linux's cansend. IDs above 7FF are
- * sent as 29-bit (extended) IDs. */
-static cli_status_t can_send(int argc, char *argv[])
-{
-    can_frame_t frame = {.dlc = 0U};
-    size_t len = 0U;
-    if ((argc < 3) || (argc > 4)) {
-        return CLI_ERR_ARGS;
-    }
-    if (!cli_parse_hex_u32(argv[2], &frame.id) || (frame.id > CAN_ID_EXT_MAX)) {
-        return CLI_ERR_INVALID;
-    }
-    if (frame.id > CAN_ID_STD_MAX) {
-        frame.flags = CAN_FLAG_EXTENDED;
-    }
-    if (argc == 4) {
-        if (!cli_parse_hex_bytes(argv[3], frame.data, CAN_MAX_DLC, &len)) {
-            return CLI_ERR_INVALID;
-        }
-        frame.dlc = (uint8_t)len;
-    }
-    /* Fails outside loopback, or if all transmit mailboxes are busy. */
-    return can_drv_send(&frame) ? CLI_OK : CLI_ERR_FAILED;
-}
-
 static cli_status_t can_test(int argc, char *argv[])
 {
     uint32_t count = 0U;
@@ -294,9 +269,6 @@ static cli_status_t cmd_can(int argc, char *argv[], void *ctx)
         obd_stop();
         can_drv_stop();
         return CLI_OK;
-    }
-    if (cli_streq(argv[1], "send")) {
-        return can_send(argc, argv);
     }
     if (cli_streq(argv[1], "test")) {
         return can_test(argc, argv);
@@ -406,8 +378,8 @@ static const cli_command_t table[] = {
     {"status", "", "Uptime, last reset, clocks and serial statistics", 0U, 0U, cmd_status},
     {"mode", "interactive|host", "Console mode (host is for the laptop tool)", 1U, 1U, cmd_mode},
     {"fault", "[clear]", "Details of the last crash, or forget it", 0U, 1U, cmd_fault},
-    {"can", "[loopback [kbps] | off | send <id> [data] | test <count> [per_s] | stream on|off]",
-     "CAN bus: status, loopback, send, test traffic, frame output", 0U, 3U, cmd_can},
+    {"can", "[loopback [kbps] | off | test <count> [per_s] | stream on|off]",
+     "CAN bus: status, loopback, test traffic, frame output", 0U, 3U, cmd_can},
     {"obd", "[start|stop]", "OBD2 tester: live data, trouble codes, VIN (loopback)", 0U, 1U,
      cmd_obd},
     {"reset", "", "Restart the board", 0U, 0U, cmd_reset},

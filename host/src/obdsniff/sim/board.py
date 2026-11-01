@@ -32,7 +32,7 @@ COMMANDS: list[tuple[str, str, str, int, int]] = [
     ("status", "", "Uptime, last reset, clocks and serial statistics", 0, 0),
     ("mode", "interactive|host", "Console mode (host is for the laptop tool)", 1, 1),
     ("fault", "[clear]", "Details of the last crash, or forget it", 0, 1),
-    ("can", CAN_USAGE, "CAN bus: status, loopback, send, test traffic, frame output", 0, 3),
+    ("can", CAN_USAGE, "CAN bus: status, loopback, test traffic, frame output", 0, 3),
     ("obd", OBD_USAGE, "OBD2 tester: live data, trouble codes, VIN (loopback)", 0, 1),
     ("reset", "", "Restart the board", 0, 0),
     ("crash", "bus|usage|divzero|hard|watchdog", "Crash on purpose to test crash capture", 1, 1),
