@@ -57,39 +57,43 @@ python3 scripts/board_check.py --crash    # also the crash and watchdog checks (
 python3 scripts/board_check.py --quick    # fewer frames, shorter waits; about 20 s
 ```
 
-The latest run, on 28 October 2026, of the tagged v0.4.1 **Debug build** with `--crash`:
+The latest run, on 2 November 2026, of CI's release file for v0.5.0, **Debug build**, flashed
+onto the board by `scripts/release_check.py --flash debug`, with `--crash`:
 
 ```
 Board check on /dev/cu.usbmodem11303
-PASS  Identity        firmware v0.4.1, debug build, STM32F446RE rev 0x1000
-PASS  Clocks          180 MHz from HSE 8 MHz bypass
+PASS  Identity        firmware v0.5.0, debug build, STM32F446RE rev 0x1000
+PASS  Clocks          168 MHz from HSE 8 MHz bypass
 PASS  Watchdog        500 ms nominal
-PASS  Clock accuracy  +19 ppm against the laptop over 20 s (limit 1000)
-PASS  Command burst   100 commands sent at once: 100 replies, 0 errors, nothing dropped; 27.9 KB in 187 ms (99% of the line rate)
-PASS  CAN safety      with CAN off, 2 of 2 transmit commands refused
+PASS  Clock accuracy  -14 ppm against the laptop over 20 s (limit 1000)
+PASS  Command burst   100 commands sent at once: 100 replies, 0 errors, nothing dropped; 26.9 KB in 180 ms (99% of the line rate)
+PASS  CAN safety      with CAN off, 2 of 2 transmit commands refused; no command sends a frame by hand
 PASS  CAN capture     100,000 frames at 500 kbit/s: 0 lost, 0 wrong, 0 damaged; 4,230 frames/s (a full bus gives at least 3,704)
 PASS  CAN capture     10,000 frames at 250 kbit/s: 0 lost, 0 wrong, 0 damaged; 2,097 frames/s (a full bus gives at least 1,852)
-PASS  CAN overload    20,000 frames at 1000 kbit/s: 2,618 lost; board counted 2,618 dropped and 0 overruns, laptop saw 2,618 missing capture numbers
-PASS  OBD2            951 requests in 10 s (95/s, at least 50): 951 replies, 0 timeouts, 0 errors; VIN right, trouble codes right
+PASS  CAN overload    20,000 frames at 1000 kbit/s: 2,444 lost; board counted 2,444 dropped and 0 overruns, laptop saw 2,444 missing capture numbers
+PASS  OBD2            201 requests in 10 s (20.0/s, 15 to 20), 0 refused by the guard: 201 replies, 0 timeouts, 0 errors; VIN right, trouble codes right; then silent when not asked
 PASS  CAN interrupt   longest receive interrupt 10 us (limit 47)
-PASS  Commands + CAN  2,709 commands while 42,126 frames arrived at 500 kbit/s: 0 failed, 0 bytes lost to receive overruns
+PASS  Commands + CAN  2,601 commands while 42,131 frames arrived at 500 kbit/s: 0 failed, 0 bytes lost to receive overruns
 PASS  Reset           after `reset`: last reset software
-PASS  Crash capture   `crash bus`: BusFault (bus error on data access) at 0x080023B2
-PASS  Crash capture   `crash usage`: UsageFault (unaligned memory access) at 0x080024BE
-PASS  Crash capture   `crash divzero`: UsageFault (divide by zero) at 0x080024E8
-PASS  Crash capture   `crash hard`: HardFault (bus error on data access) at 0x080023B2
+PASS  Crash capture   `crash bus`: BusFault (bus error on data access) at 0x08002066
+PASS  Crash capture   `crash usage`: UsageFault (unaligned memory access) at 0x08002172
+PASS  Crash capture   `crash divzero`: UsageFault (divide by zero) at 0x0800219C
+PASS  Crash capture   `crash hard`: HardFault (bus error on data access) at 0x08002066
 PASS  Watchdog        main loop stopped: last reset independent watchdog
 18 checks: all passed.
 ```
 
-The tagged **Release build** passed the same day, with three differences:
+CI's **Release build** passed the same day, with three differences:
 
-- **CAN overload:** 5,212 of 20,000 frames lost (the Debug build: 2,618), every one counted on
+- **CAN overload:** 5,209 of 20,000 frames lost (the Debug build: 2,444), every one counted on
   the board and seen as a gap on the laptop. The test traffic comes from the same main loop that
   streams it, and only the optimised Release build keeps a 1 Mbit/s bus full while streaming, so
   overload numbers are quoted from the Release build.
 - **CAN interrupt:** 6 µs at most, against 10 µs in the Debug build.
 - **Crash command:** absent, as it should be; 14 checks in all.
+
+The locally built tag passed the same checks before it was pushed (Release 14 of 14, Debug 18 of
+18).
 
 CI runs the same script against the simulator (`--port sim`) on every change, so it keeps working
 as the code changes. The rest (the button, the LED, the desktop app, timing the watchdog) is
@@ -98,7 +102,10 @@ checked by hand.
 **Latest full checks by hand:** 19 and 20 October 2026, for v0.4.0, Debug and Release builds,
 serial link at 1.5 Mbaud. v0.4.1 changed no firmware behaviour, so for it, on 28 October 2026,
 only `obdsniff can test`, `obdsniff obd watch` and the desktop app's console, CAN and OBD2 tabs
-were repeated by hand, all passing.
+were repeated by hand, all passing. For v0.5.0, on 2 November 2026, the desktop app's three tabs
+were driven on the board by `scripts/screenshots.py` (connect, `help`, `crash bus`, 10,000 test
+frames, about 100 OBD2 questions), all as expected. The button, the LED heartbeat and the
+watchdog's timing by stopwatch were not repeated by hand for v0.5.0.
 
 | Area | Check | Result |
 |---|---|---|

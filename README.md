@@ -106,10 +106,10 @@ or `obdsniff --port sim gui`. See [host/README.md](host/README.md).
 | What | Result |
 |---|---|
 | CAN capture, 500 kbit/s at 100% load | 100,000 messages, 0 lost, 0 damaged |
-| CAN overload, 1 Mbit/s at 100% load (Release build) | The bus outruns the USB link: 5,210 of 20,000 dropped, each one counted on the board and seen as a gap on the laptop. With streaming off, 0 dropped |
-| Commands while the CAN bus is full | 2,693 commands as 42,129 messages arrived, none failed, no byte lost |
+| CAN overload, 1 Mbit/s at 100% load (Release build) | The bus outruns the USB link: 5,209 of 20,000 dropped, each one counted on the board and seen as a gap on the laptop. With streaming off, 0 dropped |
+| Commands while the CAN bus is full | 2,623 commands as 42,127 messages arrived, none failed, no byte lost |
 | OBD2 against the simulated engine computer | 201 requests in 10 s (the transmit guard allows at most 20 a second), every one answered, 0 timeouts, 0 refused by the guard; none once the laptop stops asking |
-| Longest CAN receive interrupt | 9 µs in the Release build and 14 µs in Debug, with OBD2 traffic (the time includes serial interrupts that preempt it), against 238 µs between messages at full load |
+| Longest CAN receive interrupt | 6 to 9 µs in the Release build and 10 to 14 µs in Debug across runs, with OBD2 traffic (the time includes serial interrupts that preempt it), against 238 µs between messages at full load |
 | Watchdog | A stuck board restarts after 535 ms and reports why |
 
 How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-board).
