@@ -10,6 +10,7 @@
 #include "console/console_core.h"
 #include "fault/fault.h"
 #include "obd/obd.h"
+#include "system/clock.h"
 #include "system/status_led.h"
 #include "stm32f4xx_hal.h"
 #include "system/timebase.h"
@@ -24,13 +25,11 @@
 #endif
 
 static reset_cause_t boot_reset_cause = RESET_CAUSE_UNKNOWN;
-static clock_source_t boot_clock = CLOCK_SRC_HSE;
 static bool reset_requested;
 
-void commands_set_boot_info(reset_cause_t cause, clock_source_t clock)
+void commands_set_boot_info(reset_cause_t cause)
 {
     boot_reset_cause = cause;
-    boot_clock = clock;
 }
 
 bool commands_reset_requested(void)
@@ -68,7 +67,7 @@ static cli_status_t cmd_status(int argc, char *argv[], void *ctx)
 
     console_fieldf(ctx, "uptime_ms", "%lu", (unsigned long)HAL_GetTick());
     console_fieldf(ctx, "reset_cause", "%s", reset_cause_name(boot_reset_cause));
-    console_fieldf(ctx, "clock", "%s", clock_source_name(boot_clock));
+    console_fieldf(ctx, "clock", "%s", CLOCK_SOURCE_NAME);
     console_fieldf(ctx, "sysclk_hz", "%lu", (unsigned long)HAL_RCC_GetSysClockFreq());
     console_fieldf(ctx, "watchdog_timeout_ms", "%lu", (unsigned long)WATCHDOG_TIMEOUT_MS);
     console_fieldf(ctx, "last_fault", "%s",

@@ -20,7 +20,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* Exact with the 45 MHz APB1 clock (divisor 1 + 14/16), and fast enough for a
+/* Exact with the 42 MHz APB1 clock (divisor 1 + 12/16), and fast enough for a
  * fully loaded CAN bus. Measured on the board: see docs/design/serial-console.md. */
 #define UART_LINK_BAUD 1500000U
 

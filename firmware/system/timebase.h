@@ -5,7 +5,7 @@
  * CAN frame is stamped with it. It wraps after 2^32 us (71.6 minutes); the
  * laptop tool tracks the wraps.
  *
- * The DWT cycle counter (one count per CPU clock, 5.6 ns at 180 MHz)
+ * The DWT cycle counter (one count per CPU clock, 6.0 ns at 168 MHz)
  * measures how long code takes, such as the CAN receive interrupt.
  */
 #ifndef TIMEBASE_H

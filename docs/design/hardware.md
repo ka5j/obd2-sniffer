@@ -26,7 +26,7 @@ mistake can't damage either one.
 | | |
 |---|---|
 | Core | Arm Cortex-M4 with floating-point unit |
-| Speed | 180 MHz |
+| Speed | 168 MHz (180 MHz possible; 168 MHz gives USB its exact 48 MHz) |
 | Memory | 512 KB flash (program), 128 KB RAM (data) |
 | CAN controllers | 2: CAN1 captures (today in loopback); CAN2 is reserved for a second node on a test bus |
 
@@ -79,22 +79,22 @@ which tests the first over a short desk bus (the self-test).
 
 The microcontroller's speed comes from its clock system. On the Nucleo board, the ST-LINK
 programmer supplies an 8 MHz clock signal. The chip's PLL (a frequency multiplier) turns that into
-the 180 MHz the processor runs at:
+the 168 MHz the processor runs at, and the exact 48 MHz that USB needs:
 
 ```
-8 MHz input  -> divide by 4 -> 2 MHz -> multiply by 180 -> 360 MHz -> divide by 2 -> 180 MHz
+8 MHz input  -> divide by 4 -> 2 MHz -> multiply by 168 -> 336 MHz -> divide by 2 -> 168 MHz
+                                                                    -> divide by 7 ->  48 MHz (USB)
 ```
 
 Slower copies of that clock feed the peripherals. The CAN controllers and the serial port run from
-a 45 MHz bus clock. If the 8 MHz input is missing, the firmware falls back to the chip's internal
-16 MHz oscillator and reports it at start-up. The internal oscillator is less precise, which can
-cause CAN errors, so the report helps explain them. Full detail is in
-[build-and-boot.md](build-and-boot.md#clock-tree).
+a 42 MHz bus clock. If the 8 MHz input is missing, the board stops and blinks its LED in the panic
+pattern: the chip's internal oscillator isn't precise enough for CAN or USB, so running on it
+would only hide the fault. Full detail is in [build-and-boot.md](build-and-boot.md#clock-tree).
 
 ### CAN bit timing
 
 Cars use 500 kbit/s on the diagnostic CAN bus (some use 250 kbit/s). The CAN controller divides
-its 45 MHz clock to get there. Each bit is split into small time slices (time quanta), and the
+its 42 MHz clock to get there. Each bit is split into small time slices (time quanta), and the
 controller samples the signal late in the bit, after it has settled along the whole bus.
 Automotive networks sample at about 87.5% of the bit (CiA 301, SAE J2284).
 
@@ -105,10 +105,11 @@ closest to 87.5%, preferring more quanta when two are equally close. It is unit-
 
 | Bit rate | Prescaler | Time quanta per bit | Sample point |
 |---|---|---|---|
-| 1000 kbit/s | 3 | 15 (1 + 12 + 2) | 86.7% |
-| 500 kbit/s | 6 | 15 (1 + 12 + 2) | 86.7% |
-| 250 kbit/s | 12 | 15 (1 + 12 + 2) | 86.7% |
-| 125 kbit/s | 45 | 8 (1 + 6 + 1) | 87.5% |
+| 1000 kbit/s | 3 | 14 (1 + 11 + 2) | 85.7% |
+| 500 kbit/s | 6 | 14 (1 + 11 + 2) | 85.7% |
+| 250 kbit/s | 21 | 8 (1 + 6 + 1) | 87.5% |
+| 125 kbit/s | 21 | 16 (1 + 13 + 2) | 87.5% |
 
-At 500 kbit/s, 18 quanta (88.9%) also divides exactly, but 15 quanta (86.7%) is closer to the
-target and within the SAE J2284 range.
+At 500 kbit/s, 12 and 21 quanta also divide exactly, but 12 samples at 83.3% or 91.7%, and 21
+would need a longer first segment than the controller allows. 14 quanta (85.7%) is the closest to
+the target, and within the SAE J2284 range.

@@ -179,8 +179,8 @@ Press the black **RESET** button on the board. You should see the start-up repor
  MCU      STM32F446RE  rev 0x....
  UID      ........-........-........
  Clock    HSE 8 MHz bypass
- SYSCLK   180 MHz
- PCLK1    45 MHz   PCLK2 90 MHz
+ SYSCLK   168 MHz
+ PCLK1    42 MHz   PCLK2 84 MHz
  Reset    reset pin
 ========================================
 !started
@@ -261,4 +261,4 @@ start of `main()`, so you can step through the code and inspect variables and re
 | Serial terminal shows nothing | Press RESET after connecting. Check the speed is 1500000 and that no other program has the port open |
 | Garbled characters | Wrong speed: use 1500000, 8 data bits, no parity, 1 stop bit. Releases before v0.3.0 use 115200 |
 | Linux: "Permission denied" on `/dev/ttyACM0` | Add yourself to the `dialout` group (above), then log out and in |
-| Start-up report says `HSI 16 MHz (fallback)` | The board isn't receiving the 8 MHz clock from the ST-LINK (solder bridges changed, or a different board). The firmware still runs, but CAN timing may be unreliable. See [hardware.md](design/hardware.md#clock-configuration) |
+| No start-up report, and the green LED blinks in a fast pattern | The board isn't receiving the 8 MHz clock from the ST-LINK (solder bridges changed, or a different board), so it stops rather than run with timing it can't trust. See [hardware.md](design/hardware.md#clock-configuration) |

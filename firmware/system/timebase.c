@@ -7,7 +7,7 @@
 bool timebase_init(void)
 {
     /* Timers on APB1 run at twice the bus clock when the bus is divided
-     * (RM0390 6.2): 2 x 45 MHz = 90 MHz here. */
+     * (RM0390 6.2): 2 x 42 MHz = 84 MHz here. */
     uint32_t timer_hz = HAL_RCC_GetPCLK1Freq();
     if ((RCC->CFGR & RCC_CFGR_PPRE1) != RCC_CFGR_PPRE1_DIV1) {
         timer_hz *= 2U;

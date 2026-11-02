@@ -236,7 +236,7 @@ class SimulatedBoard:
         self._field("uptime_ms", str(self.uptime_ms()))
         self._field("reset_cause", self.reset_cause)
         self._field("clock", "HSE 8 MHz bypass")
-        self._field("sysclk_hz", "180000000")
+        self._field("sysclk_hz", "168000000")
         self._field("watchdog_timeout_ms", "500")
         self._field("last_fault", self.fault.type if self.fault else "none")
         self._field("uart_rx_bytes", str(self.rx_bytes))

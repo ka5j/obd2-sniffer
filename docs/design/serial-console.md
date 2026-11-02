@@ -110,8 +110,9 @@ is atomic on the Cortex-M4, so no locking is needed to report them.
 ### Speed
 
 The link runs at **1,500,000 baud**. The board's serial port and the ST-LINK's USB bridge were
-stress-tested at every speed the 45 MHz peripheral clock divides exactly. Bursts of commands were
-sent and every reply was checked byte for byte:
+stress-tested at every speed the 45 MHz peripheral clock divided exactly (the CPU then ran at
+180 MHz; since v0.5.0 the clock is 42 MHz, which divides 1.5 Mbaud exactly too). Bursts of
+commands were sent and every reply was checked byte for byte:
 
 | Speed (baud) | Divisor error | Sustained throughput | Errors |
 |---|---|---|---|
