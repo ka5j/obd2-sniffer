@@ -7,6 +7,6 @@ desktop app are built on it.
 
 from obdsniff.device import CommandError, Device, DeviceError, ProtocolError, open_device
 
-__version__ = "0.4.1"
+__version__ = "0.5.0"
 
 __all__ = ["CommandError", "Device", "DeviceError", "ProtocolError", "__version__", "open_device"]
