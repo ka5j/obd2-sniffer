@@ -17,7 +17,7 @@ REQUEST_ID = 0x7DF  # tester requests: to every ECU
 ECU_REQUEST_ID = 0x7E0  # requests and flow control to the engine ECU
 REPLY_ID = 0x7E8  # the engine ECU's replies
 
-GAP_US = 10_000  # obd_client.c: between a reply and the next request
+GAP_US = 50_000  # obd_client.c: between a reply and the next request
 REFRESH_US = 5_000_000  # trouble codes and monitor status
 DTC_MAX = 8
 

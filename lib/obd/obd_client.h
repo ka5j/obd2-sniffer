@@ -35,7 +35,7 @@
 
 /* ISO 15765-4: an ECU must start its reply within 50 ms. */
 #define OBD_CLIENT_REPLY_TIMEOUT_US 50000U
-#define OBD_CLIENT_GAP_US           10000U   /* between a reply and the next request */
+#define OBD_CLIENT_GAP_US           50000U   /* between a reply and the next request */
 #define OBD_CLIENT_REFRESH_US       5000000U /* trouble codes and monitor status */
 #define OBD_CLIENT_VIN_RETRY_US     5000000U
 

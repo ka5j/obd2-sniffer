@@ -222,7 +222,7 @@ def test_obd_reads_the_simulated_ecu(clock) -> None:
     assert f["obd_coolant"] == "20"
     assert f["obd_throttle"] == "0.0"
     assert f["obd_requests"] == f["obd_replies"]
-    assert 90 <= int(f["obd_requests"]) <= 100  # one every 10 ms or so
+    assert 18 <= int(f["obd_requests"]) <= 20  # one every 50 ms or so: the guard allows 20/s
     assert (f["obd_timeouts"], f["obd_errors"]) == ("0", "0")
 
     clock.advance(7.0)  # into the acceleration
@@ -240,7 +240,7 @@ def test_obd_traffic_is_captured_like_any_other(clock) -> None:
     splitter = StreamSplitter()
     board.feed(b"obd start\r")  # the first request goes with the reply
     splitter.feed(board.take_output())
-    clock.advance(0.05)
+    clock.advance(0.06)  # the next request follows 50 ms after the reply
     board.feed(b"can\r")
     splitter.feed(board.take_output())
     first = [(f.id, f.data.hex()) for f in list(splitter.frames)[:6]]

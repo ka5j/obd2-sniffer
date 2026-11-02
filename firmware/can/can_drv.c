@@ -6,6 +6,7 @@
 #include "can/can_timing.h"
 #include "buffers/frame_queue.h"
 #include "obd/obd_client.h"
+#include "obd/tx_guard.h"
 #include "system/timebase.h"
 
 /* Second only to the serial receive interrupt, whose one-byte buffer has a
@@ -38,6 +39,7 @@ static volatile uint32_t rx_dropped;
 static volatile uint32_t rx_overruns;
 static volatile uint32_t isr_max_cycles;
 static uint32_t tx_frames;
+static tx_guard_t guard;
 static uint16_t capture_seq; /* receive interrupt only */
 
 /* ---- receive interrupt -------------------------------------------------- */
@@ -207,6 +209,7 @@ bool can_drv_start_loopback(uint32_t bitrate)
     rx_overruns = 0U;
     isr_max_cycles = 0U;
     tx_frames = 0U;
+    tx_guard_init(&guard);
 
     if (HAL_CAN_Start(&hcan1) != HAL_OK) {
         (void)HAL_CAN_DeInit(&hcan1);
@@ -250,12 +253,15 @@ uint32_t can_drv_tx_free(void)
     return (mode == CAN_DRV_OFF) ? 0U : HAL_CAN_GetTxMailboxesFreeLevel(&hcan1);
 }
 
-bool can_drv_send(const can_frame_t *frame)
+/* Checked before the guard, so a request the guard allows is sent: the guard
+ * starts its gap before the next request when it allows one. */
+static bool mailbox_ready(const can_frame_t *frame)
 {
-    if ((mode != CAN_DRV_LOOPBACK) || (frame->dlc > CAN_MAX_DLC) ||
-        (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0U)) {
-        return false;
-    }
+    return (frame->dlc <= CAN_MAX_DLC) && (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) != 0U);
+}
+
+static bool transmit(const can_frame_t *frame)
+{
     CAN_TxHeaderTypeDef header = {
         .DLC = frame->dlc,
         .TransmitGlobalTime = DISABLE,
@@ -275,6 +281,23 @@ bool can_drv_send(const can_frame_t *frame)
     }
     tx_frames++;
     return true;
+}
+
+bool can_drv_send(const can_frame_t *frame)
+{
+    if ((mode == CAN_DRV_OFF) || !mailbox_ready(frame) ||
+        !tx_guard_allows(&guard, frame, timebase_us())) {
+        return false;
+    }
+    return transmit(frame);
+}
+
+bool can_drv_send_loopback(const can_frame_t *frame)
+{
+    if ((mode != CAN_DRV_LOOPBACK) || !mailbox_ready(frame)) {
+        return false;
+    }
+    return transmit(frame);
 }
 
 /* ---- main loop side ---------------------------------------------------------- */
@@ -305,6 +328,7 @@ void can_drv_get_stats(can_drv_stats_t *out)
     out->rx_dropped = rx_dropped;
     out->rx_overruns = rx_overruns;
     out->tx_frames = tx_frames;
+    out->tx_refused = guard.refused;
     out->isr_max_cycles = isr_max_cycles;
     uint32_t esr = CAN1->ESR;
     out->tx_errors = (esr & CAN_ESR_TEC) >> CAN_ESR_TEC_Pos;

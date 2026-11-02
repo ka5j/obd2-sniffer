@@ -16,7 +16,8 @@ add_library(core STATIC
     obd/ecu_sim.c
     obd/isotp.c
     obd/obd2.c
-    obd/obd_client.c)
+    obd/obd_client.c
+    obd/tx_guard.c)
 # Headers sit beside their sources and are included by folder:
 # #include "obd/isotp.h".
 target_include_directories(core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

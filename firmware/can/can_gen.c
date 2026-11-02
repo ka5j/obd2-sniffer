@@ -75,7 +75,7 @@ void can_gen_task(void)
     /* Fill free mailboxes, at most three per pass, so the loop stays quick. */
     while ((frames_sent < total) && due() && (can_drv_tx_free() > 0U)) {
         can_frame_t f = numbered_frame(frames_sent);
-        if (!can_drv_send(&f)) {
+        if (!can_drv_send_loopback(&f)) {
             break;
         }
         frames_sent++;

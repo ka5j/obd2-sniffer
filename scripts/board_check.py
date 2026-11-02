@@ -55,9 +55,11 @@ FAULT_TYPES = {
     "hard": "HardFault",
 }
 REPLY_IDLE_TIMEOUT = 2.0  # seconds without output before giving up on burst replies
-# The tester waits 10 ms after each reply, so it asks about 100 times a second.
-# A stalled tester or slow replies would show as far fewer.
-OBD_MIN_RATE = 50
+# The tester waits 50 ms after each reply, and the transmit guard allows at most
+# 20 requests a second. A stalled tester or slow replies would show as fewer;
+# a broken rate limit as more.
+OBD_MIN_RATE = 15
+OBD_MAX_RATE = 20
 
 
 @dataclass(frozen=True)
@@ -318,6 +320,7 @@ class BoardCheck:
         time.sleep(seconds)
         obd = self.device.obd_status()  # read while running: one request may be in flight
         self.device.obd_stop()
+        refused = int(self.device.can_status()["can_tx_refused"])
         self.note_interrupt_time()
         self.device.can_off()
         self.device.can_stream(True)
@@ -329,7 +332,8 @@ class BoardCheck:
         dtcs_ok = obd["obd_dtcs"] == " ".join(dtc_text(code) for code in DTCS)
         self.record(
             "OBD2",
-            rate >= OBD_MIN_RATE
+            OBD_MIN_RATE <= rate <= OBD_MAX_RATE
+            and refused == 0
             and requests - replies in (0, 1)
             and timeouts == 0
             and errors == 0
@@ -337,8 +341,8 @@ class BoardCheck:
             and dtcs_ok
             and obd["obd_mil"] == "on"
             and not unread,
-            f"{requests:,} requests in {seconds} s ({rate:.0f}/s, at least {OBD_MIN_RATE}): "
-            f"{replies:,} replies, "
+            f"{requests:,} requests in {seconds} s ({rate:.1f}/s, {OBD_MIN_RATE} to "
+            f"{OBD_MAX_RATE}), {refused} refused by the guard: {replies:,} replies, "
             f"{timeouts} timeouts, {errors} errors; VIN "
             + ("right" if vin_ok else f"WRONG ({obd['obd_vin']})")
             + ", trouble codes "

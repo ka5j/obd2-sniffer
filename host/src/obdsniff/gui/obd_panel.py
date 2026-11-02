@@ -95,7 +95,7 @@ class ObdPanel(QWidget):
         self.start_button.setText("Stop" if self._running else "Start")
         if self._running:
             self.state_label.setText(
-                "Asking the simulated engine ECU over CAN loopback, about 100 requests a second."
+                "Asking the simulated engine ECU over CAN loopback, at most 20 requests a second."
             )
         else:
             self.state_label.setText(
