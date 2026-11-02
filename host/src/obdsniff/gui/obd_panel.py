@@ -99,8 +99,7 @@ class ObdPanel(QWidget):
             )
         else:
             self.state_label.setText(
-                "Start asks the simulated engine ECU, one question at a time; CAN loopback is "
-                "started if it is off. Stop, and the board asks nothing more."
+                "Start asks the simulated engine ECU one question at a time, over CAN loopback."
             )
         for key, label in self.value_labels.items():
             label.setText(status.get(key, "-"))

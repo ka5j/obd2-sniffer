@@ -135,7 +135,7 @@ vehicle speed, throttle, engine load, coolant and intake temperature and run tim
 light, stored trouble codes, the VIN, and the request counters. **Stop** stops the questions, and
 the board then sends nothing more: it never asks on its own.
 
-![The OBD2 tab on the board: 103 requests in about 5 seconds, every one answered](../docs/images/desktop-app-obd.png)
+![The OBD2 tab on the board: 102 questions asked by the laptop in about 5 seconds, every one answered](../docs/images/desktop-app-obd.png)
 
 The connection to the board runs on its own thread, so the window stays responsive even while the
 board restarts or thousands of frames a second stream in.
