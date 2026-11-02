@@ -29,7 +29,7 @@ from PySide6.QtWidgets import QApplication
 from shiboken6 import delete
 
 ROOT = Path(__file__).resolve().parents[1]
-POLL_S = 0.1  # how often the app polls the board when it runs normally
+POLL_S = 0.05  # how often the app polls the board when it runs normally
 # About 2.4 s at full load at 500 kbit/s: long enough for the once-a-second
 # rate display to show the bus rate.
 CAN_TEST_FRAMES = 10_000

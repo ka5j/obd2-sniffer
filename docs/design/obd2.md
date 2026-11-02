@@ -6,11 +6,13 @@ A sniffer listens; a diagnostic tool also asks. OBD2 is the standard set of ques
 since 1996 (US) or 2001 (EU) must answer on its diagnostic port: "how fast is the engine
 turning?", "which fault codes are stored?", "what is your vehicle identification number?".
 
-- **The tester.** The board has an OBD2 tester built in. It works through a fixed plan, one
-  question at a time: the VIN first, then the stored trouble codes and the warning-light status
-  every 5 seconds, and in between seven live values (engine speed, vehicle speed, throttle,
-  engine load, coolant and intake temperature, engine run time) in turn. About 20 questions a
-  second, the most the board's transmit guard allows.
+- **The tester.** The board has an OBD2 tester built in, but it never asks anything on its own:
+  it sends one question each time the laptop says `obd ask`, and keeps the answer. The laptop
+  works through a plan: the VIN first, then the stored trouble codes and the warning-light
+  status every 5 seconds, and in between seven live values (engine speed, vehicle speed,
+  throttle, engine load, coolant and intake temperature, engine run time) in turn. At most 20
+  questions a second, the limit of the board's transmit guard. If the laptop stops asking, the
+  board stops sending.
 - **The simulated car.** With only the development board available, there is no car to ask. In
   loopback the CAN controller receives every frame it sends, so the board plays the car as well:
   a simulated engine control unit (ECU) answers the tester, all through the real CAN controller.
@@ -24,7 +26,7 @@ turning?", "which fault codes are stored?", "what is your vehicle identification
   changes an ECU, is not built in, on purpose ([safety.md](safety.md#what-read-only-means)).
 - **Two ways to use it.** `obdsniff obd watch` on the laptop, or the desktop app's OBD2 tab.
 
-Measured on the board: **199 questions in 10 seconds (19.9 a second), every one
+Measured on the board: **201 questions in 10 seconds (20 a second), every one
 answered, 0 timeouts, 0 errors**; the multi-frame VIN and both trouble codes read correctly.
 
 | Term | Meaning |
@@ -139,8 +141,9 @@ tool that can't clear codes can't clear them by accident ([safety.md](safety.md)
 
 | Check | Result |
 |---|---|
-| `obd start` with CAN off | Refused |
+| `obd ask` with CAN off | Refused |
 | After 2 s | 220 requests, 220 replies; VIN, both trouble codes and the warning light right |
 | After 10 s | 838 requests (about 95 a second), 0 timeouts, 0 errors; values follow the simulated drive (v0.4.0, before the transmit guard; now 199 in 10 s, `board_check.py`) |
 | Bus | 1,775 frames sent and 1,775 received, 0 dropped, with streaming off |
-| Longest receive interrupt | 10 µs with OBD2 traffic |
+| Longest receive interrupt | 10 µs with OBD2 traffic (13 µs in the Debug build since the laptop asks each question; the time includes serial interrupts that preempt it) |
+| Laptop stops asking | No more requests (`board_check.py` waits 1 s and checks the count) |

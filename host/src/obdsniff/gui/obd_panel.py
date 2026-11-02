@@ -82,7 +82,7 @@ class ObdPanel(QWidget):
         layout.addWidget(self.vin_label)
         layout.addWidget(self.counters_label)
         layout.addStretch(1)
-        self.on_obd_state({})
+        self.on_obd_state({}, False)
         self.set_enabled(False)
 
     # ---- from the window and worker ---------------------------------------------
@@ -90,16 +90,16 @@ class ObdPanel(QWidget):
     def set_enabled(self, enabled: bool) -> None:
         self.start_button.setEnabled(enabled)
 
-    def on_obd_state(self, status: dict[str, str]) -> None:
-        self._running = status.get("obd_tester") == "running"
-        self.start_button.setText("Stop" if self._running else "Start")
-        if self._running:
+    def on_obd_state(self, status: dict[str, str], reading: bool) -> None:
+        self._running = reading
+        self.start_button.setText("Stop" if reading else "Start")
+        if reading:
             self.state_label.setText(
                 "Asking the simulated engine ECU over CAN loopback, at most 20 requests a second."
             )
         else:
             self.state_label.setText(
-                "Start runs the board's OBD2 tester; CAN loopback is started if it is off."
+                "Start asks the simulated engine ECU one question at a time, over CAN loopback."
             )
         for key, label in self.value_labels.items():
             label.setText(status.get(key, "-"))

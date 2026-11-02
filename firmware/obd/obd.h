@@ -26,10 +26,13 @@ void obd_init(void);
  * they have for the bus. Never waits. */
 void obd_task(uint32_t now_ms);
 
-/* Start the tester. False if CAN isn't in loopback. */
-bool obd_start(void);
+/* Ask the engine ECU one question (see obd_client_ask()). False if CAN
+ * isn't in loopback, a request is still in progress, or the question isn't
+ * one the tester knows. The board sends nothing it wasn't asked for. */
+bool obd_ask(uint8_t service, uint8_t pid);
 
-void obd_stop(void);
+/* Drop the request in progress, if any. */
+void obd_cancel(void);
 
 /* The simulated ECU answers while CAN is in loopback. */
 bool obd_ecu_on(void);

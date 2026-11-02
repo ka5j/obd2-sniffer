@@ -77,7 +77,8 @@ same capture path.
 
   A FIFO overrun (a frame lost inside the controller, before the interrupt could run) is
   counted too. The handler measures its own duration with the CPU's cycle counter: 7 µs at
-  most for capture alone and 10 µs with OBD2 traffic (the extra copy), against 238 µs between
+  most for capture alone and 10 µs with OBD2 traffic (the extra copy; up to 13 µs in the Debug
+  build, which counts serial interrupts that preempt it), against 238 µs between
   frames at full load.
 - **Off at start-up.** CAN is only started by a command, and sending is only allowed in loopback.
   A tool on a car's network must never transmit by accident.

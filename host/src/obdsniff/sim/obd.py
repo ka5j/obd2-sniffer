@@ -17,14 +17,13 @@ REQUEST_ID = 0x7DF  # tester requests: to every ECU
 ECU_REQUEST_ID = 0x7E0  # requests and flow control to the engine ECU
 REPLY_ID = 0x7E8  # the engine ECU's replies
 
-GAP_US = 50_000  # obd_client.c: between a reply and the next request
-REFRESH_US = 5_000_000  # trouble codes and monitor status
+GAP_US = 50_000  # obd_client.c: between two requests, the transmit guard's limit
 DTC_MAX = 8
 
 CYCLE_MS = 30_000
 VIN = "1M8GDM9AXKP042788"
 DTCS = (0x0301, 0x0420)  # P0301, P0420
-USAGE = "[start|stop]"
+USAGE = "[ask <what>]"
 
 # ecu_sim.c: (at_ms, rpm, speed_kmh, throttle in tenths of a percent)
 DRIVE = (
@@ -59,6 +58,15 @@ PIDS = (
     Pid(0x1F, "word", 0, "obd_run_time"),
 )
 PID_BY_NUMBER = {p.pid: p for p in PIDS}
+
+# `obd ask <what>` (commands.c): each question's request. A live value is
+# named by its key without the "obd_" prefix.
+QUESTIONS: dict[str, bytes] = {
+    "vin": bytes([0x09, 0x02]),
+    "codes": bytes([0x03]),
+    "status": bytes([0x01, 0x01]),
+    **{p.key.removeprefix("obd_"): bytes([0x01, p.pid]) for p in PIDS},
+}
 
 
 def c_div(a: int, b: int) -> int:
@@ -250,7 +258,6 @@ class SimulatedTester:
     """obd_client.c: one request at a time, in the same order, and the
     latest answers."""
 
-    running: bool = False
     values: dict[str, int] = field(default_factory=dict)
     mil_on: bool | None = None
     dtc_reported: int | None = None
@@ -260,40 +267,28 @@ class SimulatedTester:
     replies: int = 0
     timeouts: int = 0
     errors: int = 0
-    next_request_us: int = 0
-    _refresh_due_us: int = 0
-    _status_next: bool = False
-    _pid_index: int = 0
+    pending: bytes | None = None  # asked, not yet sent
+    waiting: bool = False  # sent, reply not yet in
+    next_request_us: int = 0  # the earliest the next request may go
     _reply: bytearray = field(default_factory=bytearray)
     _expected: int = 0
 
-    def start(self, now_us: int) -> None:
-        self.__init__()  # type: ignore[misc]
-        self.running = True
-        self.next_request_us = self._refresh_due_us = now_us
+    def ask(self, request: bytes) -> bool:
+        """obd_client_ask(): one question at a time."""
+        if self.busy():
+            return False
+        self.pending = request
+        return True
 
-    def stop(self) -> None:
-        self.running = False
+    def busy(self) -> bool:
+        return self.pending is not None or self.waiting
 
-    def request(self, now_us: int) -> bytes:
-        """The next request in the plan."""
-        self.requests += 1
-        if self.vin is None:  # asked first; the simulated ECU always answers
-            return bytes([0x09, 0x02])
-        if now_us >= self._refresh_due_us:
-            self._refresh_due_us = now_us + REFRESH_US
-            self._status_next = True
-            return bytes([0x03])
-        if self._status_next:
-            self._status_next = False
-            return bytes([0x01, 0x01])
-        pid = PIDS[self._pid_index].pid
-        self._pid_index = (self._pid_index + 1) % len(PIDS)
-        return bytes([0x01, pid])
+    def cancel(self) -> None:
+        self.pending, self.waiting = None, False
 
     def frame(self, ident: int, data: bytes, send: Send) -> bool:
         """A frame from the bus. True once a whole reply has arrived."""
-        if not self.running or ident != REPLY_ID:
+        if not self.waiting or ident != REPLY_ID:
             return False
         kind, low = data[0] >> 4, data[0] & 0x0F
         if kind == 0:
@@ -311,6 +306,7 @@ class SimulatedTester:
         return False
 
     def _store(self, reply: bytes) -> None:
+        self.waiting = False  # the request is over
         if self._keep(reply):
             self.replies += 1
         else:
@@ -349,7 +345,7 @@ class SimulatedTester:
 
     def fields(self, ecu_on: bool, field_out: Callable[[str, str], None]) -> None:
         """The `obd` command's output (commands.c)."""
-        field_out("obd_tester", "running" if self.running else "stopped")
+        field_out("obd_request", "waiting" if self.busy() else "idle")
         field_out("obd_ecu", "on" if ecu_on else "off")
         for pid in PIDS:
             value = self.values.get(pid.key)

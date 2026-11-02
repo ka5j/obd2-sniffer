@@ -210,18 +210,19 @@ obdsniff gui                       # desktop app
 ```
 
 In the shell, try `help`, `status`, `version` or `fault`. All commands are described in
-[protocol.md](protocol.md). To see the diagnostic side, let the board talk to its own simulated
-engine computer:
+[protocol.md](protocol.md). To see the diagnostic side, let the board ask its own simulated
+engine computer a question:
 
 ```
 obd> can loopback
-obd> can stream off
-obd> obd start
+obd> obd ask vin
+obd> obd ask rpm
 obd> obd
 ```
 
-`obd` shows live engine values, the warning light, the stored trouble codes and the VIN; type it
-again to see the values change. `obd stop` and `can off` stop it.
+`obd` shows the answers so far: the VIN and the engine speed here. The board asks one question
+each time it is told to, and nothing on its own. `obdsniff obd watch` keeps asking, and shows
+the live values, the warning light and the trouble codes as they change.
 
 All commands are listed in [host/README.md](../host/README.md).
 

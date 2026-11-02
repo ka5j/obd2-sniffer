@@ -31,8 +31,8 @@ end with CR, LF or CR LF. (Why this speed: [serial-console.md](design/serial-con
 | `can off` | Stop CAN (CAN is off after every start-up) |
 | `can test <count> [per_s]` | Loopback only: send numbered test frames (ID `123`), as fast as the bus allows or at `per_s` frames per second |
 | `can stream on\|off` | Whether received frames are sent to the laptop (on after every start-up). Off, they are still received and counted, but not sent: for when the laptop doesn't want them, or to measure what the board can capture without the serial link as the limit |
-| `obd` | The board's OBD2 tester: whether it is running, the latest live values (engine speed, vehicle speed, throttle, engine load, coolant and intake temperature, engine run time), warning light, stored trouble codes, VIN, and request counters. A value shows `-` until it has been read |
-| `obd start\|stop` | Start or stop the tester. Needs CAN in loopback, where the board also plays the car's engine ECU: the tester's requests come back to it, and its replies back to the tester. `can off` stops the tester |
+| `obd` | The board's OBD2 tester: whether a question is in progress, the latest live values (engine speed, vehicle speed, throttle, engine load, coolant and intake temperature, engine run time), warning light, stored trouble codes, VIN, and request counters since start-up. A value shows `-` until it has been read |
+| `obd ask <what>` | Ask the engine ECU one question: `vin`, `codes` (stored trouble codes), `status` (warning light and number of codes), or a live value: `rpm`, `speed`, `throttle`, `load`, `coolant`, `intake`, `run_time`. The answer appears in `obd`. Needs CAN in loopback, where the board also plays the car's engine ECU. Refused while the previous question is still in progress. The board sends nothing it wasn't asked, and spaces its requests at least 50 ms apart. `can off` drops a question not yet answered |
 | `reset` | Restart the board (the reply is sent before it restarts) |
 | `crash bus\|usage\|divzero\|hard\|watchdog` | Debug builds only: crash on purpose to test crash capture. See [fault-handling.md](design/fault-handling.md) |
 

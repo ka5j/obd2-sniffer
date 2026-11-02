@@ -228,16 +228,15 @@ class Device:
     # ---- OBD2 ----------------------------------------------------------------
 
     def obd_status(self) -> dict[str, str]:
-        """The board's OBD2 tester: live values, trouble codes, VIN, counters."""
+        """The board's OBD2 tester: latest answers, whether a request is in
+        progress, and counters since start-up."""
         return self.query("obd")
 
-    def obd_start(self) -> None:
-        """Start the tester (CAN must be in loopback, where the board also
-        plays the car's engine ECU)."""
-        self.command("obd start")
-
-    def obd_stop(self) -> None:
-        self.command("obd stop")
+    def obd_ask(self, what: str) -> None:
+        """Ask the engine ECU one question: `vin`, `codes`, `status` or a
+        live value such as `rpm` (see obdplan.py). CAN must be in loopback,
+        and the previous question answered."""
+        self.command(f"obd ask {what}")
 
     def reset(self) -> None:
         """Restart the board and reconnect once it is back."""

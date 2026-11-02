@@ -310,7 +310,7 @@ def test_can_tab_is_disabled_when_disconnected(connected) -> None:
 
 def poll_until(worker: DeviceWorker, done) -> None:
     """Let the simulated board run, polling as the worker's timer would."""
-    for _ in range(50):
+    for _ in range(200):
         worker.poll()
         if done():
             return
@@ -339,11 +339,23 @@ def test_obd_tab_reads_the_simulated_ecu(connected, worker) -> None:
     assert panel.start_button.text() == "Stop"
 
 
-def test_obd_tab_follows_a_tester_started_from_the_console(connected) -> None:
+def test_obd_tab_shows_a_question_asked_from_the_console(connected) -> None:
     type_command(connected, "can loopback")
-    type_command(connected, "obd start")
-    assert connected.obd_panel.start_button.text() == "Stop"
-    assert connected.obd_panel.mil_label.styleSheet() == ""  # nothing read yet
+    type_command(connected, "obd ask vin")
+    panel = connected.obd_panel
+    assert panel.vin_label.text().endswith("1M8GDM9AXKP042788")
+    assert panel.start_button.text() == "Start"  # one question, then nothing more
+    assert panel.mil_label.styleSheet() == ""  # not read
+
+
+def test_obd_tab_stops_asking_when_the_board_refuses(connected, worker) -> None:
+    panel = connected.obd_panel
+    panel.start_button.click()
+    assert panel.start_button.text() == "Stop"
+    type_command(connected, "can off")  # the board can't ask any more
+    worker.poll()
+    assert "obd ask" in connected.console_text()  # the refusal is reported once
+    assert panel.start_button.text() == "Start"
 
 
 def test_obd_tab_is_disabled_when_disconnected(connected) -> None:

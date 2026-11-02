@@ -11,7 +11,14 @@ import struct
 from collections.abc import Callable
 
 from obdsniff.packets import CanFrame
-from obdsniff.sim.obd import GAP_US, REQUEST_ID, SimulatedEcu, SimulatedTester, single_frame
+from obdsniff.sim.obd import (
+    GAP_US,
+    QUESTIONS,
+    REQUEST_ID,
+    SimulatedEcu,
+    SimulatedTester,
+    single_frame,
+)
 
 APB1_HZ = 45_000_000  # the board's CAN clock
 QUEUE_FRAMES = 409  # 8 KiB of 20-byte frames, as on the board
@@ -87,7 +94,7 @@ class SimulatedCan:
             if rest:
                 return f"wrong number of arguments (usage: can {USAGE})"
             self.mode, self.bitrate, self.gen_running = "off", 0, False
-            self.tester.stop()
+            self.tester.cancel()
             return None
         if sub == "test":
             return self._test(rest)
@@ -181,19 +188,26 @@ class SimulatedCan:
             self.tester.frame(ident, data, self._transmit)
 
     def run_obd(self) -> None:
-        """The tester's requests up to now, each answered at once by the
-        simulated ECU; the next request follows 10 ms after the reply."""
-        now = self._now_us()
-        while self.tester.running and self.tester.next_request_us <= now:
-            self._bus_time_us = max(self._bus_time_us, self.tester.next_request_us)
-            self._transmit(REQUEST_ID, single_frame(self.tester.request(self._bus_time_us)))
-            self.tester.next_request_us = self._bus_time_us + GAP_US
+        """Send the question asked, once the gap since the last request is
+        over; the simulated ECU answers at once."""
+        tester = self.tester
+        if tester.pending is None or tester.next_request_us > self._now_us():
+            return
+        self._bus_time_us = max(self._bus_time_us, tester.next_request_us)
+        tester.next_request_us = self._bus_time_us + GAP_US
+        request, tester.pending = tester.pending, None
+        tester.requests += 1
+        tester.waiting = True
+        self._transmit(REQUEST_ID, single_frame(request))
 
-    def obd_start(self) -> bool:
-        if self.mode != "loopback":
-            return False
-        self.tester.start(self._now_us())
-        return True
+    def obd_ask(self, what: str) -> str | None:
+        """`obd ask <what>`; returns an error message, or None for OK."""
+        request = QUESTIONS.get(what)
+        if request is None:
+            return "invalid argument"
+        if self.mode != "loopback" or not self.tester.ask(request):
+            return "command failed"
+        return None
 
     def take(self, limit: int) -> list[CanFrame]:
         """Frames received since the last call, to be sent (test traffic is

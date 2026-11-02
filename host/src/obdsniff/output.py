@@ -47,7 +47,7 @@ LABELS: dict[str, str] = {
     "can_isr_max_us": "Longest IRQ (us)",
     "can_tec": "TX error count",
     "can_rec": "RX error count",
-    "obd_tester": "Tester",
+    "obd_request": "Request",
     "obd_ecu": "Simulated ECU",
     "obd_rpm": "Engine (rpm)",
     "obd_speed": "Speed (km/h)",

@@ -13,6 +13,7 @@ from typing import TextIO
 from obdsniff import __version__
 from obdsniff.cantest import describe, run_test
 from obdsniff.device import CommandError, Device, DeviceError, open_device
+from obdsniff.obdplan import VALUE_NAMES, ObdReader
 from obdsniff.output import format_fields
 from obdsniff.packets import (
     CanFrame,
@@ -85,10 +86,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     obd = sub.add_parser("obd", help="OBD2: live data, trouble codes and VIN (simulated ECU)")
     obd_sub = obd.add_subparsers(dest="obd_command", metavar="ACTION")
-    obd_sub.add_parser("start", help="start the board's OBD2 tester (CAN must be in loopback)")
-    obd_sub.add_parser("stop", help="stop the tester")
+    ask = obd_sub.add_parser("ask", help="ask the engine ECU one question (CAN in loopback)")
+    ask.add_argument("what", help="vin, codes, status, or a value: " + ", ".join(VALUE_NAMES))
     watch = obd_sub.add_parser(
-        "watch", help="start loopback and the tester if needed, and show the values live"
+        "watch", help="start loopback if needed, keep asking, and show the values live"
     )
     watch.add_argument("--duration", type=float, help="stop after this many seconds")
     watch.add_argument(
@@ -230,6 +231,7 @@ class FrameOutput:
 
 
 CLEAR_SCREEN = "\x1b[H\x1b[J"  # cursor to the top left, clear to the end of the screen
+OBD_STEP_S = 0.02  # how often `obd watch` checks whether to ask the next question
 
 
 def watch_obd(device: Device, args: argparse.Namespace) -> int:
@@ -238,23 +240,25 @@ def watch_obd(device: Device, args: argparse.Namespace) -> int:
     if can.get("can_mode") != "loopback":
         device.can_loopback()
     streaming = can.get("can_stream") != "off"
-    device.can_stream(False)  # the values matter here, not ~200 frames a second
-    device.obd_start()
+    device.can_stream(False)  # the values matter here, not the frames
+    reader = ObdReader()
     redraw = sys.stdout.isatty() and not args.json
     end = None if args.duration is None else time.monotonic() + args.duration
+    shown = 0.0
     try:
         while end is None or time.monotonic() < end:
-            fields = device.obd_status()
-            if args.json:
-                print(json.dumps(fields), flush=True)
-            else:
-                text = ["OBD2 live data from the board. Press Ctrl-C to stop.", ""]
-                text += format_fields(fields)
-                print((CLEAR_SCREEN if redraw else "") + "\n".join(text) + "\n", flush=True)
-            time.sleep(args.interval)
+            fields = reader.step(device)
+            if time.monotonic() >= shown + args.interval:
+                shown = time.monotonic()
+                if args.json:
+                    print(json.dumps(fields), flush=True)
+                else:
+                    text = ["OBD2 live data from the board. Press Ctrl-C to stop.", ""]
+                    text += format_fields(fields)
+                    print((CLEAR_SCREEN if redraw else "") + "\n".join(text) + "\n", flush=True)
+            time.sleep(OBD_STEP_S)
     except KeyboardInterrupt:
         pass
-    device.obd_stop()
     device.can_stream(streaming)
     return EXIT_OK
 
@@ -263,17 +267,12 @@ def cmd_obd(device: Device, args: argparse.Namespace) -> int:
     action = args.obd_command
     if action == "watch":
         return watch_obd(device, args)
-    if action == "start":
-        device.obd_start()
-        message = "OBD2 tester started."
-    elif action == "stop":
-        device.obd_stop()
-        message = "OBD2 tester stopped."
-    else:
-        fields = device.obd_status()
-        emit(fields, args.json, format_fields(fields))
+    if action == "ask":
+        device.obd_ask(args.what)
+        emit({"asked": args.what}, args.json, [f"Asked: {args.what}."])
         return EXIT_OK
-    emit({"done": action}, args.json, [message])
+    fields = device.obd_status()
+    emit(fields, args.json, format_fields(fields))
     return EXIT_OK
 
 

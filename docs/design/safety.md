@@ -63,7 +63,7 @@ Each layer, on its own, stops a transmit.
 |---|---|---|---|
 | 1. LISTEN/OBD switch | Holds the transceiver's silent pin. In LISTEN, the transmitter is off electrically. A pull-up resistor holds the pin silent by default, so a reset, a crash, a brown-out or a blank chip also means silent | The firmware is wrong in any way | Circuit board design ([circuit-board.md](circuit-board.md)) |
 | 2. Controller silent mode | The CAN controller is in silent mode except while it sends an allowed request | The switch is in OBD | Built for loopback: CAN is off at start-up and runs only in silent loopback, where nothing leaves the chip. Sending is refused in every other state |
-| 3. Allowlist and rate limit | Only the requests above, one at a time, at most 20 a second, and only in answer to a laptop request | The switch is in OBD and the controller is active | Partly built: the allowlist and rate limit (`lib/obd/tx_guard.c`) check every frame on the board's send path. Answering only laptop requests is not built yet: once started, the tester runs on its own (in loopback only) |
+| 3. Allowlist and rate limit | Only the requests above, one at a time, at most 20 a second, and only in answer to a laptop request | The switch is in OBD and the controller is active | Built, and proven in loopback: the allowlist and rate limit (`lib/obd/tx_guard.c`) check every frame on the board's send path, and the tester sends one request per `obd ask` from the laptop, nothing on its own |
 | 4. Error latch | Any bus error puts the device into silent mode until it is unplugged | Something on the bus, or in the device, is wrong | Not built |
 
 The **TX light** on the circuit board is wired to the transceiver's silent pin itself, not

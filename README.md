@@ -40,7 +40,7 @@ This project is a scan tool and network analyzer I am building myself:
   outgrows the USB link, every dropped message is counted and reported, never silently lost.
 - **Speaks the car's diagnostic language.** The board asks for live engine data, trouble codes
   and the VIN using OBD2 and its multi-frame transport (ISO-TP), written from scratch. Measured:
-  199 requests in 10 seconds, the most its transmit guard allows, every one answered.
+  201 requests in 10 seconds, the most its transmit guard allows, every one answered.
 - **Testable without a car.** The board plays the car too: a simulated engine computer answers
   the diagnostic requests through the real CAN controller in loopback. The laptop tool also has
   a software simulator of the whole board, so it runs with no hardware at all.
@@ -49,10 +49,11 @@ This project is a scan tool and network analyzer I am building myself:
   them after the restart.
 - **Read-only by design.** The board only asks the car standard read-only questions (live data,
   trouble codes, the VIN); nothing that could clear a code or change a setting is built in.
-  Every frame the board sends passes a transmit guard that allows only those requests, at most
-  20 a second. Today CAN is off at start-up, and the board only transmits in loopback mode, where
-  nothing leaves the chip. The circuit board adds a hardware LISTEN switch that turns the transmitter off
-  electrically, whatever the firmware does. See [safety.md](docs/design/safety.md).
+  It asks only when the laptop tells it to, never on its own, and every frame it sends passes a
+  transmit guard that allows only those requests, at most 20 a second. Today CAN is off at
+  start-up, and the board only transmits in loopback mode, where nothing leaves the chip. The
+  circuit board adds a hardware LISTEN switch that turns the transmitter off electrically,
+  whatever the firmware does. See [safety.md](docs/design/safety.md).
 - **Requirements with a test for each.** What the device must do, survive and never do is
   written down as numbered requirements, each with the test that proves it and its honest status
   today ([requirements.md](docs/design/requirements.md)).
@@ -107,8 +108,8 @@ or `obdsniff --port sim gui`. See [host/README.md](host/README.md).
 | CAN capture, 500 kbit/s at 100% load | 100,000 messages, 0 lost, 0 damaged |
 | CAN overload, 1 Mbit/s at 100% load (Release build) | The bus outruns the USB link: 5,210 of 20,000 dropped, each one counted on the board and seen as a gap on the laptop. With streaming off, 0 dropped |
 | Commands while the CAN bus is full | 2,693 commands as 42,129 messages arrived, none failed, no byte lost |
-| OBD2 against the simulated engine computer | 199 requests in 10 s (the transmit guard allows at most 20 a second), every one answered, 0 timeouts, 0 refused by the guard |
-| Longest CAN receive interrupt | 7 µs (10 µs with OBD2 traffic), against 238 µs between messages at full load |
+| OBD2 against the simulated engine computer | 201 requests in 10 s (the transmit guard allows at most 20 a second), every one answered, 0 timeouts, 0 refused by the guard; none once the laptop stops asking |
+| Longest CAN receive interrupt | 7 µs (10 to 13 µs with OBD2 traffic), against 238 µs between messages at full load |
 | Watchdog | A stuck board restarts after 535 ms and reports why |
 
 How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-board).

@@ -1,5 +1,7 @@
 #include "console/commands.h"
 
+#include <string.h>
+
 #include "can/can_drv.h"
 #include "can/can_gen.h"
 #include "can/can_stream.h"
@@ -251,7 +253,7 @@ static cli_status_t cmd_can(int argc, char *argv[], void *ctx)
             return CLI_ERR_ARGS;
         }
         can_gen_stop();
-        obd_stop();
+        obd_cancel();
         can_drv_stop();
         return CLI_OK;
     }
@@ -311,7 +313,7 @@ static cli_status_t obd_status(void *ctx)
         codes_text = (t->dtc_count == 0U) ? "none" : codes;
     }
 
-    console_fieldf(ctx, "obd_tester", "%s", obd_client_running(t) ? "running" : "stopped");
+    console_fieldf(ctx, "obd_request", "%s", obd_client_busy(t) ? "waiting" : "idle");
     console_fieldf(ctx, "obd_ecu", "%s", obd_ecu_on() ? "on" : "off");
     obd_values(ctx, t);
     if (t->status_valid) {
@@ -330,19 +332,58 @@ static cli_status_t obd_status(void *ctx)
     return CLI_OK;
 }
 
+/* Every key in lib/obd/obd2.c's PID table starts with "obd_"; `obd ask`
+ * takes the rest, e.g. "rpm". */
+#define PID_KEY_PREFIX     "obd_"
+#define PID_KEY_PREFIX_LEN 4U
+
+/* `obd ask <what>`: the service and PID for a question's name. */
+static bool question(const char *what, uint8_t *service, uint8_t *pid)
+{
+    *pid = 0U;
+    if (cli_streq(what, "vin")) {
+        *service = OBD2_SERVICE_VEHICLE_INFO;
+        *pid = OBD2_INFO_VIN;
+        return true;
+    }
+    if (cli_streq(what, "codes")) {
+        *service = OBD2_SERVICE_STORED_DTCS;
+        return true;
+    }
+    *service = OBD2_SERVICE_CURRENT_DATA;
+    if (cli_streq(what, "status")) {
+        *pid = OBD2_PID_MONITOR_STATUS;
+        return true;
+    }
+    for (size_t i = 0U; i < obd2_pid_count(); i++) {
+        const obd2_pid_t *entry = obd2_pid_at(i);
+        if ((strncmp(entry->key, PID_KEY_PREFIX, PID_KEY_PREFIX_LEN) == 0) &&
+            cli_streq(what, &entry->key[PID_KEY_PREFIX_LEN])) {
+            *pid = entry->pid;
+            return true;
+        }
+    }
+    return false;
+}
+
 static cli_status_t cmd_obd(int argc, char *argv[], void *ctx)
 {
     if (argc == 1) {
         return obd_status(ctx);
     }
-    if (cli_streq(argv[1], "start")) {
-        return obd_start() ? CLI_OK : CLI_ERR_FAILED; /* CAN must be in loopback */
+    if (!cli_streq(argv[1], "ask")) {
+        return CLI_ERR_INVALID;
     }
-    if (cli_streq(argv[1], "stop")) {
-        obd_stop();
-        return CLI_OK;
+    if (argc != 3) {
+        return CLI_ERR_ARGS;
     }
-    return CLI_ERR_INVALID;
+    uint8_t service = 0U;
+    uint8_t pid = 0U;
+    if (!question(argv[2], &service, &pid)) {
+        return CLI_ERR_INVALID;
+    }
+    /* Fails while CAN isn't in loopback or a request is in progress. */
+    return obd_ask(service, pid) ? CLI_OK : CLI_ERR_FAILED;
 }
 
 static cli_status_t cmd_reset(int argc, char *argv[], void *ctx)
@@ -363,7 +404,7 @@ static const cli_command_t table[] = {
     {"fault", "[clear]", "Details of the last crash, or forget it", 0U, 1U, cmd_fault},
     {"can", "[loopback [kbps] | off | test <count> [per_s] | stream on|off]",
      "CAN bus: status, loopback, test traffic, frame output", 0U, 3U, cmd_can},
-    {"obd", "[start|stop]", "OBD2 tester: live data, trouble codes, VIN (loopback)", 0U, 1U,
+    {"obd", "[ask <what>]", "OBD2: latest answers, or ask the engine ECU one question", 0U, 2U,
      cmd_obd},
     {"reset", "", "Restart the board", 0U, 0U, cmd_reset},
 #ifndef NDEBUG
