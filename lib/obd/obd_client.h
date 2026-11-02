@@ -1,14 +1,16 @@
 /*
- * The diagnostic tester: asks the car's engine ECU for live data, its stored
- * trouble codes and its VIN, over OBD2 on CAN, and keeps the latest answers.
+ * The diagnostic tester: asks the car's engine ECU one question at a time,
+ * over OBD2 on CAN, and keeps the latest answers.
  *
- * It works through a fixed plan, one request at a time:
- *   - the VIN, until it has one (retried every few seconds if it fails);
- *   - the stored trouble codes and the monitor status (warning light, number
- *     of codes), every few seconds;
- *   - otherwise the live-data PIDs from obd2.h's table, in turn.
- * Each request waits for its reply or for the reply timeout, then the next
- * one follows after a short gap, which keeps the bus load modest.
+ * It never asks on its own. Each question comes from the laptop
+ * (obd_client_ask()): a live value from obd2.h's table, the monitor status
+ * (warning light, number of codes), the stored trouble codes or the VIN.
+ * Deciding what to ask, and how often, is the laptop's job; if the laptop
+ * stops asking, the board stops sending.
+ *
+ * One request is in progress at a time, and the next goes out no sooner
+ * than OBD_CLIENT_GAP_US after the last, so the client always stays within
+ * the transmit guard's rate limit (lib/obd/tx_guard).
  *
  * Requests are single frames sent to every ECU (0x7DF). The engine ECU
  * replies from 0x7E8. A reply longer than one frame (the VIN) arrives over
@@ -35,14 +37,11 @@
 
 /* ISO 15765-4: an ECU must start its reply within 50 ms. */
 #define OBD_CLIENT_REPLY_TIMEOUT_US 50000U
-#define OBD_CLIENT_GAP_US           50000U   /* between a reply and the next request */
-#define OBD_CLIENT_REFRESH_US       5000000U /* trouble codes and monitor status */
-#define OBD_CLIENT_VIN_RETRY_US     5000000U
+#define OBD_CLIENT_GAP_US           50000U /* between two requests: the guard's limit */
 
 typedef enum {
-    OBD_CLIENT_STOPPED,
-    OBD_CLIENT_GAP,     /* waiting before the next request */
-    OBD_CLIENT_SENDING, /* request handed out, not yet sent */
+    OBD_CLIENT_IDLE,    /* no request in progress */
+    OBD_CLIENT_SENDING, /* asked: handed out once the gap has passed, until sent */
     OBD_CLIENT_WAITING  /* request sent, waiting for the reply */
 } obd_client_state_t;
 
@@ -60,11 +59,9 @@ typedef struct {
     uint16_t request_len;
     obd_client_state_t state;
     obd_client_send_t pending; /* what the last poll handed out */
-    uint32_t deadline_us;      /* end of the gap, or of the wait for a reply */
-    uint32_t refresh_due_us;
-    uint32_t vin_due_us;
-    bool status_next; /* monitor status follows the trouble codes */
-    uint8_t pid_index;
+    uint32_t deadline_us;      /* end of the wait for a reply */
+    bool sent_any;             /* a request has been sent since init */
+    uint32_t last_sent_us;     /* when */
 
     /* Latest answers. */
     int32_t values[OBD2_PID_COUNT]; /* in obd2.h's table order */
@@ -78,7 +75,7 @@ typedef struct {
     bool vin_valid;
     char vin[OBD2_VIN_LEN + 1U];
 
-    /* Counters since the last start. */
+    /* Counters since start-up. */
     uint32_t requests;
     uint32_t replies;
     uint32_t timeouts;
@@ -87,13 +84,18 @@ typedef struct {
 
 void obd_client_init(obd_client_t *c);
 
-/* Start asking, beginning with the VIN. Forgets earlier answers and counters. */
-void obd_client_start(obd_client_t *c, uint32_t now_us);
+/* Ask one question: service 01 with a PID from obd2.h's table or the
+ * monitor status, 03 (the PID is ignored), or 09 with the VIN's info type.
+ * False if a request is still in progress or the question isn't one of
+ * these. */
+bool obd_client_ask(obd_client_t *c, uint8_t service, uint8_t pid);
 
-/* Stop asking. The answers so far are kept. */
-void obd_client_stop(obd_client_t *c);
+/* True while a request is in progress. */
+bool obd_client_busy(const obd_client_t *c);
 
-bool obd_client_running(const obd_client_t *c);
+/* Drop the request in progress, if any (for example when CAN stops). The
+ * answers and counters are kept. */
+void obd_client_cancel(obd_client_t *c);
 
 /* A frame from the bus; only replies from OBD_CLIENT_REPLY_ID matter. */
 void obd_client_frame(obd_client_t *c, uint32_t id, const uint8_t *data, uint8_t dlc,

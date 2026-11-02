@@ -33,7 +33,7 @@ obdsniff can                       # CAN status: frames received, dropped, error
 obdsniff can off
 obdsniff obd watch                 # OBD2 live data from the simulated ECU (starts loopback, Ctrl-C stops)
 obdsniff obd                       # the tester's latest answers once: values, trouble codes, VIN
-obdsniff obd start                 # start or stop the board's OBD2 tester (needs loopback)
+obdsniff obd ask rpm               # ask one question: vin, codes, status, rpm, speed, ...
 obdsniff monitor                   # print CAN frames and events as they happen (turns streaming on)
 obdsniff monitor --log trace.log   # ...and save the frames in candump format
 obdsniff shell                     # interactive session
@@ -129,10 +129,11 @@ lost and damaged packets:
 
 ![The CAN tab after 10,000 test frames in loopback, none lost](../docs/images/desktop-app-can.png)
 
-The **OBD2** tab starts the board's OBD2 tester (and CAN loopback, if it is off) and shows what it
-reads from the simulated engine ECU as it changes: engine speed, vehicle speed, throttle, engine
-load, coolant and intake temperature and run time, the warning light, stored trouble codes, the
-VIN, and the request counters. The tab also follows a tester started from the console.
+The **OBD2** tab asks the board's OBD2 tester one question after another (starting CAN loopback, if
+it is off) and shows what it reads from the simulated engine ECU as it changes: engine speed,
+vehicle speed, throttle, engine load, coolant and intake temperature and run time, the warning
+light, stored trouble codes, the VIN, and the request counters. **Stop** stops the questions, and
+the board then sends nothing more: it never asks on its own.
 
 ![The OBD2 tab on the board: 103 requests in about 5 seconds, every one answered](../docs/images/desktop-app-obd.png)
 

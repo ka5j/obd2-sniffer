@@ -76,7 +76,7 @@ Each pass does, in order:
 3. `can_gen_task()`: sends test traffic, if a test is running.
 4. `can_stream_task()`: moves captured frames from the frame queue to the laptop.
 5. `obd_task()`: passes received frames to the OBD2 tester and the simulated ECU; sends their
-   next frame, if any.
+   next frame, if any. The tester has a frame only after the laptop asked a question.
 6. `status_led_task()`, `button_task()`: LED heartbeat and button presses.
 
 ## The path of a CAN frame
@@ -110,8 +110,10 @@ the board stays controllable on a full bus. Detail: [can-capture.md](can-capture
 - **Test traffic has its own path, in loopback only.** `can_drv_send_loopback()` carries the
   numbered test frames and the simulated engine ECU's replies, which the guard would refuse. It
   works only while the controller is in silent loopback, where nothing leaves the chip.
-- **The tester asks only read-only questions.** `lib/obd/obd_client.c` builds only service 01,
-  03 and 09 requests, and waits 50 ms after each reply, so it stays within the guard's limit.
+- **The tester asks only what the laptop asks, and only read-only questions.**
+  `lib/obd/obd_client.c` sends one request per `obd ask`, never on its own. It builds only service
+  01, 03 and 09 requests, and spaces them at least 50 ms apart, so it stays within the guard's
+  limit. The plan of questions is on the laptop (`host/src/obdsniff/obdplan.py`).
 
 The full safety design, including the layers the circuit board adds, is in
 [safety.md](safety.md).

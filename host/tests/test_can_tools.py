@@ -188,7 +188,7 @@ def test_cli_can_commands(capsys, sim) -> None:
     assert run(capsys, "can", "stream", "on")[1] == "Streaming on.\n"
     assert sim.can.stream is True
     assert json.loads(run(capsys, "--json", "can", "off")[1]) == {"done": "off"}
-    code, _, err = run(capsys, "obd", "start")
+    code, _, err = run(capsys, "obd", "ask", "rpm")
     assert code == cli.EXIT_COMMAND_FAILED  # the tester needs CAN in loopback
     assert "command failed" in err
 
@@ -250,16 +250,15 @@ def test_monitor_turns_streaming_on(capsys, sim) -> None:
 def test_cli_obd_commands(capsys, sim) -> None:
     code, out, _ = run(capsys, "obd")
     assert code == 0
-    assert "Tester" in out
-    assert "stopped" in out
-    code, _, err = run(capsys, "obd", "start")
+    assert "Request" in out
+    assert "idle" in out
+    code, _, err = run(capsys, "obd", "ask", "vin")
     assert code == cli.EXIT_COMMAND_FAILED  # CAN is off
     assert "command failed" in err
     run(capsys, "can", "loopback")
-    assert run(capsys, "obd", "start")[1] == "OBD2 tester started.\n"
-    assert sim.can.tester.running
-    assert json.loads(run(capsys, "--json", "obd", "stop")[1]) == {"done": "stop"}
-    assert not sim.can.tester.running
+    assert run(capsys, "obd", "ask", "vin")[1] == "Asked: vin.\n"
+    assert json.loads(run(capsys, "--json", "obd", "ask", "rpm")[1]) == {"asked": "rpm"}
+    assert sim.can.tester.vin == "1M8GDM9AXKP042788"
 
 
 def test_cli_obd_watch_starts_what_it_needs_and_tidies_up(capsys, sim) -> None:
@@ -269,7 +268,6 @@ def test_cli_obd_watch_starts_what_it_needs_and_tidies_up(capsys, sim) -> None:
     assert "1M8GDM9AXKP042788" in out
     assert "\x1b[" not in out  # not a terminal: no screen control codes
     assert sim.can.mode == "loopback"  # started for the view
-    assert not sim.can.tester.running  # stopped on the way out
     assert sim.can.stream is True  # streaming back as it was
 
 
@@ -278,7 +276,7 @@ def test_cli_obd_watch_json_leaves_streaming_off_if_it_was(capsys, sim) -> None:
     sim.can.command(["stream", "off"], lambda *_: None)
     _, out, _ = run(capsys, "--json", "obd", "watch", "--duration", "0.15", "--interval", "0.05")
     updates = [json.loads(line) for line in out.splitlines()]
-    assert updates[-1]["obd_tester"] == "running"
+    assert updates[-1]["obd_vin"] == "1M8GDM9AXKP042788"
     assert sim.can.stream is False
 
 
@@ -292,7 +290,6 @@ def test_cli_obd_watch_redraws_in_a_terminal_and_stops_on_ctrl_c(capsys, sim, mo
     code, out, _ = run(capsys, "obd", "watch")
     assert code == 0
     assert out.startswith(cli.CLEAR_SCREEN)
-    assert not sim.can.tester.running
 
 
 # ---- shell ------------------------------------------------------------------------------

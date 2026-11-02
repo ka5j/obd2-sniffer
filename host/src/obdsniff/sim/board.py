@@ -30,7 +30,7 @@ COMMANDS: list[tuple[str, str, str, int, int]] = [
     ("status", "", "Uptime, last reset, clocks and serial statistics", 0, 0),
     ("fault", "[clear]", "Details of the last crash, or forget it", 0, 1),
     ("can", CAN_USAGE, "CAN bus: status, loopback, test traffic, frame output", 0, 3),
-    ("obd", OBD_USAGE, "OBD2 tester: live data, trouble codes, VIN (loopback)", 0, 1),
+    ("obd", OBD_USAGE, "OBD2: latest answers, or ask the engine ECU one question", 0, 2),
     ("reset", "", "Restart the board", 0, 0),
     ("crash", "bus|usage|divzero|hard|watchdog", "Crash on purpose to test crash capture", 1, 1),
 ]
@@ -277,12 +277,11 @@ class SimulatedBoard:
         if not args:
             self.can.tester.fields(self.can.mode == "loopback", self._field)
             return None
-        if args[0] == "start":
-            return None if self.can.obd_start() else "command failed"
-        if args[0] == "stop":
-            self.can.tester.stop()
-            return None
-        return "invalid argument"
+        if args[0] != "ask":
+            return "invalid argument"
+        if len(args) != 2:
+            return f"wrong number of arguments (usage: obd {OBD_USAGE})"
+        return self.can.obd_ask(args[1])
 
     def _cmd_reset(self, args: list[str]) -> str | None:
         self._after_reply = lambda: self.boot("software")

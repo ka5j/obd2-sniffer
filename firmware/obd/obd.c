@@ -73,18 +73,17 @@ void obd_task(uint32_t now_ms)
     send_from_tester();
 }
 
-bool obd_start(void)
+bool obd_ask(uint8_t service, uint8_t pid)
 {
     if (can_drv_mode() != CAN_DRV_LOOPBACK) {
         return false;
     }
-    obd_client_start(&tester, timebase_us());
-    return true;
+    return obd_client_ask(&tester, service, pid);
 }
 
-void obd_stop(void)
+void obd_cancel(void)
 {
-    obd_client_stop(&tester);
+    obd_client_cancel(&tester);
 }
 
 bool obd_ecu_on(void)
