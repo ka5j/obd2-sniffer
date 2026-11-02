@@ -31,8 +31,9 @@ This project is a scan tool and network analyzer I am building myself:
 
 ## Highlights
 
-- **Three ways to use it.** A desktop app, a command-line tool for the terminal, or plain typed
-  commands in any serial terminal with nothing to install. Every feature works in all three.
+- **Two ways to use it.** A desktop app, or a command-line tool for the terminal and for
+  scripts. Both are built on one Python library, and the board speaks a single small protocol
+  to it, so there is one path to test.
 - **Keeps up with a busy network.** Each message is captured the moment it arrives, timestamped
   to the microsecond, numbered, and moved to the laptop in a compact, error-checked format.
   Measured on the board: 100,000 messages in a row at 100% network load, none lost. When traffic
@@ -90,7 +91,6 @@ which also runs from the car's 12 V supply. See [Project status](#project-status
 |---|---|---|
 | Desktop app | `obdsniff gui`: board status and controls, a console, live CAN frames, OBD2 live data | Watching live data, demos |
 | Command-line tool | `obdsniff obd watch`, `obdsniff monitor`, `obdsniff can test`, `obdsniff shell`, ... | Watching and logging traffic, scripting, automated checks |
-| Serial terminal | Open the board's USB serial port and type `help` | Using the device with no software installed |
 
 ![The desktop app's CAN tab: 10,000 test frames captured on the board, none lost](docs/images/desktop-app-can.png)
 
@@ -143,7 +143,7 @@ How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-
 |---|---|
 | Build system, project structure, automated builds (CI) | Done |
 | Microcontroller start-up: 180 MHz clock, start-up report, reset-cause reporting | Done, verified on hardware |
-| Serial console: interrupt and DMA driven, interactive and host modes, board commands | Done, verified on hardware |
+| Serial link to the laptop: interrupt and DMA driven, one command protocol, board commands | Done, verified on hardware |
 | Watchdog and crash capture with reports after restart | Done, verified on hardware |
 | Laptop tool: command line, interactive shell, board simulator | Done, verified on hardware |
 | Laptop tool: desktop app with board status, controls and console | Done, verified on hardware |

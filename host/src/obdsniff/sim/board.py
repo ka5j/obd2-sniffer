@@ -1,9 +1,9 @@
 """A software model of the board's serial console.
 
 It follows the firmware's console behaviour (lib/console/console_core.c and
-firmware/console/commands.c): the same commands, keys, labels, help text, error
-messages, editing keys and start-up report. It lets the laptop tool, its
-tests and demos run without hardware (`--port sim`).
+firmware/console/commands.c): the same commands, keys, help text, error
+messages and start-up report. It lets the laptop tool, its tests and demos
+run without hardware (`--port sim`).
 """
 
 from __future__ import annotations
@@ -14,12 +14,10 @@ from dataclasses import dataclass
 
 from obdsniff.packets import encode_can_frame
 from obdsniff.sim.can import USAGE as CAN_USAGE
-from obdsniff.sim.can import SimulatedCan, format_line
+from obdsniff.sim.can import SimulatedCan
 from obdsniff.sim.obd import USAGE as OBD_USAGE
 from obdsniff.transport import Transport
 
-PROMPT = "obd> "
-LABEL_WIDTH = 18
 HELP_WIDTH = 24
 LINE_MAX = 96
 FIRMWARE_VERSION = "simulator"
@@ -30,7 +28,6 @@ COMMANDS: list[tuple[str, str, str, int, int]] = [
     ("help", "[command]", "List commands, or show how to use one", 0, 1),
     ("version", "", "Firmware version and chip identity", 0, 0),
     ("status", "", "Uptime, last reset, clocks and serial statistics", 0, 0),
-    ("mode", "interactive|host", "Console mode (host is for the laptop tool)", 1, 1),
     ("fault", "[clear]", "Details of the last crash, or forget it", 0, 1),
     ("can", CAN_USAGE, "CAN bus: status, loopback, test traffic, frame output", 0, 3),
     ("obd", OBD_USAGE, "OBD2 tester: live data, trouble codes, VIN (loopback)", 0, 1),
@@ -92,19 +89,16 @@ class SimulatedBoard:
     # ---- board life cycle ---------------------------------------------------
 
     def boot(self, reset_cause: str) -> None:
-        """Restart: interactive mode, start-up report, prompt.
+        """Restart: start-up report, then the "started" event.
 
         A crash is reported by the start-up right after it and then forgotten,
         as in the firmware (fault_init() clears the record once read): any
         later restart reports no crash."""
         self.fault, self._surviving_record = self._surviving_record, None
         self.reset_cause = reset_cause
-        self.mode = "interactive"
         self._line = ""
         self._last_was_cr = False
-        self._line_done = False
         self._overflowed = False
-        self._lines_shown = False  # CAN frame lines printed since the last prompt
         self.can.reset()  # CAN is off after every start-up
         self._boot_time = self._clock()
         self.rx_bytes = 0
@@ -118,10 +112,9 @@ class SimulatedBoard:
             self._emit(
                 f" Crash    {self.fault.type} at 0x{self.fault.pc:08X}: {self.fault.cause}\r\n"
             )
-            self._emit("          details: 'fault'\r\n")
+            self._emit("          details: obdsniff fault\r\n")
         self._emit("========================================\r\n")
-        self._emit("Type 'help' for a list of commands.\r\n")
-        self._emit(PROMPT)
+        self._event("started")
 
     def uptime_ms(self) -> int:
         return int((self._clock() - self._boot_time) * 1000)
@@ -146,97 +139,52 @@ class SimulatedBoard:
     # ---- CAN frames (firmware/can/can_stream.c) ---------------------------------
 
     def _stream_frames(self) -> None:
-        """Received CAN frames: packets in host mode, lines interactively. Once
-        the traffic stops, the prompt and any typed text are shown again."""
+        """Received CAN frames, one packet each."""
         for frame in self.can.take(FRAMES_PER_READ):
-            if not self._interactive():
-                self._output += encode_can_frame(frame)
-                continue
-            if not self._lines_shown:
-                self._emit("\r\n")  # leave the prompt line
-                self._lines_shown = True
-            self._emit(format_line(frame))
-        if self._lines_shown and not self.can.busy():
-            self._lines_shown = False
-            if self._interactive():
-                self._emit(PROMPT + ("" if self._line_done else self._line))
+            self._output += encode_can_frame(frame)
 
     # ---- output helpers -------------------------------------------------------
 
     def _emit(self, text: str) -> None:
         self._output += text.encode("ascii", errors="replace")
 
-    def _interactive(self) -> bool:
-        return self.mode == "interactive"
-
-    def _prompt(self) -> None:
-        if self._interactive():
-            self._emit(PROMPT)
-
-    def _field(self, key: str, label: str, value: str) -> None:
-        if self._interactive():
-            pad = LABEL_WIDTH - len(label) if len(label) < LABEL_WIDTH else 1
-            self._emit(f"  {label}{' ' * pad}{value}\r\n")
-        else:
-            self._emit(f"{key}={value}\r\n")
+    def _field(self, key: str, value: str) -> None:
+        self._emit(f"{key}={value}\r\n")
 
     def _event(self, text: str) -> None:
-        if not self._interactive():
-            self._emit(f"!{text}\r\n")
-            return
-        partial = "" if self._line_done else self._line
-        self._emit(f"\r\n{text}\r\n{PROMPT}{partial}")
+        self._emit(f"!{text}\r\n")
 
-    # ---- line editing (lib/console/line_editor.c) -------------------------------------
+    # ---- reading lines (lib/console/line_reader.c) ------------------------------------
 
     def _feed_byte(self, value: int) -> None:
-        if self._line_done:
-            self._line_done = False
-            self._line = ""
         after_cr = self._last_was_cr
         self._last_was_cr = value == 0x0D
-        echo = self._interactive()
 
         if value in (0x0D, 0x0A):
             if value == 0x0A and after_cr:
                 return
-            if echo:
-                self._emit("\r\n")
+            line, self._line = self._line, ""
             if self._overflowed:
                 # Rejected whole: running it cut short could do something else.
                 self._overflowed = False
-                self._line = ""
                 self._report("line too long")
                 return
-            self._line_done = True
-            self._run(self._line)
+            self._run(line)
         elif value == 0x03:
             self._line = ""
             self._overflowed = False
-            if echo:
-                self._emit("^C\r\n" + PROMPT)
-        elif value in (0x08, 0x7F):
-            if self._line:
-                self._line = self._line[:-1]
-                if echo:
-                    self._emit("\b \b")
         elif 0x20 <= value <= 0x7E:
             if len(self._line) >= LINE_MAX:
                 self._overflowed = True
-                if echo:
-                    self._emit("\a")
             else:
                 self._line += chr(value)
-                if echo:
-                    self._emit(chr(value))
 
     # ---- command dispatch (lib/console/cli.c, lib/console/console_core.c) ---------------------
 
     def _run(self, line: str) -> None:
         words = line.split()
         if not words:
-            self._prompt()
-            return
+            return  # an empty line gets no reply
         if len(words) > 8:
             self._report("too many arguments")
             return
@@ -255,15 +203,7 @@ class SimulatedBoard:
         self._report(error)
 
     def _report(self, error: str | None) -> None:
-        if error is None:
-            if not self._interactive():
-                self._emit("OK\r\n")
-        elif self._interactive():
-            hint = " (type 'help' for a list)" if error == "unknown command" else ""
-            self._emit(f"error: {error}{hint}\r\n")
-        else:
-            self._emit(f"ERR {error}\r\n")
-        self._prompt()
+        self._emit("OK\r\n" if error is None else f"ERR {error}\r\n")
 
     # ---- commands (firmware/console/commands.c) -----------------------------------
 
@@ -284,34 +224,28 @@ class SimulatedBoard:
         return None
 
     def _cmd_version(self, args: list[str]) -> str | None:
-        self._field("firmware", "Firmware", FIRMWARE_VERSION)
-        self._field("build", "Build", "debug")
-        self._field("mcu", "MCU", "STM32F446RE")
-        self._field("revision", "Silicon rev", "0x1000")
-        self._field("uid", "Unique ID", "00000000-00000000-00000000")
-        self._field("compiler", "Compiler", "simulated")
+        self._field("firmware", FIRMWARE_VERSION)
+        self._field("build", "debug")
+        self._field("mcu", "STM32F446RE")
+        self._field("revision", "0x1000")
+        self._field("uid", "00000000-00000000-00000000")
+        self._field("compiler", "simulated")
         return None
 
     def _cmd_status(self, args: list[str]) -> str | None:
-        self._field("uptime_ms", "Uptime (ms)", str(self.uptime_ms()))
-        self._field("reset_cause", "Last reset", self.reset_cause)
-        self._field("clock", "Clock source", "HSE 8 MHz bypass")
-        self._field("sysclk_hz", "CPU clock (Hz)", "180000000")
-        self._field("watchdog_timeout_ms", "Watchdog (ms)", "500")
-        self._field("last_fault", "Last crash", self.fault.type if self.fault else "none")
-        self._field("uart_rx_bytes", "Serial received", str(self.rx_bytes))
-        self._field("uart_rx_dropped", "  dropped", "0")
-        self._field("uart_rx_overruns", "  overruns", "0")
-        self._field("uart_rx_errors", "  errors", "0")
-        self._field("uart_tx_bytes", "Serial sent", str(self.tx_bytes))
-        self._field("uart_tx_dropped", "  dropped", "0")
-        self._field("uart_tx_dma_errors", "  DMA errors", "0")
-        return None
-
-    def _cmd_mode(self, args: list[str]) -> str | None:
-        if args[0] not in ("interactive", "host"):
-            return "invalid argument"
-        self.mode = args[0]
+        self._field("uptime_ms", str(self.uptime_ms()))
+        self._field("reset_cause", self.reset_cause)
+        self._field("clock", "HSE 8 MHz bypass")
+        self._field("sysclk_hz", "180000000")
+        self._field("watchdog_timeout_ms", "500")
+        self._field("last_fault", self.fault.type if self.fault else "none")
+        self._field("uart_rx_bytes", str(self.rx_bytes))
+        self._field("uart_rx_dropped", "0")
+        self._field("uart_rx_overruns", "0")
+        self._field("uart_rx_errors", "0")
+        self._field("uart_tx_bytes", str(self.tx_bytes))
+        self._field("uart_tx_dropped", "0")
+        self._field("uart_tx_dma_errors", "0")
         return None
 
     def _cmd_fault(self, args: list[str]) -> str | None:
@@ -321,18 +255,18 @@ class SimulatedBoard:
             self.fault = None
             return None
         if self.fault is None:
-            self._field("fault", "Last crash", "none")
+            self._field("fault", "none")
             return None
         f = self.fault
-        self._field("fault", "Last crash", f.type)
-        self._field("cause", "Cause", f.cause)
-        self._field("pc", "At address (PC)", f"0x{f.pc:08X}")
-        self._field("lr", "Called from (LR)", f"0x{f.lr:08X}")
+        self._field("fault", f.type)
+        self._field("cause", f.cause)
+        self._field("pc", f"0x{f.pc:08X}")
+        self._field("lr", f"0x{f.lr:08X}")
         if f.address is not None:
-            self._field("fault_address", "Bad address", f"0x{f.address:08X}")
-        self._field("crash_uptime_ms", "Crash time (ms)", str(self._fault_uptime_ms))
-        self._field("cfsr", "CFSR", f"0x{f.cfsr:08X}")
-        self._field("hfsr", "HFSR", f"0x{f.hfsr:08X}")
+            self._field("fault_address", f"0x{f.address:08X}")
+        self._field("crash_uptime_ms", str(self._fault_uptime_ms))
+        self._field("cfsr", f"0x{f.cfsr:08X}")
+        self._field("hfsr", f"0x{f.hfsr:08X}")
         return None
 
     def _cmd_can(self, args: list[str]) -> str | None:

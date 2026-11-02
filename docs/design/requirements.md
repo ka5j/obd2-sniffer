@@ -105,7 +105,7 @@ The reasons behind these are in [safety.md](safety.md).
 | REL-1 | A stuck program restarts the board in under 1 s and the restart is reported | Main loop stopped on purpose | **Met:** restarts after 535 ms, reported as a watchdog reset |
 | REL-2 | A crash is recorded, the board restarts, and the crash is reported afterwards | Each kind of fault triggered on purpose | **Met:** bus, usage, divide-by-zero and hard faults, right type and address |
 | REL-3 | The reason for every restart is reported | Power-on, reset pin, software and watchdog resets | **Met** |
-| REL-4 | Worst-case stack use fits the reserved stack | Worked out from the program in CI | **Met:** 2,544 bytes (Release) and 2,764 (Debug) of 8,192 |
+| REL-4 | Worst-case stack use fits the reserved stack | Worked out from the program in CI | **Met:** 2,544 bytes (Release) and 2,756 (Debug) of 8,192 |
 | REL-5 | No memory is allocated at run time | `malloc` always fails | **Met** |
 | REL-6 | Runs for 24 hours streaming with nothing lost and no restart | Bench soak test | **Not built** |
 

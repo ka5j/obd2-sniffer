@@ -66,6 +66,7 @@ def test_formats() -> None:
     assert candump_line(frame, 1700000000.5) == "(1700000000.500000) can0 7E8#0441"
     ext_remote = CanFrame(timestamp_us=0, id=0x18DAF110, dlc=8, extended=True, rtr=True)
     assert candump_line(ext_remote, 1.0) == "(1.000000) can0 18DAF110#R8"
+    assert format_frame(ext_remote, 1.000005) == "  1.000005  18DAF110  [8]  remote request"
     assert frame_to_json(frame, 1.25) == {
         "time": 1.25,
         "id": "7E8",
@@ -214,7 +215,6 @@ def test_cli_can_test_failure_exit_code(capsys, sim, monkeypatch) -> None:
 
 
 def test_monitor_shows_frames_and_writes_a_log(capsys, sim, tmp_path) -> None:
-    sim.mode = "host"
     sim.can.command(["loopback"], lambda *_: None)
     sim.can.command(["test", "3"], lambda *_: None)
     sim.press_button()
@@ -230,7 +230,6 @@ def test_monitor_shows_frames_and_writes_a_log(capsys, sim, tmp_path) -> None:
 
 
 def test_monitor_json_frames(capsys, sim) -> None:
-    sim.mode = "host"
     sim.can.command(["loopback"], lambda *_: None)
     sim.can._transmit(0x7DF, b"\x02")
     _, out, err = run(capsys, "--json", "monitor", "--duration", "0.2")

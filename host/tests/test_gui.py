@@ -136,9 +136,8 @@ def test_connect_failure_is_reported(qtbot) -> None:
     assert window.connect_button.isEnabled()
 
 
-def test_disconnect_hands_the_board_back(connected, sim) -> None:
+def test_disconnect(connected) -> None:
     connected.connect_button.click()
-    assert sim.mode == "interactive"  # a serial terminal works again
     assert connected.connect_button.text() == "Connect"
     assert connected.info_tree.topLevelItemCount() == 0
     assert not connected.console_input.isEnabled()

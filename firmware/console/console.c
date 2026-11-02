@@ -29,11 +29,11 @@ bool console_init(void)
 }
 
 /* At most one command per call, and only once its reply is sure to fit in
- * the transmit buffer. Commands sent in a burst (pasted into a terminal, or
- * from a program that doesn't wait for replies) would otherwise all run in
- * one pass of the main loop: their replies could take longer to send than
- * the watchdog allows, or overflow the buffer. Input that isn't processed
- * yet waits in the receive buffer. */
+ * the transmit buffer. Commands sent in a burst (from a program that
+ * doesn't wait for replies) would otherwise all run in one pass of the main
+ * loop: their replies could take longer to send than the watchdog allows,
+ * or overflow the buffer. Input that isn't processed yet waits in the
+ * receive buffer. */
 void console_poll(void)
 {
     if (uart_link_tx_free() < CONSOLE_REPLY_SPACE) {
@@ -55,21 +55,6 @@ void console_write(const char *data, size_t len)
 void console_puts(const char *text)
 {
     console_write(text, strlen(text));
-}
-
-void console_prompt(void)
-{
-    console_core_prompt(&core);
-}
-
-void console_redraw_prompt(void)
-{
-    console_core_redraw(&core);
-}
-
-bool console_is_interactive(void)
-{
-    return console_core_mode(&core) == CONSOLE_MODE_INTERACTIVE;
 }
 
 void console_event(const char *text)
@@ -95,7 +80,7 @@ void console_printf(const char *fmt, ...)
     console_write(buf, len);
 }
 
-void console_fieldf(void *ctx, const char *key, const char *label, const char *fmt, ...)
+void console_fieldf(void *ctx, const char *key, const char *fmt, ...)
 {
     char value[CONSOLE_FORMAT_BUF];
     va_list args; /* MISRA DEV-01 */
@@ -107,5 +92,5 @@ void console_fieldf(void *ctx, const char *key, const char *label, const char *f
     if (n < 0) {
         value[0] = '\0';
     }
-    console_core_field(ctx, key, label, value);
+    console_core_field(ctx, key, value);
 }

@@ -60,7 +60,7 @@ class DeviceWorker(QObject):
 
     @Slot()
     def close_port(self) -> None:
-        """Disconnect, handing the board's console back in interactive mode."""
+        """Disconnect from the board."""
         if self._device is None:
             return
         self._timer.stop()

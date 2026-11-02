@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-# Display names for the board's data keys (the same wording as the board's
-# interactive mode).
+# Display names for the board's data keys. The board sends only the keys;
+# the laptop tool shows them to people under these names.
 LABELS: dict[str, str] = {
     "firmware": "Firmware",
     "build": "Build",

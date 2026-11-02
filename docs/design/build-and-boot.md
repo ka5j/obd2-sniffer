@@ -139,7 +139,7 @@ FLASH 0x0800_0000 (512 KiB)            RAM 0x2000_0000 (128 KiB)
   follows the deepest call chain from the reset handler and from each interrupt handler. The
   total assumes every handler is nested on top of the main loop at once, each with the CPU's
   108-byte exception frame (FPU registers included): an upper bound. It is 2,544 bytes in the
-  Release build and 2,764 in the Debug build (about a third of the 8 KiB). The deepest path is a
+  Release build and 2,756 in the Debug build (about a third of the 8 KiB). The deepest path is a
   console command formatting text with `vsnprintf`. The fault handlers run on their own 512-byte
   stack, of which the crash capture uses 24 bytes (96 in Debug).
 
@@ -175,10 +175,10 @@ FLASH 0x0800_0000 (512 KiB)            RAM 0x2000_0000 (128 KiB)
       separate fault handlers ([fault-handling.md](fault-handling.md)).
    6. `console_init()` sets up USART2 with its receive interrupt and transmit DMA
       ([serial-console.md](serial-console.md)).
-   7. The start-up report is printed, including a crash summary if there was one, followed by
-      the `obd> ` prompt.
+   7. The start-up report is printed, including a crash summary if there was one.
    8. `watchdog_init()` starts the independent watchdog. It is started last, once nothing left
-      in start-up can take long.
+      in start-up can take long. Then the `!started` event tells the laptop that commands can be
+      sent.
    9. The super-loop starts: refresh the watchdog, process console input, update the LED, check
       the button, and restart if `reset` was requested.
 

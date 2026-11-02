@@ -7,9 +7,8 @@ add_library(core STATIC
     can/can_timing.c
     console/cli.c
     console/console_core.c
-    console/line_editor.c
+    console/line_reader.c
     fault/fault_record.c
-    link/can_text.c
     link/cobs.c
     link/crc16.c
     link/packet.c

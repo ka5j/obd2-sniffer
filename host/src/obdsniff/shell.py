@@ -1,8 +1,8 @@
 """Interactive session with the board from the laptop.
 
-Like typing into the board's own console, but the laptop tool keeps the
-board in host mode underneath, formats the replies, shows events as they
-arrive, and handles restarts (`reset`, `crash`) by reconnecting.
+Type the board's commands; the laptop tool sends them, formats the
+replies, shows events and frames as they arrive, and handles restarts
+(`reset`, `crash`) by reconnecting.
 """
 
 from __future__ import annotations
@@ -21,14 +21,11 @@ def execute_line(device: Device, line: str) -> list[str]:
     """Run one line typed by a person and return the rows to show.
 
     Board commands are passed through and their replies formatted. `reset`
-    and `crash <kind>` also wait for the board to restart and reconnect.
-    `mode` is refused: the laptop tool keeps the board in host mode. Raises
+    and `crash <kind>` also wait for the board to restart and reconnect. Raises
     CommandError or ProtocolError like Device.command(). Used by the shell
     and the desktop app's console."""
     words = line.split()
     name = words[0].lower()
-    if name == "mode":
-        return ["The laptop tool manages the console mode itself."]
     if name == "reset":
         device.reset()
         return ["Board restarted."]

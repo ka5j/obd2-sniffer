@@ -49,7 +49,7 @@ EXCEPTION_FRAME = 26 * 4 + 4
 INDIRECT_CALLS: dict[str, tuple[tuple[str, ...], str]] = {
     "cli_execute": (("cmd_*",), "runs the handler from the command table (console/commands.c)"),
     "console_core_feed": (("write_out",), "console output callback (console/console.c)"),
-    "console_core_redraw": (("write_out",), "console output callback (console/console.c)"),
+    "console_core_help": (("write_out",), "console output callback (console/console.c)"),
     "out": (("write_out",), "console output callback (console/console.c)"),
     "out_spaces": (("write_out",), "console output callback (console/console.c)"),
     "_printf_common": (("__ssputs_r",), "newlib: the output function vsnprintf passes in"),
