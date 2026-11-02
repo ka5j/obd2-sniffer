@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.25)
 # Use the CMake presets rather than configuring by hand.
 
 project(obd2_sniffer
-    VERSION 0.4.1
+    VERSION 0.5.0
     DESCRIPTION "CAN bus sniffer and OBD2 diagnostic tool for STM32F446RE"
     LANGUAGES C)
 
@@ -45,6 +45,12 @@ if(NOT CMAKE_CROSSCOMPILING)
         add_compile_options(-fprofile-instr-generate -fcoverage-mapping -fcoverage-mcdc)
         add_link_options(-fprofile-instr-generate)
     endif()
+endif()
+
+if(CMAKE_CROSSCOMPILING)
+    # Each function's stack frame, in a .su file beside its object file, for
+    # scripts/stack_usage.py to check. The generated code is unchanged.
+    add_compile_options($<$<COMPILE_LANGUAGE:C>:-fstack-usage>)
 endif()
 
 add_subdirectory(lib)

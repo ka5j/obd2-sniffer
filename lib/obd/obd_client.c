@@ -23,65 +23,52 @@ void obd_client_init(obd_client_t *c)
     (void)memset(c, 0, sizeof(*c));
     isotp_tx_init(&c->tx, FRAME_TIMEOUT_US);
     isotp_rx_init(&c->rx, c->reply, OBD_CLIENT_REPLY_MAX, 0U, 0U, FRAME_TIMEOUT_US);
-    c->state = OBD_CLIENT_STOPPED;
+    c->state = OBD_CLIENT_IDLE;
     c->pending = OBD_CLIENT_SEND_NONE;
 }
 
-void obd_client_start(obd_client_t *c, uint32_t now_us)
+static bool question_known(uint8_t service, uint8_t pid)
 {
-    obd_client_init(c);
-    c->state = OBD_CLIENT_GAP;
-    c->deadline_us = now_us;
-    c->refresh_due_us = now_us;
-    c->vin_due_us = now_us;
+    if (service == OBD2_SERVICE_STORED_DTCS) {
+        return true;
+    }
+    if (service == OBD2_SERVICE_CURRENT_DATA) {
+        return (pid == OBD2_PID_MONITOR_STATUS) || (obd2_pid_find(pid) != NULL);
+    }
+    return (service == OBD2_SERVICE_VEHICLE_INFO) && (pid == OBD2_INFO_VIN);
 }
 
-void obd_client_stop(obd_client_t *c)
+bool obd_client_ask(obd_client_t *c, uint8_t service, uint8_t pid)
+{
+    if ((c->state != OBD_CLIENT_IDLE) || !question_known(service, pid)) {
+        return false;
+    }
+    c->request[0] = service;
+    c->request[1] = pid;
+    c->request_len = (service == OBD2_SERVICE_STORED_DTCS) ? 1U : 2U;
+    (void)isotp_tx_start(&c->tx, c->request, c->request_len); /* 1-2 bytes: always valid */
+    c->state = OBD_CLIENT_SENDING;
+    return true;
+}
+
+bool obd_client_busy(const obd_client_t *c)
+{
+    return c->state != OBD_CLIENT_IDLE;
+}
+
+void obd_client_cancel(obd_client_t *c)
 {
     isotp_tx_init(&c->tx, FRAME_TIMEOUT_US);
     isotp_rx_init(&c->rx, c->reply, OBD_CLIENT_REPLY_MAX, 0U, 0U, FRAME_TIMEOUT_US);
-    c->state = OBD_CLIENT_STOPPED;
+    c->state = OBD_CLIENT_IDLE;
     c->pending = OBD_CLIENT_SEND_NONE;
 }
 
-bool obd_client_running(const obd_client_t *c)
+/* The request is over: answered, failed or timed out. Only reached while one
+ * is waiting, because replies are ignored at any other time. */
+static void end_request(obd_client_t *c)
 {
-    return c->state != OBD_CLIENT_STOPPED;
-}
-
-/* The request is over (answered, failed or timed out): pause, then ask the
- * next one. Replies that arrive when no request is waiting change nothing. */
-static void end_request(obd_client_t *c, uint32_t now_us)
-{
-    if (c->state == OBD_CLIENT_WAITING) {
-        c->state = OBD_CLIENT_GAP;
-        c->deadline_us = now_us + OBD_CLIENT_GAP_US;
-    }
-}
-
-static void choose_request(obd_client_t *c, uint32_t now_us)
-{
-    if (!c->vin_valid && reached(now_us, c->vin_due_us)) {
-        c->request[0] = OBD2_SERVICE_VEHICLE_INFO;
-        c->request[1] = OBD2_INFO_VIN;
-        c->request_len = 2U;
-        c->vin_due_us = now_us + OBD_CLIENT_VIN_RETRY_US;
-    } else if (reached(now_us, c->refresh_due_us)) {
-        c->request[0] = OBD2_SERVICE_STORED_DTCS;
-        c->request_len = 1U;
-        c->refresh_due_us = now_us + OBD_CLIENT_REFRESH_US;
-        c->status_next = true;
-    } else if (c->status_next) {
-        c->request[0] = OBD2_SERVICE_CURRENT_DATA;
-        c->request[1] = OBD2_PID_MONITOR_STATUS;
-        c->request_len = 2U;
-        c->status_next = false;
-    } else {
-        c->request[0] = OBD2_SERVICE_CURRENT_DATA;
-        c->request[1] = obd2_pid_at(c->pid_index)->pid;
-        c->request_len = 2U;
-        c->pid_index = (uint8_t)((c->pid_index + 1U) % OBD2_PID_COUNT);
-    }
+    c->state = OBD_CLIENT_IDLE;
 }
 
 static bool store_current_data(obd_client_t *c, uint8_t pid, const uint8_t *data, size_t len)
@@ -133,16 +120,16 @@ static bool store_reply(obd_client_t *c, const uint8_t *reply, size_t len)
     return stored;
 }
 
-static void request_failed(obd_client_t *c, uint32_t now_us)
+static void request_failed(obd_client_t *c)
 {
     c->errors++;
-    end_request(c, now_us);
+    end_request(c);
 }
 
 void obd_client_frame(obd_client_t *c, uint32_t id, const uint8_t *data, uint8_t dlc,
                       uint32_t now_us)
 {
-    if ((c->state == OBD_CLIENT_STOPPED) || (id != OBD_CLIENT_REPLY_ID)) {
+    if ((c->state != OBD_CLIENT_WAITING) || (id != OBD_CLIENT_REPLY_ID)) {
         return;
     }
     isotp_result_t result = isotp_rx_frame(&c->rx, data, dlc, now_us);
@@ -152,9 +139,9 @@ void obd_client_frame(obd_client_t *c, uint32_t id, const uint8_t *data, uint8_t
         } else {
             c->errors++;
         }
-        end_request(c, now_us);
+        end_request(c);
     } else if (result != ISOTP_OK) {
-        request_failed(c, now_us); /* reply out of sequence or too long */
+        request_failed(c); /* reply out of sequence or too long */
     } else {
         /* part of a longer reply, or a frame that doesn't apply */
     }
@@ -163,9 +150,6 @@ void obd_client_frame(obd_client_t *c, uint32_t id, const uint8_t *data, uint8_t
 bool obd_client_poll(obd_client_t *c, uint32_t now_us, uint32_t *id, uint8_t out[ISOTP_FRAME_LEN])
 {
     c->pending = OBD_CLIENT_SEND_NONE;
-    if (c->state == OBD_CLIENT_STOPPED) {
-        return false;
-    }
     /* Flow control for a reply in progress goes first. */
     isotp_result_t rx_result = isotp_rx_poll(&c->rx, now_us, out);
     if (rx_result == ISOTP_SEND) {
@@ -174,24 +158,18 @@ bool obd_client_poll(obd_client_t *c, uint32_t now_us, uint32_t *id, uint8_t out
         return true;
     }
     if (rx_result == ISOTP_ERR_TIMEOUT) {
-        request_failed(c, now_us); /* the ECU stopped in the middle of a reply */
+        request_failed(c); /* the ECU stopped in the middle of a reply */
     }
 
-    if (c->state == OBD_CLIENT_WAITING) {
-        /* The reply must start in time; once it has, ISO-TP times the rest. */
-        if ((c->rx.state == ISOTP_RX_IDLE) && reached(now_us, c->deadline_us)) {
-            c->timeouts++;
-            end_request(c, now_us);
-        }
-    } else if ((c->state == OBD_CLIENT_GAP) && reached(now_us, c->deadline_us)) {
-        choose_request(c, now_us);
-        (void)isotp_tx_start(&c->tx, c->request, c->request_len); /* 1-2 bytes: always valid */
-        c->state = OBD_CLIENT_SENDING;
-    } else {
-        /* still in the gap, or a request already handed out */
+    /* The reply must start in time; once it has, ISO-TP times the rest. */
+    if ((c->state == OBD_CLIENT_WAITING) && (c->rx.state == ISOTP_RX_IDLE) &&
+        reached(now_us, c->deadline_us)) {
+        c->timeouts++;
+        end_request(c);
     }
 
-    if (c->state == OBD_CLIENT_SENDING) {
+    bool gap_over = !c->sent_any || reached(now_us, c->last_sent_us + OBD_CLIENT_GAP_US);
+    if ((c->state == OBD_CLIENT_SENDING) && gap_over) {
         /* A single frame: handed out again on every poll until it is sent. */
         (void)isotp_tx_poll(&c->tx, now_us, out);
         *id = OBD_CLIENT_REQUEST_ID;
@@ -210,6 +188,8 @@ void obd_client_sent(obd_client_t *c, uint32_t now_us)
         c->requests++;
         c->state = OBD_CLIENT_WAITING;
         c->deadline_us = now_us + OBD_CLIENT_REPLY_TIMEOUT_US;
+        c->sent_any = true;
+        c->last_sent_us = now_us;
     } else {
         /* nothing was handed out */
     }

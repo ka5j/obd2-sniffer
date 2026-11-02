@@ -1,8 +1,9 @@
 # obdsniff: laptop tool
 
 `obdsniff` is the laptop side of the OBD2 CAN Sniffer. It connects to the board over USB and lets
-you check its status, control it, watch events as they happen, and work with it interactively,
-from the command line or from a desktop app. A built-in **simulator** (`--port sim`) behaves like
+you check its status, control it, watch events as they happen, and type commands in a shell,
+from the command line or from a desktop app. The board formats nothing for people; this tool
+does all the presenting. A built-in **simulator** (`--port sim`) behaves like
 the real board, so everything can be tried without hardware.
 
 ## Install
@@ -22,19 +23,17 @@ obdsniff ports                     # list serial ports; the Nucleo is marked
 obdsniff info                      # firmware version and board status
 obdsniff version                   # firmware version and chip identity only
 obdsniff status                    # uptime, last reset, clocks, serial statistics
-obdsniff led on                    # on | off | auto (heartbeat)
 obdsniff fault                     # details of the last crash, if any (--clear forgets it)
 obdsniff reset                     # restart the board and reconnect
 obdsniff crash bus                 # debug firmware: crash on purpose, show what was recorded
 obdsniff can loopback              # CAN in loopback: the board receives its own frames
 obdsniff can test                  # send 10,000 test frames and check that every one arrives
-obdsniff can send 7DF 0201050000000000   # one frame (hex, as in Linux's cansend)
 obdsniff can stream off            # stop sending frames to the laptop (the board still counts them)
 obdsniff can                       # CAN status: frames received, dropped, error counters
 obdsniff can off
 obdsniff obd watch                 # OBD2 live data from the simulated ECU (starts loopback, Ctrl-C stops)
 obdsniff obd                       # the tester's latest answers once: values, trouble codes, VIN
-obdsniff obd start                 # start or stop the board's OBD2 tester (needs loopback)
+obdsniff obd ask rpm               # ask one question: vin, codes, status, rpm, speed, ...
 obdsniff monitor                   # print CAN frames and events as they happen (turns streaming on)
 obdsniff monitor --log trace.log   # ...and save the frames in candump format
 obdsniff shell                     # interactive session
@@ -78,7 +77,7 @@ Passed.
 ```
 
 Each test frame carries its own number, so `can test` checks every frame arrived, in order and
-undamaged. `monitor` shows frames as the board prints them:
+undamaged. `monitor` shows one line per frame: receive time, ID, length, data:
 
 ```
   1277.564848  123       [8]  24 00 00 00 DB FF FF FF
@@ -89,9 +88,6 @@ undamaged. `monitor` shows frames as the board prints them:
 SavvyCAN can open. With `--json`, each frame is one JSON object per line. When `monitor` stops it
 reports how many frames arrived and how many were lost, from the gaps in the board's capture
 numbers.
-
-When it finishes, the tool switches the board back to interactive mode, so a serial terminal
-opened afterwards works as usual.
 
 ### Interactive shell
 
@@ -109,8 +105,8 @@ Board restarted after the crash. What it recorded:
   ...
 ```
 
-Commands are passed to the board. The shell keeps the board in host mode underneath, formats the
-replies, shows events as they arrive, and reconnects automatically after `reset` or `crash`.
+Commands are passed to the board. The shell formats the replies, shows events and frames as they
+arrive, and reconnects automatically after `reset` or `crash`.
 
 ## Desktop app
 
@@ -123,7 +119,7 @@ obdsniff gui                       # or: obdsniff --port sim gui
 
 Pick the port (the Nucleo is found and selected automatically; the simulator is always listed)
 and press **Connect**. The left side shows the board's version, status and last crash, and has
-buttons for the LED, restarting the board and clearing the crash record. The console on the right
+buttons for restarting the board and clearing the crash record. The console on the right
 takes the same commands as the shell, and events such as button presses appear there as they
 happen.
 
@@ -133,16 +129,16 @@ lost and damaged packets:
 
 ![The CAN tab after 10,000 test frames in loopback, none lost](../docs/images/desktop-app-can.png)
 
-The **OBD2** tab starts the board's OBD2 tester (and CAN loopback, if it is off) and shows what it
-reads from the simulated engine ECU as it changes: engine speed, vehicle speed, throttle, engine
-load, coolant and intake temperature and run time, the warning light, stored trouble codes, the
-VIN, and the request counters. The tab also follows a tester started from the console.
+The **OBD2** tab asks the board's OBD2 tester one question after another (starting CAN loopback, if
+it is off) and shows what it reads from the simulated engine ECU as it changes: engine speed,
+vehicle speed, throttle, engine load, coolant and intake temperature and run time, the warning
+light, stored trouble codes, the VIN, and the request counters. **Stop** stops the questions, and
+the board then sends nothing more: it never asks on its own.
 
-![The OBD2 tab on the board: 511 requests in about 5 seconds, every one answered](../docs/images/desktop-app-obd.png)
+![The OBD2 tab on the board: 101 questions asked by the laptop in about 5 seconds, every one answered](../docs/images/desktop-app-obd.png)
 
 The connection to the board runs on its own thread, so the window stays responsive even while the
-board restarts or thousands of frames a second stream in. When the app closes, the board is
-handed back in interactive mode.
+board restarts or thousands of frames a second stream in.
 
 ## As a library
 
@@ -151,7 +147,6 @@ from obdsniff import open_device
 
 with open_device("sim") as board:  # or a port path, or None to find the board
     print(board.status()["uptime_ms"])
-    board.set_led("on")
     print(board.poll_events(timeout=1.0))  # e.g. ['button pressed']
 ```
 

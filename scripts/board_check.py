@@ -26,12 +26,13 @@ from dataclasses import dataclass
 
 from obdsniff.cantest import analyse, collect_test_frames, run_test
 from obdsniff.device import CommandError, Device, DeviceError
+from obdsniff.obdplan import ObdReader
 from obdsniff.packets import FrameGaps
 from obdsniff.ports import find_board
 from obdsniff.sim.obd import DTCS, PIDS, VIN, dtc_text
 from obdsniff.transport import BAUD_RATE, SerialTransport, Transport
 
-SYSCLK_HZ = 180_000_000
+SYSCLK_HZ = 168_000_000
 WATCHDOG_MS = 500
 # The board's clock comes from the ST-LINK's crystal (tens of ppm). The
 # internal oscillator it falls back to is only trimmed to 1% (10,000 ppm).
@@ -55,9 +56,12 @@ FAULT_TYPES = {
     "hard": "HardFault",
 }
 REPLY_IDLE_TIMEOUT = 2.0  # seconds without output before giving up on burst replies
-# The tester waits 10 ms after each reply, so it asks about 100 times a second.
-# A stalled tester or slow replies would show as far fewer.
-OBD_MIN_RATE = 50
+# The laptop asks whenever the board's tester is free, and the board spaces its
+# requests at least 50 ms apart (the transmit guard's limit: 20 a second). A
+# stalled tester or slow replies would show as fewer; a broken limit as more.
+OBD_MIN_RATE = 15
+OBD_MAX_RATE = 20
+OBD_STEP_S = 0.02  # how often the check asks the next question
 
 
 @dataclass(frozen=True)
@@ -210,15 +214,21 @@ class BoardCheck:
     def can_off_refuses_to_send(self) -> None:
         self.device.can_off()
         refused = []
-        for command in ("can send 123", "can test 1"):
+        for command in ("can test 1", "obd ask rpm"):
             try:
                 self.device.command(command)
             except CommandError:
                 refused.append(command)
+        try:
+            self.device.command("can send 123 01")
+            no_raw_send = False
+        except CommandError as err:
+            no_raw_send = err.reason == "invalid argument"
         self.record(
             "CAN safety",
-            len(refused) == 2,
-            f"with CAN off, {len(refused)} of 2 transmit commands refused",
+            len(refused) == 2 and no_raw_send,
+            f"with CAN off, {len(refused)} of 2 transmit commands refused; "
+            + ("no command sends a frame by hand" if no_raw_send else "`can send` STILL EXISTS"),
         )
 
     def note_interrupt_time(self) -> None:
@@ -303,41 +313,57 @@ class BoardCheck:
 
     def obd2(self) -> None:
         """The board's OBD2 tester against its simulated engine ECU, through the
-        real CAN controller in loopback: every request answered in time, every
-        live value read, and the multi-frame VIN and both trouble codes right."""
+        real CAN controller in loopback, asked as fast as it will go: every
+        request answered in time, every live value read, the multi-frame VIN
+        and both trouble codes right, and the rate within the guard's limit."""
         seconds = 3 if self.quick else 10
-        self.device.can_loopback(500)
+        self.device.can_loopback(500)  # also clears the guard's count of refusals
         self.device.can_stream(False)  # the OBD2 frames stay on the board
-        self.device.obd_start()
-        time.sleep(seconds)
-        obd = self.device.obd_status()  # read while running: one request may be in flight
-        self.device.obd_stop()
+        before = self.device.obd_status()
+        reader = ObdReader()
+        end = time.monotonic() + seconds
+        while time.monotonic() < end:
+            reader.step(self.device)
+            time.sleep(OBD_STEP_S)
+        time.sleep(0.1)  # the last question asked has been answered
+        obd = self.device.obd_status()
+        time.sleep(1.0)  # the laptop has stopped asking: so must the board
+        silent = self.device.obd_status()["obd_requests"] == obd["obd_requests"]
+        refused = int(self.device.can_status()["can_tx_refused"])
         self.note_interrupt_time()
         self.device.can_off()
         self.device.can_stream(True)
-        requests, replies = int(obd["obd_requests"]), int(obd["obd_replies"])
-        timeouts, errors = int(obd["obd_timeouts"]), int(obd["obd_errors"])
-        rate = requests / seconds
+
+        def since(key: str) -> int:
+            return int(obd[key]) - int(before[key])  # the counters run from start-up
+
+        requests, replies = since("obd_requests"), since("obd_replies")
+        timeouts, errors = since("obd_timeouts"), since("obd_errors")
+        # Requests are spaced at least 50 ms apart: count the gaps between them.
+        rate = max(requests - 1, 0) / seconds
         unread = [pid.key for pid in PIDS if obd[pid.key] == "-"]
         vin_ok = obd["obd_vin"] == VIN
         dtcs_ok = obd["obd_dtcs"] == " ".join(dtc_text(code) for code in DTCS)
         self.record(
             "OBD2",
-            rate >= OBD_MIN_RATE
-            and requests - replies in (0, 1)
+            OBD_MIN_RATE <= rate <= OBD_MAX_RATE
+            and silent
+            and refused == 0
+            and requests == replies
             and timeouts == 0
             and errors == 0
             and vin_ok
             and dtcs_ok
             and obd["obd_mil"] == "on"
             and not unread,
-            f"{requests:,} requests in {seconds} s ({rate:.0f}/s, at least {OBD_MIN_RATE}): "
-            f"{replies:,} replies, "
+            f"{requests:,} requests in {seconds} s ({rate:.1f}/s, {OBD_MIN_RATE} to "
+            f"{OBD_MAX_RATE}), {refused} refused by the guard: {replies:,} replies, "
             f"{timeouts} timeouts, {errors} errors; VIN "
             + ("right" if vin_ok else f"WRONG ({obd['obd_vin']})")
             + ", trouble codes "
             + ("right" if dtcs_ok else f"WRONG ({obd['obd_dtcs']})")
-            + (f"; NOT READ: {', '.join(unread)}" if unread else ""),
+            + (f"; NOT READ: {', '.join(unread)}" if unread else "")
+            + ("; then silent when not asked" if silent else "; KEPT SENDING WHEN NOT ASKED"),
         )
 
     def interrupt_time(self) -> None:

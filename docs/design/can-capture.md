@@ -12,8 +12,7 @@ can be.
   nothing else, so it never falls behind.
 - **Sending them on.** The main program takes frames from the queue and sends each one to the
   laptop as a small binary packet, 25 bytes at most, with a checksum. Packets share the USB
-  serial line with the text console. A person typing in a terminal sees each frame as a
-  readable line instead.
+  serial line with the replies to commands.
 - **Proving nothing is lost.** Each frame's sequence number is assigned the moment it arrives,
   even if the board then has to drop it, so a missing number on the laptop always means a lost
   frame. `obdsniff can test` sends numbered test frames and checks that every one arrives.
@@ -45,7 +44,7 @@ same capture path.
           frame queue (lock-free, 8 KB = 409 frames)          board: firmware/
                        │ main loop
                        ▼
-          can_stream_task: packet (host mode) or text line (interactive)
+          can_stream_task: packet (COBS framing + CRC-16)
                        │ leaves 1 KB for command replies, never waits
                        ▼
           transmit ring (4 KB) ──► DMA ──► USART2 1.5 Mbaud ──► ST-LINK USB
@@ -58,9 +57,9 @@ same capture path.
 
 ### Receiving: `firmware/can/can_drv.c`
 
-- **Pins and clock.** CAN1 on PB8 (receive) and PB9 (transmit), clocked from the 45 MHz APB1 bus.
+- **Pins and clock.** CAN1 on PB8 (receive) and PB9 (transmit), clocked from the 42 MHz APB1 bus.
   Bit timing comes from the calculator in `lib/can/can_timing.c`: at 500 kbit/s, prescaler 6 and
-  15 time quanta per bit, sampling at 86.7% (see [hardware.md](hardware.md#can-bit-timing)).
+  14 time quanta per bit, sampling at 85.7% (see [hardware.md](hardware.md#can-bit-timing)).
 - **Filter.** One filter bank in 32-bit mask mode with an all-zero mask, so every frame is
   accepted into FIFO 0. A sniffer wants everything.
 - **Interrupt.** The FIFO-0 "message pending" interrupt runs at priority 1, second only to the
@@ -78,14 +77,16 @@ same capture path.
 
   A FIFO overrun (a frame lost inside the controller, before the interrupt could run) is
   counted too. The handler measures its own duration with the CPU's cycle counter: 7 µs at
-  most for capture alone and 10 µs with OBD2 traffic (the extra copy), against 238 µs between
+  most for capture alone and 10 µs with OBD2 traffic (the extra copy). Since v0.5.0 (168 MHz, and
+  the laptop asking each OBD2 question) it is up to 14 µs in the Debug build and 9 µs in Release,
+  counting serial interrupts that preempt it, against 238 µs between
   frames at full load.
 - **Off at start-up.** CAN is only started by a command, and sending is only allowed in loopback.
   A tool on a car's network must never transmit by accident.
 
 ### Timestamps: `firmware/system/timebase.c`
 
-TIM2 is a 32-bit timer. Clocked at 90 MHz with a prescaler of 90, it counts microseconds and wraps
+TIM2 is a 32-bit timer. Clocked at 84 MHz with a prescaler of 84, it counts microseconds and wraps
 after 71.6 minutes; the laptop tool unwraps it. The timestamp is taken when the interrupt
 handler runs, a few microseconds after the frame ends. The measured spacing of back-to-back
 8-byte frames at 500 kbit/s is 234 to 252 µs. That matches the theory: about 119 bits including
@@ -125,9 +126,9 @@ the last few frames of a burst are dropped, the laptop learns of it with the nex
 that comes. The board check (`scripts/board_check.py`) accounts for this: its test frames are
 numbered from 0, so it counts losses after the last frame received separately.
 
-### Sending: `firmware/can/can_stream.c`, `lib/link/packet.c`, `lib/link/can_text.c`
+### Sending: `firmware/can/can_stream.c`, `lib/link/packet.c`
 
-- **Host mode:** each frame becomes a packet (format in [protocol.md](../protocol.md#can-frame-packets)):
+- **Packets:** each frame becomes a packet (format in [protocol.md](../protocol.md#can-frame-packets)):
   `0x00 | COBS(type, capture number, timestamp, ID, length, data, CRC-16) | 0x00`.
   - Binary because a frame is 25 bytes this way and about 55 as text: at 1.5 Mbaud that is about
     5,900 frames per second against 2,700. A fully loaded 500 kbit/s bus produces up to about
@@ -135,16 +136,15 @@ numbered from 0, so it counts losses after the last frame received separately.
   - COBS removes every zero byte from the packet and text never contains one, so zeros mark
     packet boundaries unambiguously in the mixed stream. A receiver that loses a byte finds the
     next packet at the next zero.
-- **Interactive mode:** each frame becomes a readable line, built by hand rather than with
-  `printf`.
 - **Never waiting, never starving commands.** A frame is taken from the queue only once its output
   fits in the transmit buffer *beyond* the 1 KB reserved for command replies. If the serial link
   can't keep up, frames wait in the queue rather than blocking the main loop, and commands still
   get an immediate reply.
 - **Streaming can be switched off** (`can stream off`). Frames are then still received, counted
   and taken out of the queue (so the queue never fills and nothing is counted as dropped), but
-  not sent. A person in a serial terminal can keep the console readable while the board is busy
-  with other traffic. `obdsniff monitor` and `obdsniff can test` switch it back on.
+  not sent: for when the laptop doesn't want the frames, or to measure what the board can capture
+  without the serial link as the limit. `obdsniff monitor` and `obdsniff can test` switch it back
+  on.
 
 ### On the laptop: `host/src/obdsniff/packets.py`
 

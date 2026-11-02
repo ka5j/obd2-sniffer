@@ -20,15 +20,14 @@ from .conftest import ScriptedTransport
 
 
 def test_connect_recovers_from_half_typed_line(board) -> None:
-    board.feed(b"led o")  # someone left a partial command in the terminal
+    board.feed(b"can loopba")  # a program stopped half-way through a command
     board.take_output()
     dev = Device(SimulatedTransport(board), timeout=0.5)
     dev.connect()
-    assert board.mode == "host"
-    assert board.led == "auto"  # the partial command was discarded, not run
+    assert board.can.mode == "off"  # the partial command was discarded, not run
 
 
-def test_connect_keeps_events_from_a_board_already_in_host_mode() -> None:
+def test_connect_keeps_events() -> None:
     dev = Device(ScriptedTransport([b"!button pressed\r\n", b"OK\r\n"]), timeout=0.05)
     dev.connect()
     assert dev.poll_events() == ["button pressed"]
@@ -45,14 +44,12 @@ def test_connect_times_out_without_reply() -> None:
 
 def test_queries_return_fields(device, board) -> None:
     assert device.version()["firmware"] == "simulator"
-    assert device.status()["led"] == "auto"
+    assert device.status()["last_fault"] == "none"
     assert device.fault() == {"fault": "none"}
-    assert any(line.startswith("  led ") for line in device.help())
+    assert any(line.startswith("  fault ") for line in device.help())
 
 
-def test_set_led_and_clear_fault(device, board) -> None:
-    device.set_led("on")
-    assert board.led == "on"
+def test_clear_fault(device, board) -> None:
     device.crash("bus")
     assert device.fault()["fault"] == "BusFault"
     device.clear_fault()
@@ -61,14 +58,14 @@ def test_set_led_and_clear_fault(device, board) -> None:
 
 def test_error_reply_raises_command_error(device) -> None:
     with pytest.raises(CommandError) as info:
-        device.command("led blue")
+        device.command("fault blue")
     assert info.value.reason == "invalid argument"
-    assert info.value.command == "led blue"
+    assert info.value.command == "fault blue"
 
 
 def test_command_must_be_one_line(device) -> None:
     with pytest.raises(ValueError, match="single line"):
-        device.command("led on\rreset")
+        device.command("fault clear\rreset")
 
 
 def test_command_times_out() -> None:
@@ -91,14 +88,14 @@ def test_parse_fields_splits_at_first_equals() -> None:
 
 def test_events_received_during_a_command_are_kept(device, board) -> None:
     board.press_button()
-    assert device.status()["led"] == "auto"
+    assert device.status()["last_fault"] == "none"
     assert device.poll_events() == ["button pressed"]
     assert device.poll_events() == []
 
 
 def test_event_interleaved_with_a_reply_is_kept() -> None:
-    dev = Device(ScriptedTransport([b"led=auto\r\n!button pressed\r\nOK\r\n"]), timeout=0.05)
-    assert dev.status() == {"led": "auto"}
+    dev = Device(ScriptedTransport([b"last_fault=none\r\n!button pressed\r\nOK\r\n"]), timeout=0.05)
+    assert dev.status() == {"last_fault": "none"}
     assert dev.poll_events() == ["button pressed"]
 
 
@@ -110,7 +107,7 @@ def test_poll_events_without_waiting_reads_new_events(device, board) -> None:
 def test_stale_reply_lines_are_discarded_before_a_command(device, board) -> None:
     # Leftovers from an earlier command that timed out, plus an event.
     device._buffer += b"uptime_ms=1\r\nOK\r\n!button pressed\r\n"
-    assert device.status()["led"] == "auto"  # its own reply, not the stale OK
+    assert device.status()["last_fault"] == "none"  # its own reply, not the stale OK
     assert device.poll_events() == ["button pressed"]
 
 
@@ -129,11 +126,10 @@ def test_poll_events_ignores_stray_lines() -> None:
 
 
 def test_reset_reconnects(device, board) -> None:
-    device.set_led("on")
+    device.command("can loopback")
     device.reset()
     assert board.reset_cause == "software"
-    assert board.mode == "host"
-    assert device.status()["led"] == "auto"
+    assert board.can.mode == "off"
 
 
 def test_reset_fails_if_board_does_not_come_back(monkeypatch) -> None:
@@ -145,7 +141,6 @@ def test_reset_fails_if_board_does_not_come_back(monkeypatch) -> None:
 
 def test_crash_waits_for_restart(device, board) -> None:
     device.crash("usage")
-    assert board.mode == "host"
     assert device.fault()["fault"] == "UsageFault"
 
 
@@ -158,7 +153,7 @@ def test_crash_rejected_by_release_firmware() -> None:
 
 def test_crash_fails_if_board_does_not_restart(monkeypatch) -> None:
     monkeypatch.setattr(device_module, "BOOT_TIMEOUT", 0.05)
-    # Start-up text arrives, but never the prompt.
+    # Start-up text arrives, but never the "started" event.
     dev = Device(ScriptedTransport([b"========\r\n"]), timeout=0.05)
     with pytest.raises(ProtocolError, match="did not restart"):
         dev.crash("bus")
@@ -175,24 +170,14 @@ def test_context_manager_closes_transport() -> None:
     assert transport.written == []  # never connected: maybe not the board, send nothing
 
 
-def test_close_hands_the_console_back_in_interactive_mode(device, board) -> None:
-    assert board.mode == "host"
-    device.close()
-    assert board.mode == "interactive"  # a serial terminal opened next gets prompt and echo
-
-
-def test_close_still_closes_the_port_if_the_board_was_unplugged() -> None:
-    class UnpluggedTransport(ScriptedTransport):
-        def write(self, data: bytes) -> None:
-            if self.closed or data == b"mode interactive\r":
-                raise serial.SerialException("device disconnected")
-            super().write(data)
-
-    transport = UnpluggedTransport([b"", b"OK\r\n"])
+def test_close_sends_nothing() -> None:
+    transport = ScriptedTransport([b"OK\r\n"])
     dev = Device(transport, timeout=0.05)
     dev.connect()
+    sent = list(transport.written)
     dev.close()
     assert transport.closed
+    assert transport.written == sent  # the board needs no goodbye
 
 
 def test_open_simulator() -> None:
@@ -262,8 +247,10 @@ def connected_scripted(*replies: bytes) -> tuple[Device, ScriptedTransport]:
 
 
 def test_frames_between_reply_lines_do_not_disturb_the_reply() -> None:
-    dev, _ = connected_scripted(GOLDEN + b"led=on\r\n" + GOLDEN + b"!button pressed\r\nOK\r\n")
-    assert dev.command("status") == ["led=on"]
+    dev, _ = connected_scripted(
+        GOLDEN + b"last_fault=none\r\n" + GOLDEN + b"!button pressed\r\nOK\r\n"
+    )
+    assert dev.command("status") == ["last_fault=none"]
     frames = dev.poll_frames()
     assert [f.id for f in frames] == [0x7E8, 0x7E8]
     assert frames[0].data == bytes.fromhex("04410C1AF8000000")
@@ -286,13 +273,13 @@ def test_damaged_packets_are_counted() -> None:
 
 
 def test_empty_lines_are_ignored() -> None:
-    dev, _ = connected_scripted(b"\r\nled=on\r\n\r\nOK\r\n")
-    assert dev.command("status") == ["led=on"]
+    dev, _ = connected_scripted(b"\r\nlast_fault=none\r\n\r\nOK\r\n")
+    assert dev.command("status") == ["last_fault=none"]
 
 
 def test_crash_is_detected_while_frames_stream() -> None:
     dev, _ = connected_scripted(
-        GOLDEN + GOLDEN + b"\r\n========\r\n Crash    BusFault\r\nobd> ", b"", b"OK\r\n"
+        GOLDEN + GOLDEN + b"\r\n========\r\n Crash    BusFault\r\n!started\r\n", b"", b"OK\r\n"
     )
-    dev.crash("bus")  # finds the prompt among the packets, then reconnects
+    dev.crash("bus")  # finds "started" among the packets, then reconnects
     assert len(dev.poll_frames()) == 2

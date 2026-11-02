@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-# Display names for the board's data keys (the same wording as the board's
-# interactive mode).
+# Display names for the board's data keys. The board sends only the keys;
+# the laptop tool shows them to people under these names.
 LABELS: dict[str, str] = {
     "firmware": "Firmware",
     "build": "Build",
@@ -17,7 +17,6 @@ LABELS: dict[str, str] = {
     "sysclk_hz": "CPU clock (Hz)",
     "watchdog_timeout_ms": "Watchdog (ms)",
     "last_fault": "Last crash",
-    "led": "LED",
     "uart_rx_bytes": "Serial received",
     "uart_rx_dropped": "  dropped",
     "uart_rx_overruns": "  overruns",
@@ -43,11 +42,12 @@ LABELS: dict[str, str] = {
     "can_stream": "Streaming",
     "can_streamed": "Sent to laptop",
     "can_tx_frames": "Transmitted",
+    "can_tx_refused": "  refused (guard)",
     "can_test_frames": "Test frames",
     "can_isr_max_us": "Longest IRQ (us)",
     "can_tec": "TX error count",
     "can_rec": "RX error count",
-    "obd_tester": "Tester",
+    "obd_request": "Request",
     "obd_ecu": "Simulated ECU",
     "obd_rpm": "Engine (rpm)",
     "obd_speed": "Speed (km/h)",

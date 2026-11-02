@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import pytest
 
+from obdsniff.obdplan import ObdPlan
 from obdsniff.packets import StreamSplitter
 from obdsniff.sim.board import SimulatedBoard
 from obdsniff.sim.obd import (
@@ -134,9 +135,9 @@ def test_ecu_node_sends_the_vin_after_flow_control() -> None:
 def test_tester_keeps_what_the_c_client_keeps() -> None:
     """Replies it can't use count as errors, as obd_client.c counts them."""
     tester = SimulatedTester()
-    tester.start(0)
 
     def reply(hex_data: str) -> None:
+        tester.waiting = True  # as if each had been asked
         tester.frame(0x7E8, bytes.fromhex(hex_data), lambda *_: None)
 
     reply("06410182000000cc")
@@ -155,6 +156,7 @@ def test_tester_keeps_what_the_c_client_keeps() -> None:
 
     def vin_reply(message: bytes) -> None:
         sent: list[bytes] = []
+        tester.waiting = True
         tester.frame(0x7E8, bytes([0x10, len(message)]) + message[:6], lambda _, d: sent.append(d))
         assert sent == [bytes.fromhex("300000cccccccccc")]
         for n in range(6, len(message), 7):
@@ -167,13 +169,17 @@ def test_tester_keeps_what_the_c_client_keeps() -> None:
     assert tester.vin is None
 
 
-def test_tester_ignores_frames_until_started() -> None:
+def test_tester_ignores_frames_unless_waiting_for_a_reply() -> None:
     tester = SimulatedTester()
     assert not tester.frame(0x7E8, bytes.fromhex("04410c1af8cccccc"), lambda *_: None)
-    tester.start(0)
+    assert tester.ask(bytes([0x01, 0x0C]))
+    assert not tester.ask(bytes([0x03]))  # one question at a time
+    tester.pending, tester.waiting = None, True  # sent
     assert not tester.frame(0x7E9, bytes.fromhex("04410c1af8cccccc"), lambda *_: None)
     assert tester.frame(0x7E8, bytes.fromhex("04410c1af8cccccc"), lambda *_: None)
     assert tester.values["obd_rpm"] == 1726
+    assert not tester.busy()
+    tester.waiting = True
     tester.frame(0x7E8, bytes.fromhex("03410c1acccccccc"), lambda *_: None)  # too short
     assert "obd_rpm" not in tester.values  # forgotten, as obd_client.c does
 
@@ -184,7 +190,6 @@ def test_tester_ignores_frames_until_started() -> None:
 def host_board(clock) -> SimulatedBoard:
     board = SimulatedBoard(clock=clock)
     board.take_output()
-    run(board, "mode host\r")
     return board
 
 
@@ -194,27 +199,44 @@ def fields(board: SimulatedBoard) -> dict[str, str]:
     return dict(line.split("=", 1) for line in lines[:-1])
 
 
+def ask_for(board: SimulatedBoard, clock, seconds: float, plan: ObdPlan) -> None:
+    """The laptop's side: every 20 ms, ask the next question if the tester is free."""
+    for _ in range(round(seconds / 0.02)):
+        if fields(board)["obd_request"] == "idle":
+            have_vin = fields(board)["obd_vin"] != "-"
+            assert run(board, f"obd ask {plan.next_question(have_vin)}\r") == "OK\r\n"
+        clock.advance(0.02)
+
+
 def test_obd_needs_loopback(clock) -> None:
     board = host_board(clock)
-    assert run(board, "obd start\r") == "ERR command failed\r\n"
+    assert run(board, "obd ask rpm\r") == "ERR command failed\r\n"
     f = fields(board)
-    assert (f["obd_tester"], f["obd_ecu"], f["obd_rpm"], f["obd_vin"]) == (
-        "stopped",
-        "off",
-        "-",
-        "-",
-    )
+    assert (f["obd_request"], f["obd_ecu"], f["obd_rpm"], f["obd_vin"]) == ("idle", "off", "-", "-")
     assert run(board, "obd bogus\r") == "ERR invalid argument\r\n"
+    assert run(board, "obd ask\r").startswith("ERR wrong number of arguments")
+    run(board, "can loopback\r")
+    assert run(board, "obd ask nothing\r") == "ERR invalid argument\r\n"
+
+
+def test_obd_answers_only_what_it_is_asked(clock) -> None:
+    board = host_board(clock)
+    run(board, "can stream off\r")
+    run(board, "can loopback\r")
+    clock.advance(1.0)
+    assert fields(board)["obd_requests"] == "0"  # nothing asked, nothing sent
+    assert run(board, "obd ask rpm\r") == "OK\r\n"
+    f = fields(board)
+    assert (f["obd_rpm"], f["obd_requests"], f["obd_request"]) == ("800", "1", "idle")
 
 
 def test_obd_reads_the_simulated_ecu(clock) -> None:
     board = host_board(clock)
     run(board, "can stream off\r")
     run(board, "can loopback\r")
-    assert run(board, "obd start\r") == "OK\r\n"
-    clock.advance(1.0)
+    plan = ObdPlan(clock=clock)
+    ask_for(board, clock, 1.0, plan)
     f = fields(board)
-    assert f["obd_tester"] == "running"
     assert f["obd_ecu"] == "on"
     assert f["obd_vin"] == "1M8GDM9AXKP042788"
     assert f["obd_dtcs"] == "P0301 P0420"
@@ -223,30 +245,31 @@ def test_obd_reads_the_simulated_ecu(clock) -> None:
     assert f["obd_coolant"] == "20"
     assert f["obd_throttle"] == "0.0"
     assert f["obd_requests"] == f["obd_replies"]
-    assert 90 <= int(f["obd_requests"]) <= 100  # one every 10 ms or so
+    assert 18 <= int(f["obd_requests"]) <= 20  # one every 50 ms or so: the guard allows 20/s
     assert (f["obd_timeouts"], f["obd_errors"]) == ("0", "0")
 
-    clock.advance(7.0)  # into the acceleration
+    ask_for(board, clock, 7.0, plan)  # into the acceleration
     assert int(fields(board)["obd_rpm"]) > 2000
-    assert run(board, "obd stop\r") == "OK\r\n"
-    requests = fields(board)["obd_requests"]
-    clock.advance(1.0)
-    assert fields(board)["obd_requests"] == requests  # stopped
-    assert fields(board)["obd_tester"] == "stopped"
+    clock.advance(0.1)
+    requests = fields(board)["obd_requests"]  # the last question asked has gone too
+    clock.advance(1.0)  # the laptop stops asking
+    assert fields(board)["obd_requests"] == requests  # so the board sends nothing
+    assert fields(board)["obd_request"] == "idle"
 
 
 def test_obd_traffic_is_captured_like_any_other(clock) -> None:
     board = host_board(clock)
     run(board, "can loopback\r")
     splitter = StreamSplitter()
-    board.feed(b"obd start\r")  # the first request goes with the reply
+    board.feed(b"obd ask vin\r")
     splitter.feed(board.take_output())
-    clock.advance(0.05)
+    board.feed(b"obd ask codes\r")
+    clock.advance(0.06)  # the next request goes 50 ms after the last
     board.feed(b"can\r")
     splitter.feed(board.take_output())
     first = [(f.id, f.data.hex()) for f in list(splitter.frames)[:6]]
     assert first == [
-        (0x7DF, "020902cccccccccc"),  # the VIN first
+        (0x7DF, "020902cccccccccc"),  # the VIN
         (0x7E8, "1014490201314d38"),
         (0x7E0, "300000cccccccccc"),
         (0x7E8, "2147444d3941584b"),
@@ -266,26 +289,23 @@ def test_device_obd_methods(clock) -> None:
     dev = Device(SimulatedTransport(board), timeout=0.5)
     dev.connect()
     with pytest.raises(CommandError, match="command failed"):
-        dev.obd_start()  # CAN is off
+        dev.obd_ask("vin")  # CAN is off
     dev.can_loopback()
-    dev.obd_start()
-    clock.advance(0.5)
+    dev.obd_ask("vin")
     status = dev.obd_status()
-    assert (status["obd_tester"], status["obd_vin"]) == ("running", "1M8GDM9AXKP042788")
-    dev.obd_stop()
-    assert dev.obd_status()["obd_tester"] == "stopped"
+    assert (status["obd_request"], status["obd_vin"]) == ("idle", "1M8GDM9AXKP042788")
 
 
-def test_can_off_stops_the_tester_and_a_raw_request_is_answered(clock) -> None:
+def test_can_off_cancels_a_question_and_a_raw_request_is_answered(clock) -> None:
     board = host_board(clock)
     run(board, "can loopback\r")
     splitter = StreamSplitter()
-    board.feed(b"can send 7df 02010d\r")  # a request typed by hand
+    board.can._transmit(0x7DF, bytes.fromhex("02010d"))  # a request from outside the tester
     splitter.feed(board.take_output())
     assert [(f.id, f.data[:4].hex()) for f in splitter.frames] == [
         (0x7DF, "02010d"),
         (0x7E8, "03410d00"),  # speed 0 at idle
     ]
-    run(board, "obd start\r")
+    run(board, "obd ask rpm\r")  # not sent yet when CAN goes off
     run(board, "can off\r")
-    assert fields(board)["obd_tester"] == "stopped"
+    assert fields(board)["obd_request"] == "idle"

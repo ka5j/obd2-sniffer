@@ -9,14 +9,13 @@
 #include <stddef.h>
 
 #include "console/cli.h"
-#include "system/clock.h"
 #include "system/reset_cause.h"
 
 const cli_command_t *commands_table(void);
 size_t commands_count(void);
 
 /* Facts established at start-up, reported by `status`. */
-void commands_set_boot_info(reset_cause_t cause, clock_source_t clock);
+void commands_set_boot_info(reset_cause_t cause);
 
 /* True once `reset` has been accepted. The main loop sends the reply, waits
  * for it to leave the UART, then restarts the chip. */

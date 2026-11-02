@@ -30,10 +30,10 @@ on purpose, so the recovery path is exercised rather than assumed.
 
 ## What gets reported
 
-Output from the board after `crash bus` (addresses depend on the build):
+`obdsniff fault` after `obdsniff crash bus` (addresses depend on the build):
 
 ```
-obd> fault
+$ obdsniff fault
   Last crash        BusFault
   Cause             bus error on data access
   At address (PC)   0x08000D8E

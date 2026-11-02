@@ -1,17 +1,17 @@
-"""Talk to the board over its serial console in host mode.
+"""Talk to the board over its serial console.
 
 Protocol summary (full description in docs/protocol.md):
   * Requests are command lines ending in CR.
   * Replies are data lines followed by a final "OK" or "ERR <reason>".
   * Data lines from version/status/fault are "key=value".
-  * Lines starting with "!" are events and may arrive at any time.
+  * Lines starting with "!" are events and may arrive at any time. The
+    start-up report ends with the event "!started".
   * Captured CAN frames arrive as binary packets between the lines; they are
     separated from the text as soon as they are read (see packets.py).
 """
 
 from __future__ import annotations
 
-import contextlib
 import time
 from collections import deque
 from collections.abc import Callable
@@ -21,10 +21,9 @@ import serial
 from obdsniff.packets import CanFrame, StreamSplitter
 from obdsniff.transport import SerialTransport, Transport
 
-PROMPT = b"obd> "
+STARTED = b"!started\r\n"  # the last line of the start-up report
 DEFAULT_TIMEOUT = 2.0  # seconds to wait for a reply
 BOOT_TIMEOUT = 5.0  # seconds to wait for the board to restart
-RESTORE_TIMEOUT = 0.5  # seconds to wait for the prompt when handing the console back
 READ_SLICE = 0.05  # longest single blocking read, keeps loops responsive
 
 
@@ -71,7 +70,6 @@ class Device:
         self._buffer = bytearray()  # text only: packets are taken out on arrival
         self._splitter = StreamSplitter()
         self._events: deque[str] = deque()
-        self._connected = False
 
     # ---- context manager -------------------------------------------------
 
@@ -82,21 +80,8 @@ class Device:
         self.close()
 
     def close(self) -> None:
-        """Hand the console back to people, then release the port.
-
-        Switches the board to interactive mode, so a serial terminal opened
-        afterwards gets a prompt and echo instead of silent host mode. The
-        reply comes in the new mode: the prompt, not OK. Nothing is sent if
-        connect() never succeeded (it may not be the board), and a board
-        that has gone away doesn't stop the port being closed."""
-        try:
-            if self._connected:
-                self._connected = False
-                with contextlib.suppress(OSError):  # port already gone, e.g. unplugged
-                    self._transport.write(b"mode interactive\r")
-                    self._wait_for(PROMPT, self._clock() + RESTORE_TIMEOUT)
-        finally:
-            self._transport.close()
+        """Release the port."""
+        self._transport.close()
 
     # ---- low-level reading -----------------------------------------------
 
@@ -114,7 +99,7 @@ class Device:
     def _read_line(self, deadline: float) -> str | None:
         """Next non-empty line without its line ending, or None on timeout.
 
-        Host mode never sends an empty line; skipping them keeps a stray line
+        The board never sends an empty line; skipping them keeps a stray line
         break (for example from a damaged packet) out of a reply."""
         while True:
             end = self._buffer.find(b"\n")
@@ -152,16 +137,16 @@ class Device:
     # ---- protocol --------------------------------------------------------
 
     def connect(self) -> None:
-        """Bring the console into host mode, whatever state it was in.
+        """Check that the board answers, whatever state the line was in.
 
-        Ctrl-C discards anything half-typed; `mode host` switches mode. Echo
-        and prompt text before the final OK come from interactive mode and
-        are ignored; events ("!" lines, if the board was already in host mode)
-        are kept."""
+        Ctrl-C discards anything half-sent, for example by a program that
+        stopped mid-command. `version` is then answered with data lines and
+        OK; text before the OK (such as a start-up report) is ignored, and
+        events are kept."""
         self._buffer.clear()
         self._splitter.reset()
-        self._transport.write(b"\x03\r")
-        self._transport.write(b"mode host\r")
+        self._transport.write(b"\x03")
+        self._transport.write(b"version\r")
         deadline = self._clock() + self._timeout
         while True:
             line = self._read_line(deadline)
@@ -170,7 +155,6 @@ class Device:
                     "no reply from the board: is this the right port, and is the firmware running?"
                 )
             if line == "OK":
-                self._connected = True
                 return
             if line.startswith("!"):
                 self._events.append(line[1:])
@@ -214,9 +198,6 @@ class Device:
     def clear_fault(self) -> None:
         self.command("fault clear")
 
-    def set_led(self, mode: str) -> None:
-        self.command(f"led {mode}")
-
     def help(self) -> list[str]:
         return self.command("help")
 
@@ -233,13 +214,6 @@ class Device:
     def can_off(self) -> None:
         self.command("can off")
 
-    def can_send(self, ident: int, data: bytes = b"") -> None:
-        """Send one frame (loopback only). IDs above 0x7FF are 29-bit."""
-        line = f"can send {ident:X}"
-        if data:
-            line += f" {data.hex()}"
-        self.command(line)
-
     def can_stream(self, on: bool) -> None:
         """Whether received frames are sent to the laptop. Off, the board still
         receives and counts them."""
@@ -254,23 +228,20 @@ class Device:
     # ---- OBD2 ----------------------------------------------------------------
 
     def obd_status(self) -> dict[str, str]:
-        """The board's OBD2 tester: live values, trouble codes, VIN, counters."""
+        """The board's OBD2 tester: latest answers, whether a request is in
+        progress, and counters since start-up."""
         return self.query("obd")
 
-    def obd_start(self) -> None:
-        """Start the tester (CAN must be in loopback, where the board also
-        plays the car's engine ECU)."""
-        self.command("obd start")
-
-    def obd_stop(self) -> None:
-        self.command("obd stop")
+    def obd_ask(self, what: str) -> None:
+        """Ask the engine ECU one question: `vin`, `codes`, `status` or a
+        live value such as `rpm` (see obdplan.py). CAN must be in loopback,
+        and the previous question answered."""
+        self.command(f"obd ask {what}")
 
     def reset(self) -> None:
         """Restart the board and reconnect once it is back."""
         self.command("reset")
-        # After a restart the board prints its start-up report in interactive
-        # mode, ending with the prompt.
-        if not self._wait_for(PROMPT, self._clock() + BOOT_TIMEOUT):
+        if not self._wait_for(STARTED, self._clock() + BOOT_TIMEOUT):
             raise ProtocolError("the board did not come back after reset")
         self.connect()
 
@@ -282,7 +253,7 @@ class Device:
         ERR instead."""
         self._transport.write(f"crash {kind}\r".encode("ascii"))
         deadline = self._clock() + BOOT_TIMEOUT
-        while PROMPT not in self._buffer:
+        while STARTED not in self._buffer:
             end = self._buffer.find(b"\n")
             if end >= 0:
                 line = bytes(self._buffer[:end]).decode("utf-8", errors="replace").rstrip("\r")
@@ -291,7 +262,7 @@ class Device:
                     raise CommandError(f"crash {kind}", line[4:])
             elif not self._fill(deadline):
                 raise ProtocolError("the board did not restart after the crash")
-        self._wait_for(PROMPT, deadline)
+        self._wait_for(STARTED, deadline)
         self.connect()
 
     def _collect(self, timeout: float) -> None:

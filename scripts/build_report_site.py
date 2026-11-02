@@ -124,6 +124,12 @@ def page(title: str, body: str) -> str:
     )
 
 
+def rule_order(rule: str) -> list[tuple[int, int, str]]:
+    """Sort key: MISRA rules in numeric order ("8.10" after "8.9"), then
+    cppcheck's own checks, which have names (such as "variableScope")."""
+    return [(0, int(part), "") if part.isdigit() else (1, 0, part) for part in rule.split(".")]
+
+
 def misra_page(summary: dict, meta: str, repo: str) -> str:
     """Compliance page for the MISRA C:2012 check (scripts/misra.py output)."""
     counts = summary["counts"]
@@ -168,10 +174,7 @@ def misra_page(summary: dict, meta: str, repo: str) -> str:
     rule_rows = "".join(
         f'<tr><td>{html.escape(rule)}</td><td class="num">{n}</td>'
         f"<td>{html.escape(', '.join(sorted(resolution_of.get(rule, []))))}</td></tr>"
-        for rule, n in sorted(
-            summary["by_rule"].items(),
-            key=lambda kv: [int(x) if x.isdigit() else x for x in kv[0].split(".")],
-        )
+        for rule, n in sorted(summary["by_rule"].items(), key=lambda kv: rule_order(kv[0]))
     )
 
     def items(rows: list[dict], key: str, with_mitigation: bool) -> str:

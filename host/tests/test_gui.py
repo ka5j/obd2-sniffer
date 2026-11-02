@@ -83,7 +83,7 @@ def test_starts_disconnected_with_the_board_selected(window) -> None:
     assert window.selected_port() == BOARD_PORT.device
     assert window.connect_button.text() == "Connect"
     assert not window.console_input.isEnabled()
-    assert not window.led_buttons["on"].isEnabled()
+    assert not window.reset_button.isEnabled()
     assert window.port_box.isEnabled()
 
 
@@ -111,10 +111,9 @@ def test_connect_shows_the_board(connected, opened) -> None:
     assert opened == [BOARD_PORT.device]
     assert connected.connect_button.text() == "Disconnect"
     assert connected.info_value("Board", "Firmware") == "simulator"
-    assert connected.info_value("Status", "LED") == "auto"
+    assert connected.info_value("Status", "Last crash") == "none"
     assert connected.info_value("Last crash", "Last crash") == "none"
     assert connected.info_value("Board", "No such label") is None
-    assert connected.led_buttons["auto"].isChecked()
     assert not connected.clear_fault_button.isEnabled()
     assert not connected.port_box.isEnabled()
     assert f"Connected to {BOARD_PORT.device}." in connected.console_text()
@@ -137,9 +136,8 @@ def test_connect_failure_is_reported(qtbot) -> None:
     assert window.connect_button.isEnabled()
 
 
-def test_disconnect_hands_the_board_back(connected, sim) -> None:
+def test_disconnect(connected) -> None:
     connected.connect_button.click()
-    assert sim.mode == "interactive"  # a serial terminal works again
     assert connected.connect_button.text() == "Connect"
     assert connected.info_tree.topLevelItemCount() == 0
     assert not connected.console_input.isEnabled()
@@ -157,18 +155,6 @@ def test_lost_connection(connected, worker, monkeypatch) -> None:
 
 
 # ---- controls -----------------------------------------------------------------
-
-
-def test_led_buttons(connected, sim) -> None:
-    connected.led_buttons["on"].click()
-    assert sim.led == "on"
-    assert connected.info_value("Status", "LED") == "on"
-    assert connected.led_buttons["on"].isChecked()
-
-
-def test_unknown_led_mode_checks_no_button(window) -> None:
-    window._on_info({}, {"led": "blink"}, {"fault": "none"})
-    assert window._led_group.checkedButton() is None
 
 
 def test_restart_button(connected) -> None:
@@ -214,8 +200,8 @@ def test_console_ignores_empty_lines(connected) -> None:
 
 
 def test_console_reports_board_errors(connected) -> None:
-    type_command(connected, "led blue")
-    assert "error: led blue: invalid argument" in connected.console_text()
+    type_command(connected, "fault blue")
+    assert "error: fault blue: invalid argument" in connected.console_text()
 
 
 def test_events_appear_as_they_happen(connected, sim, qtbot) -> None:
@@ -324,7 +310,7 @@ def test_can_tab_is_disabled_when_disconnected(connected) -> None:
 
 def poll_until(worker: DeviceWorker, done) -> None:
     """Let the simulated board run, polling as the worker's timer would."""
-    for _ in range(50):
+    for _ in range(200):
         worker.poll()
         if done():
             return
@@ -353,11 +339,23 @@ def test_obd_tab_reads_the_simulated_ecu(connected, worker) -> None:
     assert panel.start_button.text() == "Stop"
 
 
-def test_obd_tab_follows_a_tester_started_from_the_console(connected) -> None:
+def test_obd_tab_shows_a_question_asked_from_the_console(connected) -> None:
     type_command(connected, "can loopback")
-    type_command(connected, "obd start")
-    assert connected.obd_panel.start_button.text() == "Stop"
-    assert connected.obd_panel.mil_label.styleSheet() == ""  # nothing read yet
+    type_command(connected, "obd ask vin")
+    panel = connected.obd_panel
+    assert panel.vin_label.text().endswith("1M8GDM9AXKP042788")
+    assert panel.start_button.text() == "Start"  # one question, then nothing more
+    assert panel.mil_label.styleSheet() == ""  # not read
+
+
+def test_obd_tab_stops_asking_when_the_board_refuses(connected, worker) -> None:
+    panel = connected.obd_panel
+    panel.start_button.click()
+    assert panel.start_button.text() == "Stop"
+    type_command(connected, "can off")  # the board can't ask any more
+    worker.poll()
+    assert "obd ask" in connected.console_text()  # the refusal is reported once
+    assert panel.start_button.text() == "Start"
 
 
 def test_obd_tab_is_disabled_when_disconnected(connected) -> None:

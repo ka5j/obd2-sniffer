@@ -7,7 +7,9 @@
 A small device for a car's diagnostic port: it listens to the conversations between the car's
 computers, asks the engine computer for live data, and shows it all on a laptop. It is built from
 scratch on an STM32 microcontroller, with a desktop app and a command-line tool for the laptop
-side. Today it runs on the board alone, against a simulated engine computer.
+side. It is designed as a **read-only scanner**: it only ever asks the car standard questions,
+and can't change anything in it. Today it runs on a development board alone, against a simulated
+engine computer; its own circuit board, which plugs into the car, is designed.
 
 > Under active development. See [Project status](#project-status) for what works today.
 
@@ -29,23 +31,32 @@ This project is a scan tool and network analyzer I am building myself:
 
 ## Highlights
 
-- **Three ways to use it.** A desktop app, a command-line tool for the terminal, or plain typed
-  commands in any serial terminal with nothing to install. Every feature works in all three.
+- **Two ways to use it.** A desktop app, or a command-line tool for the terminal and for
+  scripts. Both are built on one Python library, and the board speaks a single small protocol
+  to it, so there is one path to test.
 - **Keeps up with a busy network.** Each message is captured the moment it arrives, timestamped
   to the microsecond, numbered, and moved to the laptop in a compact, error-checked format.
   Measured on the board: 100,000 messages in a row at 100% network load, none lost. When traffic
   outgrows the USB link, every dropped message is counted and reported, never silently lost.
 - **Speaks the car's diagnostic language.** The board asks for live engine data, trouble codes
   and the VIN using OBD2 and its multi-frame transport (ISO-TP), written from scratch. Measured:
-  838 requests in 9 seconds, every one answered.
+  201 requests in 10 seconds, the most its transmit guard allows, every one answered.
 - **Testable without a car.** The board plays the car too: a simulated engine computer answers
   the diagnostic requests through the real CAN controller in loopback. The laptop tool also has
   a software simulator of the whole board, so it runs with no hardware at all.
 - **Recovers from crashes and says why.** A watchdog restarts the board if the program ever
   stops responding, and a crash handler records the fault type and code address, then reports
   them after the restart.
-- **Careful by default.** CAN is off at start-up, and the board only transmits in loopback mode,
-  where nothing leaves the chip.
+- **Read-only by design.** The board only asks the car standard read-only questions (live data,
+  trouble codes, the VIN); nothing that could clear a code or change a setting is built in.
+  It asks only when the laptop tells it to, never on its own, and every frame it sends passes a
+  transmit guard that allows only those requests, at most 20 a second. Today CAN is off at
+  start-up, and the board only transmits in loopback mode, where nothing leaves the chip. The
+  circuit board adds a hardware LISTEN switch that turns the transmitter off electrically,
+  whatever the firmware does. See [safety.md](docs/design/safety.md).
+- **Requirements with a test for each.** What the device must do, survive and never do is
+  written down as numbered requirements, each with the test that proves it and its honest status
+  today ([requirements.md](docs/design/requirements.md)).
 - **Tested to safety-critical standards.** The core logic is unit-tested to 100% MC/DC coverage,
   the coverage standard used for flight-control and automotive safety software, and all C code
   follows the **MISRA C:2012** coding rules used in the automotive industry, with every exception
@@ -73,7 +84,8 @@ flowchart LR
 
 To connect to a real car, a CAN transceiver chip goes between the board and the car's OBD2 port.
 That part is designed ([hardware.md](docs/design/hardware.md#connecting-to-a-car)) but not built
-yet; see [Project status](#project-status).
+yet, and so is the project's own circuit board ([circuit-board.md](docs/design/circuit-board.md)),
+which also runs from the car's 12 V supply. See [Project status](#project-status).
 
 ## Ways to use it
 
@@ -81,9 +93,8 @@ yet; see [Project status](#project-status).
 |---|---|---|
 | Desktop app | `obdsniff gui`: board status and controls, a console, live CAN frames, OBD2 live data | Watching live data, demos |
 | Command-line tool | `obdsniff obd watch`, `obdsniff monitor`, `obdsniff can test`, `obdsniff shell`, ... | Watching and logging traffic, scripting, automated checks |
-| Serial terminal | Open the board's USB serial port and type `help` | Using the device with no software installed |
 
-![The desktop app's CAN tab: 10,000 test frames captured on the board at 4,115 a second, none lost](docs/images/desktop-app-can.png)
+![The desktop app's CAN tab: 10,000 test frames captured on the board, none lost](docs/images/desktop-app-can.png)
 
 ![The desktop app's OBD2 tab: live data, trouble codes and VIN read on the board from its simulated engine computer](docs/images/desktop-app-obd.png)
 
@@ -97,8 +108,8 @@ or `obdsniff --port sim gui`. See [host/README.md](host/README.md).
 | CAN capture, 500 kbit/s at 100% load | 100,000 messages, 0 lost, 0 damaged |
 | CAN overload, 1 Mbit/s at 100% load (Release build) | The bus outruns the USB link: 5,210 of 20,000 dropped, each one counted on the board and seen as a gap on the laptop. With streaming off, 0 dropped |
 | Commands while the CAN bus is full | 2,693 commands as 42,129 messages arrived, none failed, no byte lost |
-| OBD2 against the simulated engine computer | 838 requests in 9 s, every one answered, 0 timeouts |
-| Longest CAN receive interrupt | 7 µs (10 µs with OBD2 traffic), against 238 µs between messages at full load |
+| OBD2 against the simulated engine computer | 201 requests in 10 s (the transmit guard allows at most 20 a second), every one answered, 0 timeouts, 0 refused by the guard; none once the laptop stops asking |
+| Longest CAN receive interrupt | 9 µs in the Release build and 14 µs in Debug, with OBD2 traffic (the time includes serial interrupts that preempt it), against 238 µs between messages at full load |
 | Watchdog | A stuck board restarts after 535 ms and reports why |
 
 How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-board).
@@ -111,8 +122,9 @@ How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-
 | Microcontroller peripherals | Clocks, UART serial, DMA, timers, interrupts, watchdog, CAN controller |
 | Automotive protocols | CAN, OBD2 (SAE J1979), ISO-TP multi-frame transport |
 | Reliability | Watchdog, crash capture and reporting, interrupt priorities set by deadline, flow control |
+| Safety engineering | Numbered requirements each with a test, a layered read-only safety design with a hardware interlock, failure-mode analysis (FMEA) |
 | Python | Desktop app (PySide6), command-line tool, serial communication, board simulator |
-| Code quality | MISRA C:2012 compliance with documented deviations, static analysis (cppcheck) |
+| Code quality | MISRA C:2012 compliance with documented deviations, static analysis (cppcheck), worst-case stack analysis |
 | Testing and tooling | Unit tests in C (Unity) and Python, 100% MC/DC coverage, sanitizers, CMake, GitHub Actions CI, Git branching workflow |
 
 ## Repository layout
@@ -123,7 +135,7 @@ How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-
 | [`lib/`](lib) | Portable C with no hardware code: buffers, link encoding, console logic, CAN timing, ISO-TP and OBD2. Compiled into the firmware and unit-tested on a laptop |
 | [`tests/`](tests) | C unit tests, in the same folders as `lib/` |
 | [`host/`](host) | The laptop tool `obdsniff`: command line, desktop app, board simulator |
-| [`scripts/`](scripts) | Board check, coverage and MISRA gates, quality report |
+| [`scripts/`](scripts) | Board check, coverage, MISRA and stack-use gates, quality report, screenshots, release-file check |
 | [`docs/`](docs) | Design documents |
 | [`misra/`](misra) | MISRA policy: every deviation and its reason |
 
@@ -132,29 +144,36 @@ How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-
 | Part | Status |
 |---|---|
 | Build system, project structure, automated builds (CI) | Done |
-| Microcontroller start-up: 180 MHz clock, start-up report, reset-cause reporting | Done, verified on hardware |
-| Serial console: interrupt and DMA driven, interactive and host modes, board commands | Done, verified on hardware |
+| Microcontroller start-up: 168 MHz clock, start-up report, reset-cause reporting | Done, verified on hardware |
+| Serial link to the laptop: interrupt and DMA driven, one command protocol, board commands | Done, verified on hardware |
 | Watchdog and crash capture with reports after restart | Done, verified on hardware |
 | Laptop tool: command line, interactive shell, board simulator | Done, verified on hardware |
 | Laptop tool: desktop app with board status, controls and console | Done, verified on hardware |
 | Unit tests with 100% MC/DC coverage gate, published test and coverage reports | Done |
 | MISRA C:2012 compliance check in CI, published compliance report | Done |
+| Worst-case stack use worked out and checked in CI | Done |
 | Capturing CAN messages and streaming them to the laptop | Done (tested in loopback), verified on hardware |
 | OBD2 requests: live data, VIN, trouble codes, from a simulated engine computer in loopback | Done, verified on hardware |
-| Two-controller test bus on the desk, performance measurements | Not started |
-| Safety layer with failure-mode analysis and fault-injection tests | Not started |
-| Live graphs and logging in the desktop app | Not started |
+| Requirements, read-only safety design, failure-mode analysis, circuit board design | Done (written down; see [Documentation](#documentation)) |
+| Real CAN bus on the desk with two transceivers, bus fault tests | Not started |
+| USB straight from the microcontroller, with no programmer chip in between | Not started |
+| Read-only safety layers in the firmware: allowlist, silent bit-rate detection, error latch | Not started |
+| Circuit board revision A: schematic, layout, bring-up | Not started |
 | Sleep mode when the car is off | Not started |
 | Testing in a real car | Not started |
-| Custom circuit board | Not started |
+| Circuit board revision B: the device that plugs into the car | Not started |
 
 ## Hardware
 
 Everything above runs on one **NUCLEO-F446RE** development board (STM32F446RE microcontroller:
-Arm Cortex-M4, 180 MHz, 512 KB flash, 128 KB RAM) and a USB cable.
+Arm Cortex-M4, run at 168 MHz, 512 KB flash, 128 KB RAM) and a USB cable.
 
 Connecting to a car will also take an **SN65HVD230** CAN transceiver module and an **OBD2
 cable** (not started yet).
+
+The project's own circuit board, designed but not built yet, replaces all of this with one
+device that plugs into the car and the laptop:
+[docs/design/circuit-board.md](docs/design/circuit-board.md).
 
 Wiring and pin assignments are in [docs/design/hardware.md](docs/design/hardware.md).
 
@@ -204,6 +223,10 @@ over the serial port and prints what it measured. See
 
 Each document starts with a short plain-language summary, followed by the engineering detail.
 
+- [Requirements](docs/design/requirements.md): what the device must do, each with its test and status
+- [Safety](docs/design/safety.md): the read-only design, its layers, and the risks that remain
+- [How the firmware fits together](docs/design/architecture.md): the parts, interrupts and main loop
+- [Circuit board](docs/design/circuit-board.md): the design of the device's own board
 - [CAN capture](docs/design/can-capture.md): from the bus to the laptop, with measured results
 - [OBD2](docs/design/obd2.md): asking the car for live data, trouble codes and its VIN
 - [Serial console and protocol](docs/protocol.md): commands, and how programs talk to the board

@@ -20,8 +20,8 @@
 
 bool console_init(void);
 
-/* Process received bytes: echo, editing, running commands. Runs at most one
- * command per call, so the main loop stays responsive. */
+/* Process received bytes and run the commands they complete. Runs at most
+ * one command per call, so the main loop stays responsive. */
 void console_poll(void);
 
 void console_write(const char *data, size_t len);
@@ -31,20 +31,10 @@ void console_puts(const char *text);
  * than the buffer is truncated. */
 void console_printf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
-/* For command handlers: one data item formatted for the current mode
- * ("key=value" in host mode, aligned "label  value" interactively). `ctx`
- * is the handler's context argument. */
-void console_fieldf(void *ctx, const char *key, const char *label, const char *fmt, ...)
-    __attribute__((format(printf, 4, 5)));
-
-/* Show the prompt (interactive mode only). */
-void console_prompt(void);
-
-/* Show the prompt again with whatever has been typed so far (interactive
- * mode only), after other output interrupted the input line. */
-void console_redraw_prompt(void);
-
-bool console_is_interactive(void);
+/* For command handlers: one data item, "key=value". `ctx` is the handler's
+ * context argument. */
+void console_fieldf(void *ctx, const char *key, const char *fmt, ...)
+    __attribute__((format(printf, 3, 4)));
 
 /* Report something that happened outside a command, e.g. a button press. */
 void console_event(const char *text);

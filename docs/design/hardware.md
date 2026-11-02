@@ -9,8 +9,8 @@ everything can be developed and tested with no car and no extra parts.
 
 To connect to a car, a small add-on chip, the CAN transceiver, will sit between the board and
 the car, translating the car's network signals into signals the microcontroller understands.
-That connection is designed below but not built yet. Even then, nothing will be powered from
-the car. That keeps the car's electrical system and the laptop separate, and it means a wiring
+That connection is designed below but not built yet. Even then, the development board takes
+nothing from the car's power supply. That keeps the car's electrical system and the laptop separate, and it means a wiring
 mistake can't damage either one.
 
 ## Parts
@@ -26,7 +26,7 @@ mistake can't damage either one.
 | | |
 |---|---|
 | Core | Arm Cortex-M4 with floating-point unit |
-| Speed | 180 MHz |
+| Speed | 168 MHz (180 MHz possible; 168 MHz gives USB its exact 48 MHz) |
 | Memory | 512 KB flash (program), 128 KB RAM (data) |
 | CAN controllers | 2: CAN1 captures (today in loopback); CAN2 is reserved for a second node on a test bus |
 
@@ -48,18 +48,25 @@ Rules for the car connection:
   electrical behaviour of the bus.
 - **Run the laptop on battery** while it is connected to the car, to avoid ground loops through
   the laptop's charger.
+- **Check every cable for continuity before it goes near the car**, pin by pin, and check that
+  pin 16 (battery) connects to nothing. A wrong pinout could put 12 V on the CAN wires.
+- **Follow the order of car tests** in [safety.md](safety.md#the-order-of-car-tests): listening
+  only, with the engine off, comes first.
+
+The project's own circuit board, which also runs from pin 16, is described in
+[circuit-board.md](circuit-board.md).
 
 ## Pin assignments
 
 These are the microcontroller pins the project uses. The LED, button, serial and CAN1 pins are
-defined in `firmware/system/board.h`; the CAN2 pins are reserved for the second controller (the
-test node).
+defined in `firmware/system/board.h`; the CAN2 pins are reserved for the second controller,
+which tests the first over a short desk bus (the self-test).
 
 | Function | Pin | Board header | Notes |
 |---|---|---|---|
 | CAN1 receive | PB8 | Arduino D15 | Main CAN controller (sniffer) |
 | CAN1 transmit | PB9 | Arduino D14 | |
-| CAN2 receive | PB12 | Morpho CN10 | Second controller (test ECU) |
+| CAN2 receive | PB12 | Morpho CN10 | Second controller (self-test) |
 | CAN2 transmit | PB13 | Morpho CN10 | |
 | Serial to laptop (TX) | PA2 | Internal | Routed to the ST-LINK USB serial port |
 | Serial to laptop (RX) | PA3 | Internal | |
@@ -72,22 +79,22 @@ test node).
 
 The microcontroller's speed comes from its clock system. On the Nucleo board, the ST-LINK
 programmer supplies an 8 MHz clock signal. The chip's PLL (a frequency multiplier) turns that into
-the 180 MHz the processor runs at:
+the 168 MHz the processor runs at, and the exact 48 MHz that USB needs:
 
 ```
-8 MHz input  -> divide by 4 -> 2 MHz -> multiply by 180 -> 360 MHz -> divide by 2 -> 180 MHz
+8 MHz input  -> divide by 4 -> 2 MHz -> multiply by 168 -> 336 MHz -> divide by 2 -> 168 MHz
+                                                                    -> divide by 7 ->  48 MHz (USB)
 ```
 
 Slower copies of that clock feed the peripherals. The CAN controllers and the serial port run from
-a 45 MHz bus clock. If the 8 MHz input is missing, the firmware falls back to the chip's internal
-16 MHz oscillator and reports it at start-up. The internal oscillator is less precise, which can
-cause CAN errors, so the report helps explain them. Full detail is in
-[build-and-boot.md](build-and-boot.md#clock-tree).
+a 42 MHz bus clock. If the 8 MHz input is missing, the board stops and blinks its LED in the panic
+pattern: the chip's internal oscillator isn't precise enough for CAN or USB, so running on it
+would only hide the fault. Full detail is in [build-and-boot.md](build-and-boot.md#clock-tree).
 
 ### CAN bit timing
 
 Cars use 500 kbit/s on the diagnostic CAN bus (some use 250 kbit/s). The CAN controller divides
-its 45 MHz clock to get there. Each bit is split into small time slices (time quanta), and the
+its 42 MHz clock to get there. Each bit is split into small time slices (time quanta), and the
 controller samples the signal late in the bit, after it has settled along the whole bus.
 Automotive networks sample at about 87.5% of the bit (CiA 301, SAE J2284).
 
@@ -98,10 +105,11 @@ closest to 87.5%, preferring more quanta when two are equally close. It is unit-
 
 | Bit rate | Prescaler | Time quanta per bit | Sample point |
 |---|---|---|---|
-| 1000 kbit/s | 3 | 15 (1 + 12 + 2) | 86.7% |
-| 500 kbit/s | 6 | 15 (1 + 12 + 2) | 86.7% |
-| 250 kbit/s | 12 | 15 (1 + 12 + 2) | 86.7% |
-| 125 kbit/s | 45 | 8 (1 + 6 + 1) | 87.5% |
+| 1000 kbit/s | 3 | 14 (1 + 11 + 2) | 85.7% |
+| 500 kbit/s | 6 | 14 (1 + 11 + 2) | 85.7% |
+| 250 kbit/s | 21 | 8 (1 + 6 + 1) | 87.5% |
+| 125 kbit/s | 21 | 16 (1 + 13 + 2) | 87.5% |
 
-At 500 kbit/s, 18 quanta (88.9%) also divides exactly, but 15 quanta (86.7%) is closer to the
-target and within the SAE J2284 range.
+At 500 kbit/s, 12 and 21 quanta also divide exactly, but 12 samples at 83.3% or 91.7%, and 21
+would need a longer first segment than the controller allows. 14 quanta (85.7%) is the closest to
+the target, and within the SAE J2284 range.

@@ -7,9 +7,8 @@ add_library(core STATIC
     can/can_timing.c
     console/cli.c
     console/console_core.c
-    console/line_editor.c
+    console/line_reader.c
     fault/fault_record.c
-    link/can_text.c
     link/cobs.c
     link/crc16.c
     link/packet.c
@@ -17,7 +16,8 @@ add_library(core STATIC
     obd/ecu_sim.c
     obd/isotp.c
     obd/obd2.c
-    obd/obd_client.c)
+    obd/obd_client.c
+    obd/tx_guard.c)
 # Headers sit beside their sources and are included by folder:
 # #include "obd/isotp.h".
 target_include_directories(core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

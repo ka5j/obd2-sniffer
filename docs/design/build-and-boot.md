@@ -15,7 +15,7 @@ fail if the program ever leaves too little room for the stack. The firmware neve
 memory at runtime, which removes a whole class of hard-to-find bugs.
 
 **Start-up.** On power-up, the chip runs a short start-up routine, then my code configures the
-clock to 180 MHz, starts the serial port, and prints a start-up report: firmware version, chip ID,
+clock to 168 MHz, starts the serial port, and prints a start-up report: firmware version, chip ID,
 clock speeds, and why the chip last restarted (power-on, reset button, watchdog, crash). That last
 item is the first tool for diagnosing problems in the field.
 
@@ -80,6 +80,31 @@ example `v0.2.0`, or `v0.2.0-3-gabc1234-dirty` for a modified tree) into `versio
 `configure_file` only rewrites the header when the string changes, so it doesn't trigger a
 rebuild every time. The banner therefore always identifies the exact source the image came from.
 
+### Release files
+
+The files attached to a GitHub Release are built by CI from the tag, not on a laptop. Pushing a
+tag `vX.Y.Z` runs `.github/workflows/release.yml`, which:
+
+1. fails unless the version in `CMakeLists.txt`, the laptop tool and the sample start-up report
+   in `getting-started.md` is `X.Y.Z`;
+2. builds both firmware builds with the same toolchain as every CI run;
+3. fails unless both report exactly `vX.Y.Z` (not `vX.Y.Z-dirty`, or a later commit);
+4. attaches the Debug and Release `.bin`, `.hex` and `.elf` files and `SHA256SUMS.txt` to a
+   **draft** release.
+
+The tag is first built locally and checked on the board, before it is pushed. CI's files
+can't be byte-identical to that build: the macOS and Linux toolchains ship separately built C
+libraries, and the linker places newlib's functions in a different order (in v0.4.1, 17 symbols
+sit at other addresses; every size is the same). So before the draft is published:
+
+1. `scripts/release_check.py vX.Y.Z` downloads CI's files and checks the checksums, that each
+   `.bin` is exactly its `.elf`'s program image, and that each `.elf` has the same functions and
+   variables, each of the same size, and the same section sizes as the local build;
+2. `--flash release`, then `--flash debug`, loads CI's own files onto the board, and
+   `scripts/board_check.py --crash` checks each one.
+
+So the published files are the ones that passed the board checks.
+
 ## Memory layout
 
 `firmware/linker/STM32F446RETx_FLASH.ld` is written for this project rather than taken from a
@@ -109,6 +134,21 @@ FLASH 0x0800_0000 (512 KiB)            RAM 0x2000_0000 (128 KiB)
 - **Stack guard.** `._stack_check` reserves `_Min_Stack_Size` (8 KiB) after all static data. If
   static RAM grows too large, the link fails instead of the stack silently overflowing into
   `.bss` at runtime.
+- **Worst-case stack use** is checked in CI against those 8 KiB by `scripts/stack_usage.py`. It
+  disassembles the linked ELF, reads how many bytes each function takes from the stack, and
+  follows the deepest call chain from the reset handler and from each interrupt handler. The
+  total assumes every handler is nested on top of the main loop at once, each with the CPU's
+  108-byte exception frame (FPU registers included): an upper bound. It is 2,528 bytes in the
+  Release build and 2,764 in the Debug build (about a third of the 8 KiB). The deepest path is a
+  console command formatting text with `vsnprintf`. The fault handlers run on their own 512-byte
+  stack, of which the crash capture uses 24 bytes (96 in Debug).
+
+  The check fails on recursion (MISRA C:2012 rule 17.2), on an instruction that moves the stack
+  pointer by an amount it can't work out, and on a call through a function pointer that is not in
+  its reviewed list of targets (the command handlers, the console's output function, newlib's
+  `printf` internals). Every frame is also compared with GCC's own figure from `-fstack-usage`,
+  so a mistake in reading the disassembly shows up as a mismatch. The C library has no such
+  figures; its frames come from the disassembly alone.
 - **No heap.** `_sbrk` in `syscalls.c` always fails, so `malloc` returns NULL. All buffers are
   sized at compile time.
 - **Read-only flash segment.** GCC emits `.init_array` and `.fini_array` as writable sections,
@@ -128,28 +168,30 @@ FLASH 0x0800_0000 (512 KiB)            RAM 0x2000_0000 (128 KiB)
    2. `HAL_Init()` enables the flash prefetch and caches, sets NVIC priority grouping, and starts
       the 1 ms SysTick.
    3. `board_init()` configures the LED and button GPIOs.
-   4. `clock_init()` brings the system to 180 MHz (below). On total failure it calls
+   4. `clock_init()` brings the system to 168 MHz (below). If the external clock doesn't start, it calls
       `board_panic()`, which blinks the LED with a busy-wait loop that needs no timers or
       interrupts.
    5. `fault_init()` picks up a crash record left by the previous run, if any, and enables the
       separate fault handlers ([fault-handling.md](fault-handling.md)).
    6. `console_init()` sets up USART2 with its receive interrupt and transmit DMA
       ([serial-console.md](serial-console.md)).
-   7. The start-up report is printed, including a crash summary if there was one, followed by
-      the `obd> ` prompt.
+   7. The start-up report is printed, including a crash summary if there was one.
    8. `watchdog_init()` starts the independent watchdog. It is started last, once nothing left
-      in start-up can take long.
+      in start-up can take long. Then the `!started` event tells the laptop that commands can be
+      sent.
    9. The super-loop starts: refresh the watchdog, process console input, update the LED, check
       the button, and restart if `reset` was requested.
 
 ## Clock tree
 
 ```
-HSE 8 MHz (bypass) --/M=4--> 2 MHz --xN=180--> VCO 360 MHz --/P=2--> SYSCLK 180 MHz
+HSE 8 MHz (bypass) --/M=4--> 2 MHz --xN=168--> VCO 336 MHz --/P=2--> SYSCLK 168 MHz
+                                                         |            |
+                                                         +--/Q=7--> 48 MHz (USB)
                                                                       |
-                     AHB /1  -> HCLK  180 MHz (core, DMA, memory)  <---+
-                     APB1 /4 -> PCLK1  45 MHz (bxCAN, USART2; TIM2 at 90 MHz)
-                     APB2 /2 -> PCLK2  90 MHz
+                     AHB /1  -> HCLK  168 MHz (core, DMA, memory)  <---+
+                     APB1 /4 -> PCLK1  42 MHz (bxCAN, USART2; TIM2 at 84 MHz)
+                     APB2 /2 -> PCLK2  84 MHz
 ```
 
 - **HSE bypass.** The Nucleo has no crystal on the HSE pins by default; the ST-LINK's MCU drives
@@ -157,16 +199,19 @@ HSE 8 MHz (bypass) --/M=4--> 2 MHz --xN=180--> VCO 360 MHz --/P=2--> SYSCLK 180 
   directly.
 - **PLL input of 2 MHz.** The PLL accepts 1 to 2 MHz at its input; the top of the range gives the
   lowest jitter.
-- **Over-drive.** 180 MHz is above the 168 MHz limit of normal mode. The regulator must be in
-  voltage scale 1 with over-drive enabled before switching SYSCLK to the PLL.
-- **Flash wait states.** Flash needs 5 wait states at 180 MHz and 3.3 V. The ART accelerator
+- **168 MHz, not 180.** The chip can run at 180 MHz, but no PLL setting then gives USB its exact
+  48 MHz. At 168 MHz the same PLL output divides by 7 to exactly 48 MHz, and the regulator
+  needs no over-drive mode (voltage scale 1 is enough).
+- **Flash wait states.** Flash needs 5 wait states at 168 MHz and 3.3 V. The ART accelerator
   (prefetch plus instruction and data caches) hides most of that latency.
-- **APB1 at 45 MHz** is its maximum, and 45 MHz divides cleanly into CAN bit rates: 500 kbit/s is
-  prescaler 6 with 15 time quanta per bit (see [hardware.md](hardware.md#can-bit-timing)).
-- **HSI fallback.** If HSE doesn't start within 100 ms, the PLL is rebuilt from HSI (M=8) for
-  the same 180 MHz. The banner reports the source because HSI is trimmed to +-1% only at 25 C
-  and drifts by several percent over temperature. That is more than CAN bit timing tolerates
-  (on the order of 1%), and it would explain intermittent bus errors.
+- **APB1 at 42 MHz** divides cleanly into every CAN bit rate: 500 kbit/s is prescaler 6 with 14
+  time quanta per bit (see [hardware.md](hardware.md#can-bit-timing)), and into 1.5 Mbaud for
+  the serial link.
+- **No fallback to the internal oscillator.** If HSE doesn't start within 100 ms, `clock_init()`
+  fails and the board stops in `board_panic()`. The internal 16 MHz HSI is trimmed to +-1% only at
+  25 C and drifts by several percent over temperature: more than CAN bit timing (on the order of
+  1%) or USB tolerates. A board running on it would work on the desk and fail on a car, so it
+  fails loudly instead.
 
 ## Reset cause
 

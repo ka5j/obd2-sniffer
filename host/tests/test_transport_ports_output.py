@@ -135,12 +135,12 @@ def test_find_board_none(monkeypatch) -> None:
 
 
 def test_format_fields_aligns_labels() -> None:
-    rows = format_fields({"led": "on", "custom_key": "1"})
-    assert rows == ["  LED         on", "  custom_key  1"]
+    rows = format_fields({"clock": "HSE", "custom_key": "1"})
+    assert rows == ["  Clock source  HSE", "  custom_key    1"]
     assert format_fields({}) == []
 
 
 def test_format_reply() -> None:
-    assert format_reply(["led=on"]) == ["  LED  on"]
+    assert format_reply(["clock=HSE"]) == ["  Clock source  HSE"]
     assert format_reply(["  help text"]) == ["  help text"]
     assert format_reply([]) == []

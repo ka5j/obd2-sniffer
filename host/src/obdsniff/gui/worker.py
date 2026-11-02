@@ -15,9 +15,12 @@ from collections.abc import Callable
 from PySide6.QtCore import QObject, QTimer, Signal, Slot
 
 from obdsniff.device import CommandError, Device, DeviceError, open_device
+from obdsniff.obdplan import ObdReader
 from obdsniff.shell import execute_line
 
-EVENT_POLL_MS = 100  # how often to check for events such as button presses
+# How often to check for events and frames, and, while reading OBD2, to ask
+# the next question: the board spaces requests at least 50 ms apart anyway.
+EVENT_POLL_MS = 50
 
 
 class DeviceWorker(QObject):
@@ -31,13 +34,13 @@ class DeviceWorker(QObject):
     failed = Signal(str)  # a request failed; the connection stays up
     frames = Signal(object, int)  # new CAN frames (list), damaged packets so far
     can_state = Signal(object)  # the board's `can` status (dict)
-    obd_state = Signal(object)  # the board's `obd` status (dict)
+    obd_state = Signal(object, bool)  # the board's `obd` status (dict), and whether reading
 
     def __init__(self, opener: Callable[[str | None], Device] = open_device) -> None:
         super().__init__()
         self._opener = opener
         self._device: Device | None = None
-        self._obd_running = False  # poll the tester's answers while it runs
+        self._reader: ObdReader | None = None  # asks the next question on each poll
         # A child of the worker, so it moves to the worker's thread with it.
         self._timer = QTimer(self)
         self._timer.setInterval(EVENT_POLL_MS)
@@ -60,7 +63,7 @@ class DeviceWorker(QObject):
 
     @Slot()
     def close_port(self) -> None:
-        """Disconnect, handing the board's console back in interactive mode."""
+        """Disconnect from the board."""
         if self._device is None:
             return
         self._timer.stop()
@@ -94,26 +97,25 @@ class DeviceWorker(QObject):
     # ---- requests -------------------------------------------------------------
 
     def _send_obd(self, device: Device) -> None:
-        status = device.obd_status()
-        self._obd_running = status.get("obd_tester") == "running"
-        self.obd_state.emit(status)
+        self.obd_state.emit(device.obd_status(), self._reader is not None)
+
+    def _step_obd(self, device: Device, reader: ObdReader) -> None:
+        try:
+            status = reader.step(device)
+        except CommandError:
+            self._reader = None  # the board refused, e.g. CAN was switched off
+            self._send_obd(device)  # the tab shows that asking has stopped
+            raise
+        self.obd_state.emit(status, True)
 
     def _send_info(self, device: Device) -> None:
         self.info.emit(device.version(), device.status(), device.fault())
         self.can_state.emit(device.can_status())
-        self._send_obd(device)  # the tester may have been started from a terminal
+        self._send_obd(device)
 
     @Slot()
     def refresh(self) -> None:
         self._run(self._send_info)
-
-    @Slot(str)
-    def set_led(self, mode: str) -> None:
-        def action(device: Device) -> None:
-            device.set_led(mode)
-            self._send_info(device)
-
-        self._run(action)
 
     @Slot()
     def clear_fault(self) -> None:
@@ -168,21 +170,23 @@ class DeviceWorker(QObject):
 
     @Slot()
     def obd_start(self) -> None:
-        """Start the tester, and CAN loopback first if it is off."""
+        """Start asking the plan's questions, and CAN loopback first if it is off."""
 
         def action(device: Device) -> None:
             if device.can_status().get("can_mode") != "loopback":
                 device.can_loopback()
-            device.obd_start()
             self.can_state.emit(device.can_status())
-            self._send_obd(device)
+            self._reader = ObdReader()
+            self._step_obd(device, self._reader)
 
         self._run(action)
 
     @Slot()
     def obd_stop(self) -> None:
+        """Stop asking: the board sends nothing more."""
+
         def action(device: Device) -> None:
-            device.obd_stop()
+            self._reader = None
             self._send_obd(device)
 
         self._run(action)
@@ -202,7 +206,7 @@ class DeviceWorker(QObject):
             frames = device.poll_frames()
             if frames:
                 self.frames.emit(frames, device.bad_packets)
-            if self._obd_running:
-                self._send_obd(device)
+            if self._reader is not None:
+                self._step_obd(device, self._reader)
 
         self._run(action)

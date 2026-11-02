@@ -25,7 +25,7 @@
 #define BUTTON_DEBOUNCE_MS     30U
 #define RESET_FLUSH_TIMEOUT_MS 100U
 
-static void print_banner(clock_source_t clk_src, reset_cause_t cause)
+static void print_banner(reset_cause_t cause)
 {
     console_puts("\r\n========================================\r\n");
     console_printf(" OBD2 CAN Sniffer  %s\r\n", FW_VERSION);
@@ -33,7 +33,7 @@ static void print_banner(clock_source_t clk_src, reset_cause_t cause)
     console_printf(" MCU      STM32F446RE  rev 0x%04lX\r\n", (unsigned long)HAL_GetREVID());
     console_printf(" UID      %08lX-%08lX-%08lX\r\n", (unsigned long)HAL_GetUIDw2(),
                    (unsigned long)HAL_GetUIDw1(), (unsigned long)HAL_GetUIDw0());
-    console_printf(" Clock    %s\r\n", clock_source_name(clk_src));
+    console_puts(" Clock    " CLOCK_SOURCE_NAME "\r\n");
     console_printf(" SYSCLK   %lu MHz\r\n", (unsigned long)(HAL_RCC_GetSysClockFreq() / 1000000U));
     console_printf(" PCLK1    %lu MHz   PCLK2 %lu MHz\r\n",
                    (unsigned long)(HAL_RCC_GetPCLK1Freq() / 1000000U),
@@ -44,10 +44,9 @@ static void print_banner(clock_source_t clk_src, reset_cause_t cause)
     if (crash != NULL) {
         console_printf(" Crash    %s at 0x%08lX: %s\r\n", fault_type_str(crash->type),
                        (unsigned long)crash->pc, fault_cause_str(crash->cfsr, crash->hfsr));
-        console_puts("          details: 'fault'\r\n");
+        console_puts("          details: obdsniff fault\r\n");
     }
     console_puts("========================================\r\n");
-    console_puts("Type 'help' for a list of commands.\r\n");
 }
 
 /* Report presses of the blue button. Lockout debounce: act on the first
@@ -78,8 +77,7 @@ int main(void)
         board_panic();
     }
 
-    clock_source_t clk_src;
-    if (!clock_init(&clk_src) || !timebase_init()) {
+    if (!clock_init() || !timebase_init()) {
         board_panic();
     }
     fault_init();
@@ -89,14 +87,15 @@ int main(void)
         board_panic();
     }
     obd_init();
-    commands_set_boot_info(cause, clk_src);
-    print_banner(clk_src, cause);
-    console_prompt();
+    commands_set_boot_info(cause);
+    print_banner(cause);
 
     /* Started last, once start-up can no longer take long. */
     if (!watchdog_init()) {
         board_panic();
     }
+    /* Tells the laptop that start-up is over and commands can be sent. */
+    console_event("started");
 
     for (;;) {
         uint32_t now = HAL_GetTick();
@@ -104,7 +103,7 @@ int main(void)
         watchdog_kick();
         console_poll();
         can_gen_task();
-        can_stream_task(now);
+        can_stream_task();
         obd_task(now);
         status_led_task(now);
         button_task(now);
