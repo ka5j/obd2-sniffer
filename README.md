@@ -109,7 +109,7 @@ or `obdsniff --port sim gui`. See [host/README.md](host/README.md).
 | CAN overload, 1 Mbit/s at 100% load (Release build) | The bus outruns the USB link: 5,210 of 20,000 dropped, each one counted on the board and seen as a gap on the laptop. With streaming off, 0 dropped |
 | Commands while the CAN bus is full | 2,693 commands as 42,129 messages arrived, none failed, no byte lost |
 | OBD2 against the simulated engine computer | 201 requests in 10 s (the transmit guard allows at most 20 a second), every one answered, 0 timeouts, 0 refused by the guard; none once the laptop stops asking |
-| Longest CAN receive interrupt | 7 µs (10 to 13 µs with OBD2 traffic), against 238 µs between messages at full load |
+| Longest CAN receive interrupt | 9 µs in the Release build and 14 µs in Debug, with OBD2 traffic (the time includes serial interrupts that preempt it), against 238 µs between messages at full load |
 | Watchdog | A stuck board restarts after 535 ms and reports why |
 
 How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-board).
@@ -144,7 +144,7 @@ How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-
 | Part | Status |
 |---|---|
 | Build system, project structure, automated builds (CI) | Done |
-| Microcontroller start-up: 180 MHz clock, start-up report, reset-cause reporting | Done, verified on hardware |
+| Microcontroller start-up: 168 MHz clock, start-up report, reset-cause reporting | Done, verified on hardware |
 | Serial link to the laptop: interrupt and DMA driven, one command protocol, board commands | Done, verified on hardware |
 | Watchdog and crash capture with reports after restart | Done, verified on hardware |
 | Laptop tool: command line, interactive shell, board simulator | Done, verified on hardware |
@@ -166,7 +166,7 @@ How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-
 ## Hardware
 
 Everything above runs on one **NUCLEO-F446RE** development board (STM32F446RE microcontroller:
-Arm Cortex-M4, 180 MHz, 512 KB flash, 128 KB RAM) and a USB cable.
+Arm Cortex-M4, run at 168 MHz, 512 KB flash, 128 KB RAM) and a USB cable.
 
 Connecting to a car will also take an **SN65HVD230** CAN transceiver module and an **OBD2
 cable** (not started yet).

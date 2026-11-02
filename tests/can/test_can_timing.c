@@ -3,7 +3,7 @@
 #include "can/can_timing.h"
 #include "test_support.h"
 
-#define APB1_HZ 45000000U /* the board's CAN clock */
+#define APB1_HZ 42000000U /* the board's CAN clock */
 
 void setUp(void)
 {
@@ -28,17 +28,17 @@ static void check(uint32_t clock_hz, uint32_t bitrate, uint32_t prescaler, uint3
     TEST_ASSERT_EQUAL_UINT32(clock_hz, t.prescaler * can_timing_tq_per_bit(&t) * bitrate);
 }
 
-/* The rates cars and diagnostic tools use, from the board's 45 MHz clock.
- * 500k: 9, 10, 15 and 18 quanta all divide exactly; 15 gives 86.7%, the
- * closest to 87.5% (18 gives 88.9%, 9 gives 88.9%, 10 gives 90.0%). */
+/* The rates cars and diagnostic tools use, from the board's 42 MHz clock.
+ * 500k: 12, 14 and 21 quanta divide exactly; 14 gives 85.7%, the closest to
+ * 87.5% (12 gives 83.3% or 91.7%; 21 would need segment 1 of 17, limit 16). */
 static void test_board_bit_rates(void)
 {
-    check(APB1_HZ, 1000000U, 3U, 12U, 2U, 866U);
-    check(APB1_HZ, 500000U, 6U, 12U, 2U, 866U);
-    check(APB1_HZ, 250000U, 12U, 12U, 2U, 866U);
-    /* 125k: 24 quanta would need segment 1 of 20 (limit 16); 8 quanta
-     * sample at exactly 87.5%. */
-    check(APB1_HZ, 125000U, 45U, 6U, 1U, 875U);
+    check(APB1_HZ, 1000000U, 3U, 11U, 2U, 857U);
+    check(APB1_HZ, 500000U, 6U, 11U, 2U, 857U);
+    /* 250k: 8 quanta divide exactly and sample at exactly 87.5%. */
+    check(APB1_HZ, 250000U, 21U, 6U, 1U, 875U);
+    /* 125k: 8 and 16 quanta both give 87.5%; the finer 16 is kept. */
+    check(APB1_HZ, 125000U, 21U, 13U, 2U, 875U);
 }
 
 static void test_ties_keep_more_quanta(void)

@@ -15,7 +15,7 @@ fail if the program ever leaves too little room for the stack. The firmware neve
 memory at runtime, which removes a whole class of hard-to-find bugs.
 
 **Start-up.** On power-up, the chip runs a short start-up routine, then my code configures the
-clock to 180 MHz, starts the serial port, and prints a start-up report: firmware version, chip ID,
+clock to 168 MHz, starts the serial port, and prints a start-up report: firmware version, chip ID,
 clock speeds, and why the chip last restarted (power-on, reset button, watchdog, crash). That last
 item is the first tool for diagnosing problems in the field.
 
@@ -138,8 +138,8 @@ FLASH 0x0800_0000 (512 KiB)            RAM 0x2000_0000 (128 KiB)
   disassembles the linked ELF, reads how many bytes each function takes from the stack, and
   follows the deepest call chain from the reset handler and from each interrupt handler. The
   total assumes every handler is nested on top of the main loop at once, each with the CPU's
-  108-byte exception frame (FPU registers included): an upper bound. It is 2,544 bytes in the
-  Release build and 2,772 in the Debug build (about a third of the 8 KiB). The deepest path is a
+  108-byte exception frame (FPU registers included): an upper bound. It is 2,528 bytes in the
+  Release build and 2,764 in the Debug build (about a third of the 8 KiB). The deepest path is a
   console command formatting text with `vsnprintf`. The fault handlers run on their own 512-byte
   stack, of which the crash capture uses 24 bytes (96 in Debug).
 
@@ -168,7 +168,7 @@ FLASH 0x0800_0000 (512 KiB)            RAM 0x2000_0000 (128 KiB)
    2. `HAL_Init()` enables the flash prefetch and caches, sets NVIC priority grouping, and starts
       the 1 ms SysTick.
    3. `board_init()` configures the LED and button GPIOs.
-   4. `clock_init()` brings the system to 180 MHz (below). On total failure it calls
+   4. `clock_init()` brings the system to 168 MHz (below). If the external clock doesn't start, it calls
       `board_panic()`, which blinks the LED with a busy-wait loop that needs no timers or
       interrupts.
    5. `fault_init()` picks up a crash record left by the previous run, if any, and enables the
@@ -185,11 +185,13 @@ FLASH 0x0800_0000 (512 KiB)            RAM 0x2000_0000 (128 KiB)
 ## Clock tree
 
 ```
-HSE 8 MHz (bypass) --/M=4--> 2 MHz --xN=180--> VCO 360 MHz --/P=2--> SYSCLK 180 MHz
+HSE 8 MHz (bypass) --/M=4--> 2 MHz --xN=168--> VCO 336 MHz --/P=2--> SYSCLK 168 MHz
+                                                         |            |
+                                                         +--/Q=7--> 48 MHz (USB)
                                                                       |
-                     AHB /1  -> HCLK  180 MHz (core, DMA, memory)  <---+
-                     APB1 /4 -> PCLK1  45 MHz (bxCAN, USART2; TIM2 at 90 MHz)
-                     APB2 /2 -> PCLK2  90 MHz
+                     AHB /1  -> HCLK  168 MHz (core, DMA, memory)  <---+
+                     APB1 /4 -> PCLK1  42 MHz (bxCAN, USART2; TIM2 at 84 MHz)
+                     APB2 /2 -> PCLK2  84 MHz
 ```
 
 - **HSE bypass.** The Nucleo has no crystal on the HSE pins by default; the ST-LINK's MCU drives
@@ -197,16 +199,19 @@ HSE 8 MHz (bypass) --/M=4--> 2 MHz --xN=180--> VCO 360 MHz --/P=2--> SYSCLK 180 
   directly.
 - **PLL input of 2 MHz.** The PLL accepts 1 to 2 MHz at its input; the top of the range gives the
   lowest jitter.
-- **Over-drive.** 180 MHz is above the 168 MHz limit of normal mode. The regulator must be in
-  voltage scale 1 with over-drive enabled before switching SYSCLK to the PLL.
-- **Flash wait states.** Flash needs 5 wait states at 180 MHz and 3.3 V. The ART accelerator
+- **168 MHz, not 180.** The chip can run at 180 MHz, but no PLL setting then gives USB its exact
+  48 MHz. At 168 MHz the same PLL output divides by 7 to exactly 48 MHz, and the regulator
+  needs no over-drive mode (voltage scale 1 is enough).
+- **Flash wait states.** Flash needs 5 wait states at 168 MHz and 3.3 V. The ART accelerator
   (prefetch plus instruction and data caches) hides most of that latency.
-- **APB1 at 45 MHz** is its maximum, and 45 MHz divides cleanly into CAN bit rates: 500 kbit/s is
-  prescaler 6 with 15 time quanta per bit (see [hardware.md](hardware.md#can-bit-timing)).
-- **HSI fallback.** If HSE doesn't start within 100 ms, the PLL is rebuilt from HSI (M=8) for
-  the same 180 MHz. The banner reports the source because HSI is trimmed to +-1% only at 25 C
-  and drifts by several percent over temperature. That is more than CAN bit timing tolerates
-  (on the order of 1%), and it would explain intermittent bus errors.
+- **APB1 at 42 MHz** divides cleanly into every CAN bit rate: 500 kbit/s is prescaler 6 with 14
+  time quanta per bit (see [hardware.md](hardware.md#can-bit-timing)), and into 1.5 Mbaud for
+  the serial link.
+- **No fallback to the internal oscillator.** If HSE doesn't start within 100 ms, `clock_init()`
+  fails and the board stops in `board_panic()`. The internal 16 MHz HSI is trimmed to +-1% only at
+  25 C and drifts by several percent over temperature: more than CAN bit timing (on the order of
+  1%) or USB tolerates. A board running on it would work on the desk and fail on a car, so it
+  fails loudly instead.
 
 ## Reset cause
 

@@ -32,7 +32,7 @@ from obdsniff.ports import find_board
 from obdsniff.sim.obd import DTCS, PIDS, VIN, dtc_text
 from obdsniff.transport import BAUD_RATE, SerialTransport, Transport
 
-SYSCLK_HZ = 180_000_000
+SYSCLK_HZ = 168_000_000
 WATCHDOG_MS = 500
 # The board's clock comes from the ST-LINK's crystal (tens of ppm). The
 # internal oscillator it falls back to is only trimmed to 1% (10,000 ppm).

@@ -57,9 +57,9 @@ same capture path.
 
 ### Receiving: `firmware/can/can_drv.c`
 
-- **Pins and clock.** CAN1 on PB8 (receive) and PB9 (transmit), clocked from the 45 MHz APB1 bus.
+- **Pins and clock.** CAN1 on PB8 (receive) and PB9 (transmit), clocked from the 42 MHz APB1 bus.
   Bit timing comes from the calculator in `lib/can/can_timing.c`: at 500 kbit/s, prescaler 6 and
-  15 time quanta per bit, sampling at 86.7% (see [hardware.md](hardware.md#can-bit-timing)).
+  14 time quanta per bit, sampling at 85.7% (see [hardware.md](hardware.md#can-bit-timing)).
 - **Filter.** One filter bank in 32-bit mask mode with an all-zero mask, so every frame is
   accepted into FIFO 0. A sniffer wants everything.
 - **Interrupt.** The FIFO-0 "message pending" interrupt runs at priority 1, second only to the
@@ -77,15 +77,16 @@ same capture path.
 
   A FIFO overrun (a frame lost inside the controller, before the interrupt could run) is
   counted too. The handler measures its own duration with the CPU's cycle counter: 7 µs at
-  most for capture alone and 10 µs with OBD2 traffic (the extra copy; up to 13 µs in the Debug
-  build, which counts serial interrupts that preempt it), against 238 µs between
+  most for capture alone and 10 µs with OBD2 traffic (the extra copy). Since v0.5.0 (168 MHz, and
+  the laptop asking each OBD2 question) it is up to 14 µs in the Debug build and 9 µs in Release,
+  counting serial interrupts that preempt it, against 238 µs between
   frames at full load.
 - **Off at start-up.** CAN is only started by a command, and sending is only allowed in loopback.
   A tool on a car's network must never transmit by accident.
 
 ### Timestamps: `firmware/system/timebase.c`
 
-TIM2 is a 32-bit timer. Clocked at 90 MHz with a prescaler of 90, it counts microseconds and wraps
+TIM2 is a 32-bit timer. Clocked at 84 MHz with a prescaler of 84, it counts microseconds and wraps
 after 71.6 minutes; the laptop tool unwraps it. The timestamp is taken when the interrupt
 handler runs, a few microseconds after the frame ends. The measured spacing of back-to-back
 8-byte frames at 500 kbit/s is 234 to 252 µs. That matches the theory: about 119 bits including

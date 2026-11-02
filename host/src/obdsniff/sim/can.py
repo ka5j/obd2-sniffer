@@ -20,7 +20,7 @@ from obdsniff.sim.obd import (
     single_frame,
 )
 
-APB1_HZ = 45_000_000  # the board's CAN clock
+APB1_HZ = 42_000_000  # the board's CAN clock
 QUEUE_FRAMES = 409  # 8 KiB of 20-byte frames, as on the board
 GEN_ID = 0x123
 GEN_MAX_COUNT = 10_000_000

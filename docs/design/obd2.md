@@ -145,5 +145,5 @@ tool that can't clear codes can't clear them by accident ([safety.md](safety.md)
 | After 2 s | 220 requests, 220 replies; VIN, both trouble codes and the warning light right |
 | After 10 s | 838 requests (about 95 a second), 0 timeouts, 0 errors; values follow the simulated drive (v0.4.0, before the transmit guard; now 199 in 10 s, `board_check.py`) |
 | Bus | 1,775 frames sent and 1,775 received, 0 dropped, with streaming off |
-| Longest receive interrupt | 10 µs with OBD2 traffic (13 µs in the Debug build since the laptop asks each question; the time includes serial interrupts that preempt it) |
+| Longest receive interrupt | 10 µs with OBD2 traffic; since v0.5.0, 14 µs in the Debug build and 9 µs in Release (a 168 MHz CPU, and the laptop asks each question: the time includes serial interrupts that preempt it) |
 | Laptop stops asking | No more requests (`board_check.py` waits 1 s and checks the count) |

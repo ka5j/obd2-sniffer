@@ -33,7 +33,7 @@ design documents go into each part in detail; this one shows how they connect.
 | Folder | Files | What it does |
 |---|---|---|
 | `firmware/system` | `main.c` | Start-up, then the main loop |
-| | `clock.c`, `timebase.c` | 180 MHz clock; the 1 µs timer used for timestamps |
+| | `clock.c`, `timebase.c` | 168 MHz clock; the 1 µs timer used for timestamps |
 | | `watchdog.c`, `reset_cause.c` | Restarts a stuck board; reports why the board last restarted |
 | | `board.c`, `status_led.c` | Pin assignments, LED, button |
 | | `syscalls.c` | C library hooks; `malloc` always fails, so nothing is allocated at run time |
@@ -62,8 +62,8 @@ design documents go into each part in detail; this one shows how they connect.
 | System tick (`SysTick_Handler`) | 15, the lowest | 1 ms tick | Counts milliseconds |
 | Faults (`HardFault`, `BusFault`, `UsageFault`, `MemManage`) | HardFault is fixed above everything; the others are at 0 | They run when the processor stops an illegal operation | Switch to the 512-byte fault stack, record the crash, restart |
 
-The longest CAN receive interrupt measured on the board is 10 µs (Debug build) and 6 µs
-(Release).
+The longest CAN receive interrupt measured on the board is 14 µs (Debug build) and 9 µs
+(Release), with OBD2 traffic. The time includes serial interrupts that preempt it.
 
 ## The main loop
 
