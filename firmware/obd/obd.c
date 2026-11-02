@@ -17,13 +17,13 @@ void obd_init(void)
     ecu_node_init(&ecu);
 }
 
-static bool transmit(uint32_t id, const uint8_t *data)
+static can_frame_t make_frame(uint32_t id, const uint8_t *data)
 {
     can_frame_t frame = {.id = id, .dlc = ISOTP_FRAME_LEN};
     for (uint32_t i = 0U; i < ISOTP_FRAME_LEN; i++) {
         frame.data[i] = data[i];
     }
-    return can_drv_send(&frame);
+    return frame;
 }
 
 /* Each side hands out its next frame on every poll until it has been
@@ -33,7 +33,8 @@ static void send_from_ecu(void)
     uint32_t id = 0U;
     uint8_t out[ISOTP_FRAME_LEN];
     if (ecu_node_poll(&ecu, timebase_us(), &id, out)) {
-        if (transmit(id, out)) {
+        can_frame_t frame = make_frame(id, out);
+        if (can_drv_send_loopback(&frame)) {
             ecu_node_sent(&ecu, timebase_us());
         }
     }
@@ -44,7 +45,8 @@ static void send_from_tester(void)
     uint32_t id = 0U;
     uint8_t out[ISOTP_FRAME_LEN];
     if (obd_client_poll(&tester, timebase_us(), &id, out)) {
-        if (transmit(id, out)) {
+        can_frame_t frame = make_frame(id, out);
+        if (can_drv_send(&frame)) { /* through the transmit guard */
             obd_client_sent(&tester, timebase_us());
         }
     }

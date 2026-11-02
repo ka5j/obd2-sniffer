@@ -33,7 +33,7 @@ POLL_S = 0.1  # how often the app polls the board when it runs normally
 # About 2.4 s at full load at 500 kbit/s: long enough for the once-a-second
 # rate display to show the bus rate.
 CAN_TEST_FRAMES = 10_000
-OBD_REQUESTS = 500  # about 5 s of the tester
+OBD_REQUESTS = 100  # about 5 s of the tester
 SHOTS = ("console", "can", "obd")
 
 

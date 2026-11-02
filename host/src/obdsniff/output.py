@@ -42,6 +42,7 @@ LABELS: dict[str, str] = {
     "can_stream": "Streaming",
     "can_streamed": "Sent to laptop",
     "can_tx_frames": "Transmitted",
+    "can_tx_refused": "  refused (guard)",
     "can_test_frames": "Test frames",
     "can_isr_max_us": "Longest IRQ (us)",
     "can_tec": "TX error count",

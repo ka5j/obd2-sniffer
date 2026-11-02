@@ -9,8 +9,8 @@ turning?", "which fault codes are stored?", "what is your vehicle identification
 - **The tester.** The board has an OBD2 tester built in. It works through a fixed plan, one
   question at a time: the VIN first, then the stored trouble codes and the warning-light status
   every 5 seconds, and in between seven live values (engine speed, vehicle speed, throttle,
-  engine load, coolant and intake temperature, engine run time) in turn. About 100 questions a
-  second.
+  engine load, coolant and intake temperature, engine run time) in turn. About 20 questions a
+  second, the most the board's transmit guard allows.
 - **The simulated car.** With only the development board available, there is no car to ask. In
   loopback the CAN controller receives every frame it sends, so the board plays the car as well:
   a simulated engine control unit (ECU) answers the tester, all through the real CAN controller.
@@ -24,7 +24,7 @@ turning?", "which fault codes are stored?", "what is your vehicle identification
   changes an ECU, is not built in, on purpose ([safety.md](safety.md#what-read-only-means)).
 - **Two ways to use it.** `obdsniff obd watch` on the laptop, or the desktop app's OBD2 tab.
 
-Measured on the board: **838 questions in the first 9 seconds (about 95 a second), every one
+Measured on the board: **199 questions in 10 seconds (19.9 a second), every one
 answered, 0 timeouts, 0 errors**; the multi-frame VIN and both trouble codes read correctly.
 
 | Term | Meaning |
@@ -50,7 +50,7 @@ answered, 0 timeouts, 0 errors**; the multi-frame VIN and both trouble codes rea
       │  0x7E8  21 47 44 4D 39 41 58 4B   consecutive frame 1: "GDM9AXK"
       │  0x7E8  22 50 30 34 32 37 38 38   consecutive frame 2: "P042788"
       │◄───────────────────────────────────────┤
-      │  10 ms later: 0x7DF  01 03 (trouble codes?), and so on
+      │  50 ms later: 0x7DF  01 03 (trouble codes?), and so on
 ```
 
 Requests go to 0x7DF, which every emissions-related ECU listens to. The engine ECU replies from
@@ -68,6 +68,7 @@ All the protocol logic is portable C in `lib/`, unit-tested on the laptop to 100
 | `isotp.c` | ISO-TP sender and receiver: single, first, consecutive and flow-control frames; block size, STmin, wait frames, timeouts |
 | `obd2.c` | Reply formats: PID formulas, monitor status, trouble codes and their text form, VIN |
 | `obd_client.c` | The tester: the request plan, reply timeout, the latest answers and counters |
+| `tx_guard.c` | The transmit guard: the only frames the board may send, and how often ([safety.md](safety.md#the-layers)) |
 | `ecu_sim.c` | The simulated engine: a pure function of elapsed time, so tests check exact bytes |
 | `ecu_node.c` | ISO-TP around `ecu_sim`, so the simulated ECU sits on the bus like a real one |
 
@@ -96,7 +97,7 @@ and timers such as STmin start from that confirmation.
 | Gap between consecutive frames of a reply (receiver gives up after) | 1 s | ISO 15765-2 default (N_Cr) |
 | Wait for flow control (sender gives up after) | 1 s | ISO 15765-2 default (N_Bs) |
 | "Wait" flow-control frames accepted in a row | 10 | N_WFTmax |
-| Tester's pause between a reply and the next request | 10 ms | keeps the bus load modest |
+| Tester's pause between a reply and the next request | 50 ms | at most 20 requests a second, the transmit guard's limit ([safety.md](safety.md#the-layers)) |
 
 Once the first frame of a reply has arrived, the 50 ms limit no longer applies: ISO-TP times the
 rest. Times are microseconds from the 32-bit timebase and compared in a way that survives the
@@ -129,9 +130,10 @@ PID table match.
 
 ### Safety
 
-The tester only sends in loopback, like every other transmit command, so nothing reaches a car.
-Clearing trouble codes (service 04) is not implemented; on a real car it will need an
-interlock.
+The tester only runs in loopback, so nothing reaches a car. Every frame it sends also passes the
+transmit guard, which allows only the read requests and their flow control, at most 20 requests
+a second. Clearing trouble codes (service 04) is not implemented, and the guard refuses it: a
+tool that can't clear codes can't clear them by accident ([safety.md](safety.md)).
 
 ## Checks on the board
 
@@ -139,6 +141,6 @@ interlock.
 |---|---|
 | `obd start` with CAN off | Refused |
 | After 2 s | 220 requests, 220 replies; VIN, both trouble codes and the warning light right |
-| After 10 s | 838 requests (about 95 a second), 0 timeouts, 0 errors; values follow the simulated drive |
+| After 10 s | 838 requests (about 95 a second), 0 timeouts, 0 errors; values follow the simulated drive (v0.4.0, before the transmit guard; now 199 in 10 s, `board_check.py`) |
 | Bus | 1,775 frames sent and 1,775 received, 0 dropped, with streaming off |
 | Longest receive interrupt | 10 µs with OBD2 traffic |

@@ -39,7 +39,7 @@ design documents go into each part in detail; this one shows how they connect.
 | | `syscalls.c` | C library hooks; `malloc` always fails, so nothing is allocated at run time |
 | `firmware/console` | `uart_link.c` | Serial link: receive interrupt into a ring buffer, transmit by DMA |
 | | `console.c`, `commands.c` | Connects the console logic to the link; the table of commands |
-| `firmware/can` | `can_drv.c` | CAN controller: receive interrupt, timestamps, the only place frames are sent |
+| `firmware/can` | `can_drv.c` | CAN controller: receive interrupt, timestamps, the board's send path through the transmit guard |
 | | `can_stream.c` | Sends captured frames to the laptop |
 | | `can_gen.c` | Test traffic for checking the capture path |
 | `firmware/obd` | `obd.c` | Connects the OBD2 tester and, in loopback, the simulated engine ECU to the CAN driver |
@@ -48,7 +48,7 @@ design documents go into each part in detail; this one shows how they connect.
 | `lib/link` | `packet.c`, `cobs.c`, `crc16.c` | The error-checked packet format for frames to the laptop |
 | `lib/console` | `console_core.c`, `cli.c`, `line_reader.c` | Reading command lines, command parsing, replies |
 | `lib/can` | `can_timing.c` | Works out the CAN bit timing for a bit rate |
-| `lib/obd` | `isotp.c`, `obd2.c`, `obd_client.c` | Multi-frame transport, OBD2 messages, the tester |
+| `lib/obd` | `isotp.c`, `obd2.c`, `obd_client.c`, `tx_guard.c` | Multi-frame transport, OBD2 messages, the tester, the transmit guard |
 | | `ecu_sim.c`, `ecu_node.c` | The simulated engine ECU used in loopback |
 | `lib/fault` | `fault_record.c` | The crash record format and its checksum |
 
@@ -103,11 +103,15 @@ the board stays controllable on a full bus. Detail: [can-capture.md](can-capture
 
 - **CAN is off at start-up.** `main.c` starts the driver with the controller off. A command turns
   CAN on.
-- **One place sends frames.** `can_drv_send()` in `firmware/can/can_drv.c` is the only path to
-  the bus, and it refuses unless the controller is in silent loopback, where nothing leaves the
-  chip.
+- **Every frame the board sends passes the transmit guard.** `can_drv_send()` in
+  `firmware/can/can_drv.c` checks each frame with `lib/obd/tx_guard.c`: only OBD2 read requests
+  (services 01, 03 and 09) to 0x7DF, at most 20 a second, and the flow control that lets a long
+  reply in. Everything else is refused and counted (`can_tx_refused`).
+- **Test traffic has its own path, in loopback only.** `can_drv_send_loopback()` carries the
+  numbered test frames and the simulated engine ECU's replies, which the guard would refuse. It
+  works only while the controller is in silent loopback, where nothing leaves the chip.
 - **The tester asks only read-only questions.** `lib/obd/obd_client.c` builds only service 01,
-  03 and 09 requests.
+  03 and 09 requests, and waits 50 ms after each reply, so it stays within the guard's limit.
 
 The full safety design, including the layers the circuit board adds, is in
 [safety.md](safety.md).

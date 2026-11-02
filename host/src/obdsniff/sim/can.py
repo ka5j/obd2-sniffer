@@ -107,6 +107,7 @@ class SimulatedCan:
         field("can_stream", "on" if self.stream else "off")
         field("can_streamed", str(self.streamed))
         field("can_tx_frames", str(self.tx_frames))
+        field("can_tx_refused", "0")
         field("can_test_frames", f"{self.gen_sent}/{self.gen_count}")
         field("can_isr_max_us", "0")
         field("can_tec", "0")

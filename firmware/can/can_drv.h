@@ -10,8 +10,13 @@
  *
  * Modes: off at start-up. Loopback is the controller's silent loopback:
  * frames it sends are received internally and nothing reaches the pins, so
- * the whole path can be tested on the board alone. Sending is only allowed
- * in loopback.
+ * the whole path can be tested on the board alone.
+ *
+ * Transmit: can_drv_send() is the board's path to the bus. Every frame goes
+ * through the transmit guard (lib/obd/tx_guard): only OBD2 read requests,
+ * rate limited, and their flow control. can_drv_send_loopback() carries the
+ * test traffic and the simulated engine ECU's replies, which the guard
+ * would refuse; it works in loopback only, where nothing leaves the chip.
  */
 #ifndef CAN_DRV_H
 #define CAN_DRV_H
@@ -31,6 +36,7 @@ typedef struct {
     uint32_t rx_dropped;     /* received while the queue was full */
     uint32_t rx_overruns;    /* lost in hardware: the FIFO was full */
     uint32_t tx_frames;      /* handed to the controller for sending */
+    uint32_t tx_refused;     /* refused by the transmit guard */
     uint32_t isr_max_cycles; /* longest receive interrupt, CPU cycles */
     uint32_t tx_errors;      /* transmit error counter (TEC) */
     uint32_t rx_errors;      /* receive error counter (REC) */
@@ -51,9 +57,13 @@ can_drv_mode_t can_drv_mode(void);
 const char *can_drv_mode_name(can_drv_mode_t mode);
 uint32_t can_drv_bitrate(void);
 
-/* Send one frame. False if CAN is not in loopback or all three transmit
- * mailboxes are busy. */
+/* Send one frame, if the transmit guard allows it. False if CAN is off, all
+ * three transmit mailboxes are busy, or the guard refuses the frame. */
 bool can_drv_send(const can_frame_t *frame);
+
+/* Send one frame without the guard: test traffic and the simulated ECU.
+ * False unless CAN is in loopback, or if all transmit mailboxes are busy. */
+bool can_drv_send_loopback(const can_frame_t *frame);
 
 /* Free transmit mailboxes (0-3). */
 uint32_t can_drv_tx_free(void);

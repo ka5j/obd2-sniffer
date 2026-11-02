@@ -176,6 +176,7 @@ static cli_status_t can_status(void *ctx)
     console_fieldf(ctx, "can_stream", "%s", can_stream_enabled() ? "on" : "off");
     console_fieldf(ctx, "can_streamed", "%lu", (unsigned long)can_stream_sent());
     console_fieldf(ctx, "can_tx_frames", "%lu", (unsigned long)s.tx_frames);
+    console_fieldf(ctx, "can_tx_refused", "%lu", (unsigned long)s.tx_refused);
     console_fieldf(ctx, "can_test_frames", "%lu/%lu", (unsigned long)can_gen_sent(),
                    (unsigned long)can_gen_count());
     console_fieldf(ctx, "can_isr_max_us", "%lu",
