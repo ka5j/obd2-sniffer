@@ -13,8 +13,10 @@ Requires Python 3.10 or newer. From the repository root:
 ```sh
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -e host
+pip install -e host                # add [gui] for the desktop app: pip install -e "host[gui]"
 ```
+
+[Getting started](../docs/getting-started.md) has the full steps, with or without a board.
 
 ## Use
 
