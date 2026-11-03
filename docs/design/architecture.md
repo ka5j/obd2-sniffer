@@ -1,5 +1,7 @@
 # How the firmware fits together
 
+Part of the [project documentation](../README.md).
+
 ## In short
 
 This is a one-page map of the firmware: what each part does, which parts react to the hardware
@@ -81,17 +83,14 @@ Each pass does, in order:
 
 ## The path of a CAN frame
 
-```
- CAN controller (hardware, 3-frame FIFO)
-      |  CAN receive interrupt: timestamp + capture number
-      v
- frame queue (lock-free, 409 frames)
-      |  main loop: can_stream_task
-      v
- packet: COBS framing + CRC-16
-      |
-      v
- transmit ring buffer (4 KB) --> DMA --> serial port, 1.5 Mbaud --> ST-LINK USB --> laptop
+```mermaid
+flowchart TD
+    A["CAN controller<br/>hardware, 3-frame FIFO"] -- "CAN receive interrupt:<br/>timestamp + capture number" --> B["Frame queue<br/>lock-free, 409 frames"]
+    B -- "main loop: can_stream_task" --> C["Packet<br/>COBS framing + CRC-16"]
+    C --> D["Transmit ring buffer<br/>4 KB"]
+    D -- "DMA" --> E["Serial port<br/>1.5 Mbaud"]
+    E --> F["ST-LINK USB"]
+    F --> G["Laptop"]
 ```
 
 When frames arrive faster than the serial link can carry them, the frame queue fills, and each

@@ -1,5 +1,7 @@
 # Getting started
 
+Part of the [project documentation](README.md).
+
 There are three ways in, and each one builds on the one before. Stop whenever you've seen enough.
 
 | Level | What you get | What you need | Time |

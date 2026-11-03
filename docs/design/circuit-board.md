@@ -1,5 +1,7 @@
 # The circuit board
 
+Part of the [project documentation](../README.md).
+
 > **Status:** designed, not built yet. This document records the design and the reasons
 > behind each choice. The parts named are the kind of part chosen; exact part numbers are fixed
 > when the schematic is drawn.
@@ -33,23 +35,39 @@ It is built in two revisions:
 
 ## Block diagram
 
+```mermaid
+flowchart LR
+    subgraph Port["OBD2 port"]
+        P16["Pin 16: battery 12 V"]
+        CANP["Pins 6, 14: CAN"]
+        GND["Pins 4, 5: ground"]
+    end
+    subgraph Power["Power"]
+        P16 --> Fuse["Fuse"] --> Rev["Reverse-polarity<br/>protection"] --> TVS["TVS diode"] --> Buck["Buck converter<br/>12 V to 5 V"]
+        Buck --> Rail5["5 V"]
+        Rail5 --> LDO["LDO"] --> Rail3["3.3 V"]
+    end
+    subgraph CANBlock["CAN"]
+        CANP --> ESD1["ESD protection"] --> X1["CAN1 transceiver"]
+        Switch["LISTEN/OBD switch"] --> Silent["Silent pin"]
+        Silent --> X1
+        Silent --> TXL["TX light"]
+        Test["Self-test header"] --> X2["CAN2 transceiver"]
+    end
+    subgraph MCU["STM32F446RE"]
+        Core["Firmware<br/>crystal, reset, BOOT0, SWD<br/>PWR and BUS lights"]
+    end
+    X1 --> Core
+    X2 --> Core
+    Core --> ESD2["ESD protection"] --> USBC["USB-C"]
+    USBC -- "5 V" --> Rail5
+    USBC --> Laptop["Laptop"]
+    TVS --> Div["Battery-voltage divider"] --> Core
+    Rail3 --> Core
 ```
- OBD2 port                                                              laptop
- pin 16 (12 V) --> fuse --> reverse-polarity --> TVS --> buck 12V->5V --+
-                            protection                                  +--> 5 V --> LDO --> 3.3 V
-                                                         USB-C VBUS ----+       |            |
-                                                                                |            |
-                                                      +---------------------+   |   +--------+-------+
- pin 6 (CANH)  ---- ESD ---- CAN1 transceiver -------| STM32F446RE         |<--+   | crystal, reset, |
- pin 14 (CANL) ----/          silent pin <--+        |                     |       | BOOT0, SWD      |
-                                            |        | USB (PA11/PA12) ----+--- ESD --- USB-C ---------+--> laptop
-               LISTEN/OBD switch -----------+        |                     |
-               TX light (on the silent pin)          | ADC <-- battery voltage divider
-                                                     |                     |
- self-test header --- CAN2 transceiver --------------|                     |
-                                                     +---------------------+
- pins 4, 5 (ground) --- board ground                   PWR, BUS lights
-```
+
+The self-test header only connects CAN2 to CAN1, through a jumper on the board. CAN2 has no path to
+the OBD2 pins. Ground (pins 4 and 5) is the board's ground.
 
 ## Each block and why it is there
 

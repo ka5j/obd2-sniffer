@@ -1,5 +1,7 @@
 # Serial console and protocol
 
+Part of the [project documentation](README.md).
+
 ## In short
 
 The board talks to the laptop over its USB serial port, with a small text protocol made for

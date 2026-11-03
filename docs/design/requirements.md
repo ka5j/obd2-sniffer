@@ -1,5 +1,7 @@
 # Requirements
 
+Part of the [project documentation](../README.md).
+
 ## In short
 
 This document says what the device has to do, how well, and how each requirement is proven.

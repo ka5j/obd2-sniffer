@@ -1,5 +1,7 @@
 # CAN capture: from the bus to the laptop
 
+Part of the [project documentation](../README.md).
+
 ## In short
 
 The heart of the project: catch every message on the car's network, note exactly when it
@@ -34,23 +36,21 @@ same capture path.
 
 ## The path of a frame
 
-```
- CAN controller ──► receive FIFO (3 frames, hardware)
-                       │ interrupt, high priority
-                       ▼
-          CAN1_RX0_IRQHandler: timestamp (TIM2, 1 µs) + capture number
-                       │
-                       ▼
-          frame queue (lock-free, 8 KB = 409 frames)          board: firmware/
-                       │ main loop
-                       ▼
-          can_stream_task: packet (COBS framing + CRC-16)
-                       │ leaves 1 KB for command replies, never waits
-                       ▼
-          transmit ring (4 KB) ──► DMA ──► USART2 1.5 Mbaud ──► ST-LINK USB
-                                                                 │
-          StreamSplitter: text lines │ packets ──► CRC check ──► frames
-                                                                  laptop: host/src/obdsniff/
+```mermaid
+flowchart TD
+    subgraph Board["Board: firmware/"]
+        A["CAN controller<br/>receive FIFO, 3 frames in hardware"] -- "interrupt, high priority" --> B["CAN1_RX0_IRQHandler<br/>timestamp (TIM2, 1 µs) + capture number"]
+        B --> C["Frame queue<br/>lock-free, 8 KB = 409 frames"]
+        C -- "main loop" --> D["can_stream_task<br/>packet: COBS framing + CRC-16"]
+        D -- "leaves 1 KB for command replies, never waits" --> E["Transmit ring, 4 KB"]
+        E -- "DMA" --> F["USART2, 1.5 Mbaud"]
+    end
+    F --> G["ST-LINK USB"]
+    subgraph Laptop["Laptop: host/src/obdsniff/"]
+        G --> H["StreamSplitter<br/>separates text lines from packets"]
+        H --> I["CRC check"]
+        I --> J["Frames"]
+    end
 ```
 
 ## Engineering detail

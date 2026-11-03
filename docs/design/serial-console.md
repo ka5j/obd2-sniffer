@@ -1,5 +1,7 @@
 # Serial console: interrupts, DMA and ring buffers
 
+Part of the [project documentation](../README.md).
+
 ## In short
 
 The board talks to the laptop over a serial port at 1.5 million bits per second. A simple

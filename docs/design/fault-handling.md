@@ -1,5 +1,7 @@
 # Watchdog and crash reporting
 
+Part of the [project documentation](../README.md).
+
 ## In short
 
 Embedded devices often run unattended. When something goes wrong, you want two things: the device
