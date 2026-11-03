@@ -1,5 +1,7 @@
 # obdsniff: laptop tool
 
+Part of the [project documentation](../docs/README.md).
+
 `obdsniff` is the laptop side of the OBD2 CAN Sniffer. It connects to the board over USB and lets
 you check its status, control it, watch events as they happen, and type commands in a shell,
 from the command line or from a desktop app. The board formats nothing for people; this tool

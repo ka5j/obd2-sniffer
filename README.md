@@ -136,7 +136,7 @@ How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-
 | [`lib/`](lib) | Portable C with no hardware code: buffers, link encoding, console logic, CAN timing, ISO-TP, OBD2 and the transmit guard. Compiled into the firmware and unit-tested on a laptop |
 | [`tests/`](tests) | C unit tests, in the same folders as `lib/` |
 | [`host/`](host) | The laptop tool `obdsniff`: command line, desktop app, board simulator |
-| [`scripts/`](scripts) | Board check, coverage, MISRA and stack-use gates, quality report, screenshots, release-file check |
+| [`scripts/`](scripts) | Board check, coverage, MISRA and stack-use gates, quality report, screenshots, release-file and link checks |
 | [`docs/`](docs) | [All the documents](docs/README.md) |
 | [`misra/`](misra) | MISRA policy: every deviation and its reason |
 

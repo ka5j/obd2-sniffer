@@ -1,5 +1,7 @@
 # Testing and code coverage
 
+Part of the [project documentation](../README.md).
+
 ## In short
 
 Every change to this project is tested automatically before it can be merged. The logic that

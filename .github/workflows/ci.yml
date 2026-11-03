@@ -309,3 +309,6 @@ jobs:
 
       - name: Check formatting
         run: ./scripts/check-format.sh
+
+      - name: Check links between the documents
+        run: python3 scripts/check_links.py

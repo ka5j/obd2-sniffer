@@ -1,5 +1,7 @@
 # OBD2: asking the car for live data, trouble codes and its VIN
 
+Part of the [project documentation](../README.md).
+
 ## In short
 
 A sniffer listens; a diagnostic tool also asks. OBD2 is the standard set of questions every car
@@ -41,18 +43,17 @@ answered, 0 timeouts, 0 errors**; the multi-frame VIN and both trouble codes rea
 
 ## The conversation
 
-```
- tester (board)                       simulated engine ECU (board)
-      │  0x7DF  02 09 02          "your VIN?"  (to every ECU)
-      ├───────────────────────────────────────►│
-      │  0x7E8  10 14 49 02 01 31 4D 38   first frame: 20 bytes coming, "1M8"
-      │◄───────────────────────────────────────┤
-      │  0x7E0  30 00 00          flow control: send the rest, no pauses
-      ├───────────────────────────────────────►│
-      │  0x7E8  21 47 44 4D 39 41 58 4B   consecutive frame 1: "GDM9AXK"
-      │  0x7E8  22 50 30 34 32 37 38 38   consecutive frame 2: "P042788"
-      │◄───────────────────────────────────────┤
-      │  50 ms later: 0x7DF  01 03 (trouble codes?), and so on
+```mermaid
+sequenceDiagram
+    participant T as Tester (board)
+    participant E as Simulated engine ECU (board)
+    T->>E: 0x7DF 02 09 02 (your VIN? To every ECU)
+    E->>T: 0x7E8 10 14 49 02 01 31 4D 38 (first frame, 20 bytes coming, 1M8)
+    T->>E: 0x7E0 30 00 00 (flow control, send the rest with no pauses)
+    E->>T: 0x7E8 21 47 44 4D 39 41 58 4B (consecutive frame 1, GDM9AXK)
+    E->>T: 0x7E8 22 50 30 34 32 37 38 38 (consecutive frame 2, P042788)
+    Note over T,E: The next question goes at least 50 ms after this one
+    T->>E: 0x7DF 01 03 (trouble codes?), when the laptop asks
 ```
 
 Requests go to 0x7DF, which every emissions-related ECU listens to. The engine ECU replies from

@@ -1,8 +1,10 @@
 # Safety: a read-only scanner
 
+Part of the [project documentation](../README.md).
+
 ## In short
 
-This device gets tested on my own car, so the first design goal is that it can't harm the car.
+This device is meant to plug into a real car, so the first design goal is that it can't harm the car.
 
 **Read-only.** The device asks the car only standard read-only questions: live data, stored
 trouble codes and the VIN. Mechanics' scan tools ask the same questions every day, and they
@@ -12,12 +14,12 @@ trigger it.
 
 **Safety in layers, hardware first.** A single safety check, however well tested, is a single
 point of failure. So the device has several independent layers, and each one on its own stops
-the device from transmitting. The most important one is a physical switch. In its LISTEN
-position, the chip that drives the car's network is electrically unable to transmit, whatever
-the firmware does.
+the device from transmitting. The most important one is a physical switch on the circuit board,
+which is designed but not built yet. In its LISTEN position, the chip that drives the car's network
+is electrically unable to transmit, whatever the firmware does.
 
 **Honest limits.** No engineer can promise that a device is "impossible" to harm a car with.
-What this design promises, and proves on the bench, is narrower:
+What this design promises, and has to prove on the bench before it goes near a car, is narrower:
 - in LISTEN mode, the device can't transmit even if its firmware tries;
 - in OBD mode, it can only send standard read requests, slowly.
 
@@ -57,7 +59,16 @@ to be cleared with another scanner.
 
 ## The layers
 
-Each layer, on its own, stops a transmit.
+Each layer, on its own, stops a transmit. A frame has to get past all of them to reach the bus:
+
+```mermaid
+flowchart TD
+    Ask["The laptop asks one question"] --> L3["Layer 3: allowed request, within the rate limit?"]
+    L3 --> L4["Layer 4: no bus error seen?"]
+    L4 --> L2["Layer 2: CAN controller out of silent mode for this request?"]
+    L2 --> L1["Layer 1: LISTEN/OBD switch set to OBD?"]
+    L1 --> Bus["The car's CAN bus"]
+```
 
 | Layer | What it does | Still stops a transmit if | Status |
 |---|---|---|---|
@@ -70,9 +81,10 @@ The **TX light** on the circuit board is wired to the transceiver's silent pin i
 driven by firmware. It is lit only when the device is able to transmit, so it can't show
 "safe" while the device isn't.
 
-Each layer is proven on the bench by fault injection. A test build deliberately tries to
-transmit, with each layer in turn as the only one in the way, and a logic analyzer on the
-transmit wire confirms nothing goes out.
+Each layer has to be proven on the bench by fault injection before the car tests. A test build
+will deliberately try to transmit, with each layer in turn as the only one in the way, and a logic
+analyzer on the transmit wire will confirm that nothing goes out. This needs the real bus, so it
+hasn't been done yet.
 
 ### Finding the bit rate without disturbing the bus
 

@@ -1,5 +1,7 @@
 # Hardware and wiring
 
+Part of the [project documentation](../README.md).
+
 ## In short
 
 The project runs on an off-the-shelf STM32 development board. The laptop connects to it with a

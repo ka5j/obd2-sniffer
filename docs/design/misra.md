@@ -1,5 +1,7 @@
 # MISRA C coding standard
 
+Part of the [project documentation](../README.md).
+
 ## In short
 
 **MISRA C** is a set of rules for writing C, created by the automotive industry and now used for
