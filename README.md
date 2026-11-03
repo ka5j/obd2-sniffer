@@ -4,104 +4,105 @@
 [![Quality report](https://img.shields.io/badge/quality%20report-tests%20%26%20coverage-0969da)](https://ka5j.github.io/obd2-sniffer/)
 [![Latest release](https://img.shields.io/github/v/release/ka5j/obd2-sniffer)](https://github.com/ka5j/obd2-sniffer/releases/latest)
 
-A small device for a car's diagnostic port: it listens to the conversations between the car's
-computers, asks the engine computer for live data, and shows it all on a laptop. It is built from
-scratch on an STM32 microcontroller, with a desktop app and a command-line tool for the laptop
-side. It is designed as a **read-only scanner**: it only ever asks the car standard questions,
-and can't change anything in it. Today it runs on a development board alone, against a simulated
-engine computer; its own circuit board, which plugs into the car, is designed.
+A read-only scanner for a car's diagnostic port. It records the messages between the car's computers,
+asks the engine computer for live data, trouble codes and the VIN, and shows it all on a laptop. It
+only ever asks standard questions, and can't change anything in the car.
 
-> Under active development. See [Project status](#project-status) for what works today.
+Today it runs on an STM32 development board, against a simulated engine computer. The goal is its own
+custom circuit board that plugs straight into the car.
 
-## The idea
+![The desktop app reading live values from the board: the simulated engine goes from idle into acceleration](docs/images/desktop-app-demo.gif)
 
-A modern car has dozens of small computers (ECUs) controlling the engine, brakes, airbags and
-dashboard. They talk to each other over a shared wired network called the **CAN bus**. Since 2008,
-every car sold in North America exposes that network through the **OBD2 port** under the
-dashboard. Mechanics plug their scan tools into the same port.
+## Where it stands
 
-This project is a scan tool and network analyzer I am building myself:
+| | |
+|---|---|
+| **Works today** | On a development board with no car: CAN capture with nothing lost unnoticed, OBD2 live data, trouble codes and VIN, a transmit guard, crash recovery, and a desktop app and command line |
+| **Not done yet** | It hasn't been on a real CAN bus or in a real car |
+| **The goal** | A custom circuit board that runs from the car's 12 V supply, with a hardware switch that turns the transmitter off. It is designed, not built |
 
-- **Listen:** record every message on the car's network, with precise timestamps, without
-  interfering with it.
-- **Ask:** request standard diagnostic data from the engine computer, such as RPM, speed, coolant
-  temperature, throttle position, the vehicle identification number (VIN), and check-engine
-  trouble codes.
-- **Show:** stream everything to a laptop, where it can be watched live, graphed, and saved.
+The full list is in [Project status](#project-status).
 
-## Highlights
+## Try it, no hardware needed
 
-- **Two ways to use it.** A desktop app, or a command-line tool for the terminal and for
-  scripts. Both are built on one Python library, and the board speaks a single small protocol
-  to it, so there is one path to test.
-- **Keeps up with a busy network.** Each message is captured the moment it arrives, timestamped
-  to the microsecond, numbered, and moved to the laptop in a compact, error-checked format.
-  Measured on the board: 100,000 messages in a row at 100% network load, none lost. When traffic
-  outgrows the USB link, every dropped message is counted and reported, never silently lost.
-- **Speaks the car's diagnostic language.** The board asks for live engine data, trouble codes
-  and the VIN using OBD2 and its multi-frame transport (ISO-TP), written from scratch. Measured:
-  201 requests in 10 seconds, the most its transmit guard allows, every one answered.
-- **Testable without a car.** The board plays the car too: a simulated engine computer answers
-  the diagnostic requests through the real CAN controller in loopback. The laptop tool also has
-  a software simulator of the whole board, so it runs with no hardware at all.
-- **Recovers from crashes and says why.** A watchdog restarts the board if the program ever
-  stops responding, and a crash handler records the fault type and code address, then reports
-  them after the restart.
-- **Read-only by design.** The board only asks the car standard read-only questions (live data,
-  trouble codes, the VIN); nothing that could clear a code or change a setting is built in.
-  It asks only when the laptop tells it to, never on its own, and every frame it sends passes a
-  transmit guard that allows only those requests, at most 20 a second. Today CAN is off at
-  start-up, and the board only transmits in loopback mode, where nothing leaves the chip. The
-  circuit board adds a hardware LISTEN switch that turns the transmitter off electrically,
-  whatever the firmware does. See [safety.md](docs/design/safety.md).
-- **Requirements with a test for each.** What the device must do, survive and never do is
-  written down as numbered requirements, each with the test that proves it and its honest status
-  today ([requirements.md](docs/design/requirements.md)).
-- **Tested to safety-critical standards.** The core logic is unit-tested to 100% MC/DC coverage,
-  the coverage standard used for flight-control and automotive safety software, and all C code
-  follows the **MISRA C:2012** coding rules used in the automotive industry, with every exception
-  documented. Every change is built, tested and checked automatically before it can be merged.
-  Results are published as a [live quality report](https://ka5j.github.io/obd2-sniffer/).
+The laptop software includes a simulator of the whole board. You need Python 3.10 or newer, and Git:
+
+```sh
+git clone https://github.com/ka5j/obd2-sniffer.git
+cd obd2-sniffer
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -e "host[gui]"         # the desktop app's Qt library is a large download
+obdsniff --port sim gui
+```
+
+Press **Connect**, open the **OBD2** tab, and press **Start**.
+
+To go further, with a real board and ready-made firmware, or building from source, see
+[Getting started](docs/getting-started.md).
 
 ## How it works
 
-Today the board works on its own, with no car and no extra parts:
+A car's computers share one pair of wires, the **CAN bus**, and the **OBD2 port** under the dashboard
+is the way in. On the bus, every computer sees every message. So a tool can listen to it all, and ask
+the engine computer standard questions such as "what is the engine speed?".
+
+With no car, the development board plays both sides:
 
 ```mermaid
 flowchart LR
-    Laptop["Laptop<br/>desktop app or command line"] <-- USB serial --> FW
-    subgraph Board["NUCLEO-F446RE board"]
-        FW["Firmware<br/>capture, timestamps, OBD2 tester"] <--> CAN["CAN controller<br/>in loopback"]
+    Laptop["Laptop<br/>desktop app or command line"] <-- "USB cable" --> Tool
+    subgraph Board["Development board (NUCLEO-F446RE)"]
+        Tool["Scan tool firmware"] <--> CAN["CAN controller<br/>in loopback"]
         ECU["Simulated engine computer"] <--> CAN
     end
 ```
 
-1. The **CAN controller** runs in loopback: it receives its own messages and nothing leaves the
-   chip, so the firmware can play both the diagnostic tool and the car.
-2. The **firmware** captures each message, timestamps it and numbers it. Its OBD2 tester asks
-   the simulated engine computer for live data, trouble codes and the VIN.
-3. The **laptop software** receives the data over USB and displays it.
+1. The **laptop** asks one question at a time, and shows the answers.
+2. The **firmware** sends each question through its CAN controller, timestamps and numbers every
+   message it receives, and sends them to the laptop.
+3. The **CAN controller** runs in loopback: it receives its own messages and nothing leaves the chip,
+   so a simulated engine computer on the same board can answer through real CAN hardware.
 
-To connect to a real car, a CAN transceiver chip goes between the board and the car's OBD2 port.
-That part is designed ([hardware.md](docs/design/hardware.md#connecting-to-a-car)) but not built
-yet, and so is the project's own circuit board ([circuit-board.md](docs/design/circuit-board.md)),
-which also runs from the car's 12 V supply. See [Project status](#project-status).
+[How it works](docs/how-it-works.md) explains all of this from the beginning, with no car knowledge
+assumed.
 
-## Ways to use it
+## Why it's worth a look
 
-| Interface | What it looks like | Good for |
-|---|---|---|
-| Desktop app | `obdsniff gui`: board status and controls, a console, live CAN frames, OBD2 live data | Watching live data, demos |
-| Command-line tool | `obdsniff obd watch`, `obdsniff monitor`, `obdsniff can test`, `obdsniff shell`, ... | Watching and logging traffic, scripting, automated checks |
+- **Nothing is lost unnoticed.** Every message is timestamped to the microsecond and numbered the
+  moment it arrives. Measured on the board in loopback: 100,000 messages at 100% network load, none
+  lost. When traffic outgrows the USB link, every dropped message is counted and reported.
+- **Read-only by design.** The board asks only when the laptop tells it to, and every frame it sends
+  passes a transmit guard that allows only read requests, at most 20 a second. Clearing a trouble code
+  isn't built in. [The safety design](docs/design/safety.md) adds a hardware switch, and lists the
+  risks that remain.
+- **Recovers from crashes and says why.** A watchdog restarts the board if the program stops
+  responding, and a crash handler records the fault type and code address, then reports them after
+  the restart.
+- **Tested to safety-critical standards.** The core logic is unit-tested to 100% MC/DC coverage, the
+  coverage standard used for flight-control software, and all C code follows the MISRA C:2012 rules
+  used in the automotive industry, with every exception documented. See the
+  [live quality report](https://ka5j.github.io/obd2-sniffer/).
+- **Requirements with a test for each.** What the device must do, survive and never do is written
+  down as [numbered requirements](docs/design/requirements.md), each with its test and its honest
+  status today.
+- **Every release is checked on the board.** The published files are built by CI from the tag, then
+  flashed onto the board and checked before they go out.
 
-![The desktop app's CAN tab: 10,000 test frames captured on the board, none lost](docs/images/desktop-app-can.png)
+## Where to go next
 
-![The desktop app's OBD2 tab: live data, trouble codes and VIN read on the board from its simulated engine computer](docs/images/desktop-app-obd.png)
-
-Try the laptop tool without a board: `pip install -e "host[gui]"`, then `obdsniff --port sim shell`
-or `obdsniff --port sim gui`. See [host/README.md](host/README.md).
+| You want to... | Read |
+|---|---|
+| Understand how it works, from the beginning | [How it works](docs/how-it-works.md) |
+| Run it, with or without a board | [Getting started](docs/getting-started.md) |
+| Use the desktop app, command line or Python library | [The laptop tool](host/README.md) |
+| Judge the engineering | [Safety](docs/design/safety.md), [requirements](docs/design/requirements.md), [testing](docs/design/testing.md) and [how the firmware fits together](docs/design/architecture.md) |
+| See the circuit board design | [Circuit board](docs/design/circuit-board.md) |
+| See every document | [Documentation](docs/README.md) |
 
 ## Measured on the board
+
+All of these are in loopback, on a development board.
 
 | What | Result |
 |---|---|
@@ -114,7 +115,7 @@ or `obdsniff --port sim gui`. See [host/README.md](host/README.md).
 
 How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-board).
 
-## Topics touched with this project
+## Topics covered by this project
 
 | Area | Details |
 |---|---|
@@ -132,11 +133,11 @@ How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-
 | Folder | What's in it |
 |---|---|
 | [`firmware/`](firmware) | STM32 firmware, one folder per subsystem: `system`, `console`, `can`, `obd`, `fault` (and `hal`, ST's driver settings) |
-| [`lib/`](lib) | Portable C with no hardware code: buffers, link encoding, console logic, CAN timing, ISO-TP and OBD2. Compiled into the firmware and unit-tested on a laptop |
+| [`lib/`](lib) | Portable C with no hardware code: buffers, link encoding, console logic, CAN timing, ISO-TP, OBD2 and the transmit guard. Compiled into the firmware and unit-tested on a laptop |
 | [`tests/`](tests) | C unit tests, in the same folders as `lib/` |
 | [`host/`](host) | The laptop tool `obdsniff`: command line, desktop app, board simulator |
 | [`scripts/`](scripts) | Board check, coverage, MISRA and stack-use gates, quality report, screenshots, release-file check |
-| [`docs/`](docs) | Design documents |
+| [`docs/`](docs) | [All the documents](docs/README.md) |
 | [`misra/`](misra) | MISRA policy: every deviation and its reason |
 
 ## Project status
@@ -154,89 +155,15 @@ How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-
 | Worst-case stack use worked out and checked in CI | Done |
 | Capturing CAN messages and streaming them to the laptop | Done (tested in loopback), verified on hardware |
 | OBD2 requests: live data, VIN, trouble codes, from a simulated engine computer in loopback | Done, verified on hardware |
-| Requirements, read-only safety design, failure-mode analysis, circuit board design | Done (written down; see [Documentation](#documentation)) |
+| Transmit guard: only read requests, rate limited, sent only when the laptop asks | Done (tested in loopback), verified on hardware |
+| Requirements, read-only safety design, failure-mode analysis, circuit board design | Done (written down; see [Documentation](docs/README.md)) |
 | Real CAN bus on the desk with two transceivers, bus fault tests | Not started |
 | USB straight from the microcontroller, with no programmer chip in between | Not started |
-| Read-only safety layers in the firmware: allowlist, silent bit-rate detection, error latch | Not started |
+| Silent bit-rate detection and the bus-error latch | Not started |
 | Circuit board revision A: schematic, layout, bring-up | Not started |
 | Sleep mode when the car is off | Not started |
 | Testing in a real car | Not started |
 | Circuit board revision B: the device that plugs into the car | Not started |
-
-## Hardware
-
-Everything above runs on one **NUCLEO-F446RE** development board (STM32F446RE microcontroller:
-Arm Cortex-M4, run at 168 MHz, 512 KB flash, 128 KB RAM) and a USB cable.
-
-Connecting to a car will also take an **SN65HVD230** CAN transceiver module and an **OBD2
-cable** (not started yet).
-
-The project's own circuit board, designed but not built yet, replaces all of this with one
-device that plugs into the car and the laptop:
-[docs/design/circuit-board.md](docs/design/circuit-board.md).
-
-Wiring and pin assignments are in [docs/design/hardware.md](docs/design/hardware.md).
-
-## Getting started
-
-All you need to run the firmware is a **NUCLEO-F446RE** board and a USB cable. On the computer,
-install the [Arm GNU Toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads),
-CMake (3.25+), Ninja and Git.
-
-```sh
-git clone --recurse-submodules https://github.com/ka5j/obd2-sniffer.git
-cd obd2-sniffer
-cmake --workflow --preset firmware        # configure and build in one step
-```
-
-Or skip the build: the [latest release](https://github.com/ka5j/obd2-sniffer/releases/latest) has
-ready-made firmware files, checked on a board before publishing.
-
-Load the firmware with either method:
-
-- **Drag and drop:** copy `build/firmware/firmware/obd2_sniffer.bin` onto the **NODE_F446RE** USB
-  drive that appears when the board is plugged in.
-- **Command line:** `cmake --build --preset firmware --target flash` (uses OpenOCD).
-
-Then open the board's serial port at 1500000 baud (for example
-`screen /dev/cu.usbmodem* 1500000`) and press the black reset button to see the start-up report.
-
-The **[full getting-started guide](docs/getting-started.md)** covers installation on macOS, Linux
-and Windows, the other ways to flash the board, ready-made firmware downloads, debugging, and
-troubleshooting.
-
-## Testing
-
-```sh
-cmake --workflow --preset host-tests      # configure, build and run the unit tests
-```
-
-The unit tests run on a normal computer under memory-error, undefined-behaviour and race
-detectors. CI also measures coverage and rejects any change that drops below 100% MC/DC. Code
-that drives the hardware is checked on the board itself: `scripts/board_check.py` runs the checks
-over the serial port and prints what it measured. See
-[docs/design/testing.md](docs/design/testing.md) (including the
-[latest board check](docs/design/testing.md#checks-on-the-board)) and the
-[live quality report](https://ka5j.github.io/obd2-sniffer/).
-
-## Documentation
-
-Each document starts with a short plain-language summary, followed by the engineering detail.
-
-- [Requirements](docs/design/requirements.md): what the device must do, each with its test and status
-- [Safety](docs/design/safety.md): the read-only design, its layers, and the risks that remain
-- [How the firmware fits together](docs/design/architecture.md): the parts, interrupts and main loop
-- [Circuit board](docs/design/circuit-board.md): the design of the device's own board
-- [CAN capture](docs/design/can-capture.md): from the bus to the laptop, with measured results
-- [OBD2](docs/design/obd2.md): asking the car for live data, trouble codes and its VIN
-- [Serial console and protocol](docs/protocol.md): commands, and how programs talk to the board
-- [Laptop tool](host/README.md): desktop app, command line, shell, simulator, Python library
-- [Hardware and wiring](docs/design/hardware.md)
-- [Build system and start-up sequence](docs/design/build-and-boot.md)
-- [Testing and code coverage](docs/design/testing.md)
-- [MISRA C coding standard](docs/design/misra.md)
-- [Serial console internals](docs/design/serial-console.md): interrupts, DMA and ring buffers
-- [Watchdog and crash reporting](docs/design/fault-handling.md)
 
 ## License
 
