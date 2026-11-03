@@ -9,12 +9,10 @@ Needs the laptop tool with the desktop app (`pip install -e "host[gui]"`).
 Close any serial terminal first: only one program can hold the port.
 
 Usage:
-    python3 scripts/screenshots.py [--port PORT] [--out DIR] [console] [can] [obd] [demo]
+    python3 scripts/screenshots.py [--port PORT] [--out DIR] [console] [can] [obd]
 
 console runs `crash bus`, so it needs a Debug build; can and obd work with
-either build. With no names, those three are taken. demo records the animated
-GIF for the README, restarting the board first. It also needs Pillow, which
-nothing else in the project uses (`pip install pillow`).
+either build. With no names, all three are taken.
 """
 
 from __future__ import annotations
@@ -27,7 +25,6 @@ from pathlib import Path
 
 from obdsniff.gui.window import MainWindow
 from obdsniff.gui.worker import DeviceWorker
-from PySide6.QtGui import QImage
 from PySide6.QtWidgets import QApplication
 from shiboken6 import delete
 
@@ -37,11 +34,7 @@ POLL_S = 0.05  # how often the app polls the board when it runs normally
 # rate display to show the bus rate.
 CAN_TEST_FRAMES = 10_000
 OBD_REQUESTS = 100  # about 5 s of the tester
-# The simulated engine idles for 5 s after start-up, then accelerates.
-DEMO_SECONDS = 12.0
-DEMO_FRAME_S = 0.25
 SHOTS = ("console", "can", "obd")
-OPTIONAL_SHOTS = ("demo",)
 
 
 class Shooter:
@@ -118,43 +111,6 @@ class Shooter:
         self.wait_until("the tester to stop", lambda: panel.start_button.text() == "Start")
         self.worker.can_off()
 
-    def demo(self) -> None:
-        """The OBD2 tab from just after a restart: idle, then accelerating."""
-        from PIL import Image  # only this shot needs Pillow
-
-        panel = self.window.obd_panel
-        self.window.tabs.setCurrentWidget(panel)
-        self.worker.reset()
-        self.wait_until("the restart", lambda: panel.start_button.isEnabled())
-        panel.start_button.click()
-        frames = []
-        end = time.monotonic() + DEMO_SECONDS
-        while time.monotonic() < end:
-            shot = time.monotonic()
-            self.wait_until("the next frame", lambda s=shot: time.monotonic() >= s + DEMO_FRAME_S)
-            image = self.window.grab().toImage().convertToFormat(QImage.Format.Format_RGB888)
-            size = (image.width(), image.height())
-            # A line of the image may be padded: pass its true length.
-            data = bytes(image.constBits())
-            frames.append(Image.frombuffer("RGB", size, data, "raw", "RGB", image.bytesPerLine()))
-        panel.start_button.click()
-        self.wait_until("the questions to stop", lambda: panel.start_button.text() == "Start")
-        self.worker.can_off()
-
-        # One palette for every frame, so colours don't flicker between them.
-        palette = frames[len(frames) // 2].quantize(colors=64)
-        indexed = [frame.quantize(palette=palette, dither=Image.Dither.NONE) for frame in frames]
-        path = self.out / "desktop-app-demo.gif"
-        indexed[0].save(
-            path,
-            save_all=True,
-            append_images=indexed[1:],
-            duration=round(DEMO_SECONDS * 1000 / len(frames)),  # plays at real speed
-            loop=0,
-            optimize=True,
-        )
-        print(f"saved {path.relative_to(ROOT) if path.is_relative_to(ROOT) else path}")
-
     def close(self) -> None:
         self.worker.close_port()
         self.window.close()
@@ -167,15 +123,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--port", help="serial port (default: find the board)")
     parser.add_argument("--out", type=Path, default=ROOT / "docs" / "images")
-    parser.add_argument(
-        "shots", nargs="*", metavar="SHOT", help="console, can, obd (the default), or demo"
-    )
+    parser.add_argument("shots", nargs="*", metavar="SHOT", help="console, can, obd (default: all)")
     args = parser.parse_args()
     shots = args.shots or list(SHOTS)
-    names = SHOTS + OPTIONAL_SHOTS
-    unknown = sorted(set(shots) - set(names))
+    unknown = sorted(set(shots) - set(SHOTS))
     if unknown:
-        parser.error(f"unknown screenshot: {', '.join(unknown)} (choose from {', '.join(names)})")
+        parser.error(f"unknown screenshot: {', '.join(unknown)} (choose from {', '.join(SHOTS)})")
 
     shooter = Shooter(args.port, args.out)
     try:
