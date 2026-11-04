@@ -12,8 +12,9 @@ everything can be developed and tested with no car and no extra parts.
 To connect to a car, a small add-on chip, the CAN transceiver, will sit between the board and
 the car, translating the car's network signals into signals the microcontroller understands.
 That connection is designed below but not built yet. Even then, the development board takes
-nothing from the car's power supply. That keeps the car's electrical system and the laptop separate, and it means a wiring
-mistake can't damage either one.
+nothing from the car's power supply, which keeps the car's electrical system and the laptop separate.
+That reduces what a wiring mistake can do, but doesn't remove it:
+[safety.md](safety.md#what-the-layers-dont-cover) lists the risks that remain.
 
 ## Parts
 
@@ -52,6 +53,10 @@ Rules for the car connection:
   the laptop's charger.
 - **Check every cable for continuity before it goes near the car**, pin by pin, and check that
   pin 16 (battery) connects to nothing. A wrong pinout could put 12 V on the CAN wires.
+- **Check that the car uses classic CAN** at its diagnostic port. This design can't read CAN FD.
+- **For listen-only sessions, disconnect the transmit wire** (PB9 to the transceiver), and hold the
+  transceiver's transmit input in its idle state, as its datasheet requires. There is no hardware LISTEN
+  switch on the development board: see [safety.md](safety.md#before-the-switch-exists).
 - **Follow the order of car tests** in [safety.md](safety.md#the-order-of-car-tests): listening
   only, with the engine off, comes first.
 

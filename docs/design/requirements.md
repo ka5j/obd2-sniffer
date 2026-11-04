@@ -59,6 +59,7 @@ The reasons behind these are in [safety.md](safety.md).
 | SAF-7 | On a CAN FD bus, the device stays silent and reports an unsupported bus | Connected to CAN FD traffic, it reports "unsupported bus" and never leaves silent mode | **Not built** |
 | SAF-8 | One request at a time, at most 20 a second on a real bus | Measured request rate during a car session | **Met in loopback:** one request at a time, and the transmit guard refuses any request less than 50 ms after the last: 201 requests in 10 s on the board, 0 refused |
 | SAF-9 | Nothing that clears trouble codes, writes to an ECU, resets an ECU or opens a diagnostic session exists in the firmware | Code review of every transmit path | **Met.** No such request is built in, and no command sends a frame typed by hand |
+| SAF-10 | Until the hardware switch exists, listen-only sessions have the transmit wire physically disconnected | Checked with a multimeter before the transceiver is connected to the car | **Not built** (no car session has happened yet) |
 
 ## Power
 
@@ -78,7 +79,7 @@ The reasons behind these are in [safety.md](safety.md).
 |---|---|---|---|
 | CAN-1 | No frame lost at 500 kbit/s and 100% bus load | 100,000 frames, each checked by number and content | **Met in loopback:** 100,000 frames, 0 lost, 0 damaged |
 | CAN-2 | The same at 250 kbit/s | 10,000 frames | **Met in loopback:** 0 lost, 0 damaged |
-| CAN-3 | When the traffic outgrows the laptop link, every dropped frame is counted and visible | Overload at 1 Mbit/s: frames counted as dropped on the board equal the gaps the laptop sees | **Met in loopback:** 5,212 of 20,000 dropped (Release build), every one counted and seen |
+| CAN-3 | When the traffic outgrows the laptop link, every dropped frame is counted and visible | Overload at 1 Mbit/s: frames counted as dropped on the board equal the gaps the laptop sees | **Met in loopback:** 5,209 of 20,000 dropped (Release build), every one counted and seen |
 | CAN-4 | Each frame is timestamped to 1 µs | Frame spacing matches the frame length on the bus | **Met in loopback** |
 | CAN-5 | Recovers from every bus fault in the test list: no acknowledge, CANH shorted to CANL, a wire disconnected mid-stream, missing termination | Each fault injected on a desk bus; the device reports it and recovers or latches (SAF-5) | **Not built** (needs the desk bus) |
 | CAN-6 | The device adds no termination to the car's bus | Measured 60 ohms across CANH and CANL on the car with and without the device | **Design** (termination off by default) |
@@ -95,7 +96,7 @@ The reasons behind these are in [safety.md](safety.md).
 
 | ID | Requirement | Pass when | Status |
 |---|---|---|---|
-| LNK-1 | Commands keep working while the CAN bus is full | Commands sent continuously during a full bus | **Met:** 2,709 commands while 42,126 frames arrived, 0 failed, no byte lost |
+| LNK-1 | Commands keep working while the CAN bus is full | Commands sent continuously during a full bus | **Met:** 2,623 commands while 42,127 frames arrived, 0 failed, no byte lost |
 | LNK-2 | Every packet to the laptop is error-checked | CRC-16 on every packet; damaged packets rejected | **Met** (unit-tested) |
 | LNK-3 | Appears as a serial port on macOS, Windows and Linux with no driver to install | Plugged into each | **Partly met.** Today the link is the Nucleo's ST-LINK serial port; the circuit board uses the microcontroller's own USB |
 | LNK-4 | Unplugging USB mid-stream and plugging it back in loses nothing but the frames in between | Unplug and replug during a stream test; the board keeps running and reconnects | **Not built** |
