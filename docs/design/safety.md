@@ -73,7 +73,7 @@ flowchart TD
 | Layer | What it does | Still stops a transmit if | Status |
 |---|---|---|---|
 | 1. LISTEN/OBD switch | Holds the transceiver's silent pin. In LISTEN, the transmitter is off electrically. A pull-up resistor holds the pin silent by default, so a reset, a crash, a brown-out or a blank chip also means silent | The firmware is wrong in any way | Circuit board design ([circuit-board.md](circuit-board.md)) |
-| 2. Controller silent mode | The CAN controller is in silent mode except while it sends an allowed request | The switch is in OBD | Built for loopback: CAN is off at start-up and runs only in silent loopback, where nothing leaves the chip. Sending is refused in every other state |
+| 2. Controller silent mode | The CAN controller is in silent mode except while it sends an allowed request | The switch is in OBD | Built for loopback: CAN is off at start-up and runs only in silent loopback, where nothing leaves the chip. Sending is refused in every other state. On a real bus it is unproven: see [the open question](#an-open-question-switching-the-can-controllers-mode) |
 | 3. Allowlist and rate limit | Only the requests above, one at a time, at most 20 a second, and only in answer to a laptop request | The switch is in OBD and the controller is active | Built, and proven in loopback: the allowlist and rate limit (`lib/obd/tx_guard.c`) check every frame on the board's send path, and the tester sends one request per `obd ask` from the laptop, nothing on its own |
 | 4. Error latch | Any bus error puts the device into silent mode until it is unplugged | Something on the bus, or in the device, is wrong | Not built |
 
@@ -85,6 +85,25 @@ Each layer has to be proven on the bench by fault injection before the car tests
 will deliberately try to transmit, with each layer in turn as the only one in the way, and a logic
 analyzer on the transmit wire will confirm that nothing goes out. This needs the real bus, so it
 hasn't been done yet.
+
+### Before the switch exists
+
+The LISTEN/OBD switch is on the circuit board, which isn't built. The first car sessions will use the
+development board and a bought transceiver module, with no switch, so firmware alone would be all that
+kept the device silent. That isn't enough for a first connection to a car.
+
+So until the switch exists, **listen-only sessions have the transmit wire physically disconnected**: PB9
+does not connect to the transceiver, and the transceiver's transmit input is held in its idle state, as
+its datasheet requires. With that wire gone, no firmware fault can send anything through it. It is
+checked with a multimeter before the transceiver is connected to the car.
+
+### An open question: switching the CAN controller's mode
+
+Layer 2 is not yet proven to work as described. Changing the controller between silent and normal mode
+means stopping it, then waiting for it to resynchronise with the bus, and frames could be lost each
+time. At up to 20 requests a second, that could break the requirement to lose no frame. This has to be
+measured on a real bus. If it does lose frames, the controller may stay active for a whole OBD session,
+with the transceiver's silent pin doing the gating instead.
 
 ### Finding the bit rate without disturbing the bus
 
@@ -119,9 +138,12 @@ the first version of the device's FMEA.
 
 Each step needs every one before it to have passed cleanly.
 
-1. **The bench.** Every requirement in [requirements.md](requirements.md) that can be tested
+1. **Check the car.** Find out whether it uses classic CAN at its diagnostic port. This design can't
+   read CAN FD, so a car that uses it can't be read at all. Also find which fuse feeds the port.
+2. **The bench.** Every requirement in [requirements.md](requirements.md) that can be tested
    without a car, including every bus fault and every layer's fault-injection test.
-2. **Car, engine off, LISTEN.** Powered from USB, pin 16 not connected, laptop on battery.
-3. **Car, engine running, LISTEN.**
-4. **Car, engine running, OBD mode, parked.**
-5. **Driving,** with a passenger operating the laptop.
+3. **Car, engine off, LISTEN.** Powered from USB, pin 16 not connected, laptop on battery, and until
+   the switch exists, the [transmit wire disconnected](#before-the-switch-exists).
+4. **Car, engine running, LISTEN.** The same wiring.
+5. **Car, engine running, OBD mode, parked.**
+6. **Driving,** with a passenger operating the laptop.
