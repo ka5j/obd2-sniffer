@@ -18,7 +18,9 @@ New to the project? [How it works](how-it-works.md) explains what you'll be look
 ## Level 1: try it, no hardware
 
 You need [Python](https://www.python.org/downloads/) 3.10 or newer, and
-[Git](https://git-scm.com/).
+[Git](https://git-scm.com/). Check with `python3 --version`. The Python that comes with macOS can be
+older than that (3.9 on the Mac this was checked on): if so, install a newer one, then use its name in
+the `venv` line below, for example `python3.12 -m venv .venv`.
 
 ```sh
 git clone https://github.com/ka5j/obd2-sniffer.git
@@ -247,8 +249,9 @@ The hardware-independent code has unit tests that run on your computer, with no 
 cmake --workflow --preset host-tests
 ```
 
-This builds the tests with memory and undefined-behaviour checkers and runs all of them. The laptop
-tool's tests run with `cd host && pip install -e ".[dev]" && python -m pytest --cov`. Coverage
+This downloads the Unity test framework the first time, builds the tests with memory and
+undefined-behaviour checkers, and runs all of them. The laptop tool's tests run with
+`cd host && pip install -e ".[dev]" && python -m pytest --cov`, which also downloads pytest and ruff. Coverage
 measurement and the MISRA C check are described in [testing.md](design/testing.md) and
 [misra.md](design/misra.md).
 
@@ -269,6 +272,7 @@ risks and the order the tests will follow. Read both before connecting anything 
 
 | Problem | Fix |
 |---|---|
+| `pip install -e` fails | Run `python --version` in the environment. If it is older than 3.10, delete the `.venv` folder, install a newer Python, and create the environment again with it, for example `python3.12 -m venv .venv` |
 | `obdsniff: command not found` | The Python environment isn't active in this terminal. From the `obd2-sniffer` folder, run `source .venv/bin/activate` (Windows: `.venv\Scripts\activate`) |
 | "PySide6" or "pip install" message from `obdsniff gui` | The desktop app wasn't installed: `pip install -e "host[gui]"` |
 | `no board found` | Check the USB cable (many are power-only) and the red COM LED. To try without a board, add `--port sim` |

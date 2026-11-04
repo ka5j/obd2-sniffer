@@ -10,7 +10,8 @@ the real board, so everything can be tried without hardware.
 
 ## Install
 
-Requires Python 3.10 or newer. From the repository root:
+Requires Python 3.10 or newer (check with `python3 --version`; the one that comes with macOS can be too
+old). From the repository root:
 
 ```sh
 python3 -m venv .venv
