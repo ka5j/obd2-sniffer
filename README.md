@@ -25,7 +25,9 @@ The full list is in [Project status](#project-status).
 
 ## Try it, no hardware needed
 
-The laptop software includes a simulator of the whole board. You need Python 3.10 or newer, and Git:
+The laptop software includes a simulator of the whole board. You need Python 3.10 or newer (the one
+that comes with macOS can be too old: see [Getting started](docs/getting-started.md#level-1-try-it-no-hardware)),
+and Git:
 
 ```sh
 git clone https://github.com/ka5j/obd2-sniffer.git
