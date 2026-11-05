@@ -16,7 +16,14 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCUMENTS = ["README.md", "host/README.md", "docs/*.md", "docs/design/*.md"]
+DOCUMENTS = [
+    "README.md",
+    "host/README.md",
+    "docs/*.md",
+    "docs/design/*.md",
+    "hardware/*.md",
+    "hardware/*/*.md",
+]
 CODE_BLOCK = re.compile(r"^```.*?^```", re.DOTALL | re.MULTILINE)
 INLINE_CODE = re.compile(r"`[^`\n]*`")
 LINK = re.compile(r"\]\(([^)\s]+)\)")

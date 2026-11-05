@@ -11,7 +11,7 @@ plain-language summary, followed by the engineering detail.
 | Run it yourself | [Getting started](getting-started.md), then [the laptop tool](../host/README.md) |
 | Judge the engineering | [How it works](how-it-works.md), [safety](design/safety.md), [requirements](design/requirements.md), [testing](design/testing.md), then [how the firmware fits together](design/architecture.md) |
 | Learn how CAN and OBD2 work in code | [How it works](how-it-works.md), [CAN capture](design/can-capture.md), then [OBD2](design/obd2.md) |
-| Follow the circuit board | [Circuit board](design/circuit-board.md), [safety](design/safety.md), then [hardware and wiring](design/hardware.md) |
+| Follow the circuit board | [Circuit board](design/circuit-board.md), [safety](design/safety.md), [hardware and wiring](design/hardware.md), then [the design files](../hardware/README.md) |
 
 ## Start here
 
@@ -41,6 +41,8 @@ plain-language summary, followed by the engineering detail.
   what happens from power-on to the main loop.
 - [Circuit board](design/circuit-board.md): the design of the project's own board, which isn't built
   yet.
+- [Hardware design files](../hardware/README.md): the KiCad folder, and the
+  [revision A brief](../hardware/rev-a/README.md) with its requirements, pins and pre-order checklist.
 
 ## How it's proven
 
