@@ -32,10 +32,14 @@ captures/
 !.vscode/tasks.json
 *.swp
 
-# KiCad backups
+# KiCad: backups, locks, local view settings and generated board-maker files
 hardware/**/*-backups/
 hardware/**/*.lck
 hardware/**/fp-info-cache
+hardware/**/*.kicad_prl
+hardware/**/_autosave-*
+hardware/**/.history/
+hardware/**/production/
 
 # Private notes (interview prep), never committed
 notes/

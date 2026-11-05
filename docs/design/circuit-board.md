@@ -156,7 +156,8 @@ obvious, where a colour code would have to be memorised.
 
 ## Making it
 
-- **Design:** KiCad. The design files go in `hardware/`.
+- **Design:** KiCad. The design files go in [`hardware/`](../../hardware/README.md), and the
+  [revision A brief](../../hardware/rev-a/README.md) is the working sheet for this board.
 - **Board:** 4 layers (signal, ground, power, signal). A solid ground layer keeps the USB and CAN
   signals clean, and gives the buck converter's switching currents a short return path.
 - **Assembly:** small parts soldered by the board maker; connectors fitted by hand.

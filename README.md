@@ -99,7 +99,7 @@ assumed.
 | Run it, with or without a board | [Getting started](docs/getting-started.md) |
 | Use the desktop app, command line or Python library | [The laptop tool](host/README.md) |
 | Judge the engineering | [Safety](docs/design/safety.md), [requirements](docs/design/requirements.md), [testing](docs/design/testing.md) and [how the firmware fits together](docs/design/architecture.md) |
-| See the circuit board design | [Circuit board](docs/design/circuit-board.md) |
+| See the circuit board design | [Circuit board](docs/design/circuit-board.md) and [the design files](hardware/README.md) |
 | See every document | [Documentation](docs/README.md) |
 
 ## Measured on the board
@@ -139,6 +139,7 @@ How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-
 | [`tests/`](tests) | C unit tests, in the same folders as `lib/` |
 | [`host/`](host) | The laptop tool `obdsniff`: command line, desktop app, board simulator |
 | [`scripts/`](scripts) | Board check, coverage, MISRA and stack-use gates, quality report, screenshots, release-file and link checks |
+| [`hardware/`](hardware/README.md) | Circuit board design files, in KiCad, and the revision A brief. The design isn't started yet |
 | [`docs/`](docs) | [All the documents](docs/README.md) |
 | [`misra/`](misra) | MISRA policy: every deviation and its reason |
 
