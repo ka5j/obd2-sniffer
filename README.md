@@ -163,7 +163,7 @@ How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-
 | Real CAN bus on the desk with two transceivers, bus fault tests | Not started |
 | USB straight from the microcontroller, with no programmer chip in between | Not started |
 | Silent bit-rate detection and the bus-error latch | Not started |
-| Circuit board revision A: schematic, layout, bring-up | In design: parts and decisions |
+| Circuit board revision A: schematic, layout, bring-up | In design: schematic, 1 of 5 sheets drawn |
 | Testing in a real car | Not started |
 | Circuit board revision B: the device that plugs into the car | Not started |
 

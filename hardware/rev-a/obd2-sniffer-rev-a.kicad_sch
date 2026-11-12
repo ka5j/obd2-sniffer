@@ -1,0 +1,110 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "7558c402-028e-5b7e-9d18-ece3a104ad36")
+	(paper "A4")
+	(title_block
+		(title "OBD2 sniffer, revision A")
+		(date "2026-11-11")
+		(rev "A")
+	)
+	(lib_symbols)
+	(text "USB-C socket, fuse, ESD protection,\n3.3 V regulator, PWR light."
+		(exclude_from_sim no)
+		(at 66.04 55.88 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "06f85b78-ac8d-5f1f-849f-9781f21a7685")
+	)
+	(text "OBD2 sniffer: revision A"
+		(exclude_from_sim no)
+		(at 15.24 15.24 0)
+		(effects
+			(font
+				(size 4 4)
+				(bold yes)
+			)
+			(justify left top)
+		)
+		(uuid "472e49c0-5b20-551b-9407-e650bb4798ca")
+	)
+	(text "Sheets"
+		(exclude_from_sim no)
+		(at 15.24 43.18 0)
+		(effects
+			(font
+				(size 2 2)
+				(bold yes)
+			)
+			(justify left top)
+		)
+		(uuid "59357f17-7f0c-5c50-985a-b37126769922")
+	)
+	(text "A read-only CAN and OBD2 scanner. Powered from the laptop's USB port only.\nDesign notes and requirements: docs/design/circuit-board.md, docs/design/requirements.md.\nParts, datasheets and the pre-order checklist: hardware/rev-a/README.md."
+		(exclude_from_sim no)
+		(at 15.24 24.13 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "988d78bf-9e16-5d1f-aa7c-31bc181dcaab")
+	)
+	(sheet
+		(at 15.24 53.34)
+		(size 45.72 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
+		(uuid "6a602a54-f384-5b80-b4d5-5c6ec5d92892")
+		(property "Sheetname" "USB and power"
+			(at 15.24 52.6284 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "usb-power.kicad_sch"
+			(at 15.24 74.2446 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "obd2-sniffer-rev-a"
+				(path "/7558c402-028e-5b7e-9d18-ece3a104ad36"
+					(page "2")
+				)
+			)
+		)
+	)
+	(sheet_instances
+		(path "/"
+			(page "1")
+		)
+	)
+)
