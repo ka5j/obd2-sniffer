@@ -65,13 +65,11 @@ The reasons behind these are in [safety.md](safety.md).
 
 | ID | Requirement | Pass when | Status |
 |---|---|---|---|
-| PWR-1 | Runs from the car's 12 V supply anywhere from 6 to 16 V | Swept 6 to 16 V on a bench supply, every function works | **Design** |
-| PWR-2 | Survives a reversed battery connection (-14 V) | Reversed on a bench supply with a current limit; the board works afterwards | **Design** |
-| PWR-3 | Survives a jump start (24 V for 1 minute) and load-dump spikes, clamped by its TVS diode | Bench test at 24 V; clamp voltage checked against the TVS diode's rating | **Design** |
-| PWR-4 | Rides through a cranking dip, or restarts cleanly and reports a brown-out reset | Bench supply dipped to 6 V and below; the board keeps running or reports the reset | **Design** |
-| PWR-5 | Runs from USB alone or from the car alone | Each source on its own powers every function | **Design** |
-| PWR-6 | Draws under 1 mA from the car while asleep | Measured on the 3.3 V rail jumper and at the 12 V input | **Design** |
-| PWR-7 | A fault on the board blows the board's own fuse, not the car's | Fuse rating below the car's OBD-port fuse; input shorted on the bench | **Design** |
+| PWR-5 | Runs from the laptop's USB port alone | Every function works on USB power, with the 5 V supply measured at the transceivers | **Design** |
+| PWR-8 | Takes nothing from the car: no connection to the car's 12 V supply, and no load on its network when unpowered | No terminal for OBD2 pin 16. With the laptop unplugged, the resistance across CANH and CANL on the car is the same with and without the board | **Design** |
+
+PWR-1 to PWR-4, PWR-6 and PWR-7 covered running from the car's 12 V supply. They were removed when the design
+became USB-powered only ([circuit-board.md](circuit-board.md#power-from-usb)).
 
 ## CAN capture
 
