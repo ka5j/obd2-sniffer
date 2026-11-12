@@ -60,7 +60,7 @@ Rules for the car connection:
 - **Follow the order of car tests** in [safety.md](safety.md#the-order-of-car-tests): listening
   only, with the engine off, comes first.
 
-The project's own circuit board, which also runs from pin 16, is described in
+The project's own circuit board, which is powered from USB too, is described in
 [circuit-board.md](circuit-board.md).
 
 ## Pin assignments

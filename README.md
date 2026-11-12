@@ -19,7 +19,7 @@ custom circuit board that plugs straight into the car.
 |---|---|
 | **Works today** | On a development board with no car: CAN capture with nothing lost unnoticed, OBD2 live data, trouble codes and VIN, a transmit guard, crash recovery, and a desktop app and command line |
 | **Not done yet** | It hasn't been on a real CAN bus or in a real car |
-| **The goal** | A custom circuit board that runs from the car's 12 V supply, with a hardware switch that turns the transmitter off. It is designed, not built |
+| **The goal** | A custom circuit board that plugs into the car, powered from the laptop, with a hardware switch that turns the transmitter off. It is in design, not built |
 
 The full list is in [Project status](#project-status).
 
@@ -163,8 +163,7 @@ How each number was measured: [testing.md](docs/design/testing.md#checks-on-the-
 | Real CAN bus on the desk with two transceivers, bus fault tests | Not started |
 | USB straight from the microcontroller, with no programmer chip in between | Not started |
 | Silent bit-rate detection and the bus-error latch | Not started |
-| Circuit board revision A: schematic, layout, bring-up | Not started |
-| Sleep mode when the car is off | Not started |
+| Circuit board revision A: schematic, layout, bring-up | In design: parts and decisions |
 | Testing in a real car | Not started |
 | Circuit board revision B: the device that plugs into the car | Not started |
 

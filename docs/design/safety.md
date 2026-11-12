@@ -72,7 +72,7 @@ flowchart TD
 
 | Layer | What it does | Still stops a transmit if | Status |
 |---|---|---|---|
-| 1. LISTEN/OBD switch | Holds the transceiver's silent pin. In LISTEN, the transmitter is off electrically. A pull-up resistor holds the pin silent by default, so a reset, a crash, a brown-out or a blank chip also means silent | The firmware is wrong in any way | Circuit board design ([circuit-board.md](circuit-board.md)) |
+| 1. LISTEN/OBD switch | Holds the transceiver's silent pin. In LISTEN, the transmitter is off electrically. A pull-up resistor holds the pin silent by default, so a reset, a crash or a blank chip also means silent | The firmware is wrong in any way | Circuit board design ([circuit-board.md](circuit-board.md)) |
 | 2. Controller silent mode | The CAN controller is in silent mode except while it sends an allowed request | The switch is in OBD | Built for loopback: CAN is off at start-up and runs only in silent loopback, where nothing leaves the chip. Sending is refused in every other state. On a real bus it is unproven: see [the open question](#an-open-question-switching-the-can-controllers-mode) |
 | 3. Allowlist and rate limit | Only the requests above, one at a time, at most 20 a second, and only in answer to a laptop request | The switch is in OBD and the controller is active | Built, and proven in loopback: the allowlist and rate limit (`lib/obd/tx_guard.c`) check every frame on the board's send path, and the tester sends one request per `obd ask` from the laptop, nothing on its own |
 | 4. Error latch | Any bus error puts the device into silent mode until it is unplugged | Something on the bus, or in the device, is wrong | Not built |
@@ -125,10 +125,9 @@ the first version of the device's FMEA.
 
 | Failure | How it could happen | Effect on the car | How it is handled |
 |---|---|---|---|
-| 12 V on the CAN wires | Wrong cable pinout, a solder bridge, a bent pin: the OBD2 port's pin 16 is live battery voltage | Could damage an ECU's transceiver | Every cable is continuity-checked before use. The first car sessions are powered from USB, with pin 16 not connected. Transceivers rated for bus faults. A fuse at the board's input |
+| 12 V on the CAN wires | Wrong cable pinout, a bent pin, damaged insulation: the OBD2 port's pin 16 is live battery voltage | Could damage an ECU's transceiver | The board has no connection for pin 16, and the cable leaves it out. Every cable is continuity-checked before use. The transceiver's bus pins and the ESD protection withstand a short to the battery |
 | The device drags the bus down | A damaged transceiver, a short between CANH and CANL, or a third termination resistor. Silent mode doesn't prevent this: a broken part can load the wires without transmitting | ECUs lose contact: warning lights, stored U-codes, limp mode | A transceiver with a dominant timeout, which releases the bus if its transmit input is stuck. Termination off by default. The bus load is measured on the bench. No tests while driving until every other step has passed |
-| Battery drain | The device doesn't sleep, or its requests wake the car's ECUs with the ignition off | A flat battery | Sleep under 1 mA. No requests unless the battery voltage shows the engine is running. Unplugged between sessions while it is a prototype |
-| A short on the 12 V input or in the cable | Damaged insulation, a failed part | The car's OBD-port fuse blows, and anything else on that fuse stops working | The board's own fuse comes first. The car's fuse for the port is identified before testing |
+| Battery drain | The device's requests wake the car's ECUs with the ignition off | A flat battery | The board takes no power from the car, and an unpowered board disconnects from the bus. It is unplugged between sessions while it is a prototype |
 | Flooding or a wrong bit rate in OBD mode | A firmware fault, with the switch in OBD | Extra load or error frames on the bus | Bit-rate detection in silent mode only. The error latch and rate limit. CAN's arbitration also means lower IDs, which carry the car's most important messages, win over the 0x7DF requests |
 | Ground loop | The laptop on its charger while connected to the car | Noise, possibly damage | The laptop runs on battery while connected |
 | Static discharge | Plugging in | Damage to the device or the port | ESD protection on the CAN and USB lines; touch the car's metal before plugging in |
@@ -139,7 +138,7 @@ the first version of the device's FMEA.
 Each step needs every one before it to have passed cleanly.
 
 1. **Check the car.** Find out whether it uses classic CAN at its diagnostic port. This design can't
-   read CAN FD, so a car that uses it can't be read at all. Also find which fuse feeds the port.
+   read CAN FD, so a car that uses it can't be read at all.
 2. **The bench.** Every requirement in [requirements.md](requirements.md) that can be tested
    without a car, including every bus fault and every layer's fault-injection test.
 3. **Car, engine off, LISTEN.** Powered from USB, pin 16 not connected, laptop on battery, and until

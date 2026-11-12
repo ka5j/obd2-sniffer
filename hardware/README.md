@@ -5,8 +5,8 @@ Part of the [project documentation](../docs/README.md).
 ## In short
 
 This folder holds the design files for the project's own circuit board, made in
-[KiCad](https://www.kicad.org/). **The design hasn't been started yet**: there are no KiCad files here
-so far, only the working brief.
+[KiCad](https://www.kicad.org/). **The design is at the parts-and-decisions stage**: there are no KiCad files
+here so far, only the working brief.
 
 Two documents describe the board, and they do different jobs:
 
@@ -26,8 +26,7 @@ still be opened. Revision B, the finished plug-in device, starts as a copy of re
 
 ## Starting the design
 
-The design uses KiCad 10. In KiCad, create the project inside `hardware/rev-a/`, named `obd2-sniffer-rev-a`,
-without letting KiCad create a new folder for it.
+The design uses KiCad 10. The project for revision A goes in `hardware/rev-a/`, named `obd2-sniffer-rev-a`.
 
 ## What goes in git
 

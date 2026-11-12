@@ -3,36 +3,72 @@
 Part of the [project documentation](../../docs/README.md). The folder's guide is [here](../README.md), and
 [the circuit board](../../docs/design/circuit-board.md) explains why each block exists.
 
-**Status: not started.** The KiCad project goes in this folder.
+**Status: parts and decisions being settled. No schematic yet.**
 
 ## In short
 
 Revision A is the first board, built for bring-up and testing rather than to be small. It has room to probe, test points
 on every important signal, and a debug header. Its mistakes get fixed in revision B, the finished plug-in device.
 
-This page is a working sheet. Fill it in as the design moves along. Everything on it can change, except the safety rules.
+This page is the working sheet: the decisions, the parts and the datasheet each one was checked against, the pins, and
+the checklist to complete before ordering. Everything on it can change, except the safety rules.
+
+## Decisions
+
+| Decision | Choice | Reason |
+|---|---|---|
+| Power | USB only. No connection to the car's 12 V (OBD2 pin 16) | The board only works with a laptop attached, and the laptop supplies 5 V. Removes the battery voltage from the board |
+| CAN transceiver | One with a silent pin, not a standby pin | Silent mode keeps the receiver fully working with the transmitter off. A standby pin would stop normal receiving too |
+| Silent-pin default | A 10 k resistor to 3.3 V on the board | The transceiver's internal resistor pulls the pin low, which selects "able to transmit". The board's resistor has to win, and does by a wide margin: the pin draws at most 10 µA |
+| Silent signal | One signal for both transceivers | The self-test then needs the switch in OBD, which also tests the switch. One pin, one light |
+| TX light | Switched by a transistor from the silent signal | The light can't load the signal, and can't be lit by firmware alone |
+| Self-test connection | CAR/TEST jumpers on a three-position header | CAN2 can't reach the car connector in any position |
+| Termination | CAN1: solder jumper, open by default. CAN2: fitted | The car's bus has its own. The self-test bus uses CAN2's |
+| USB fuse | A chip fuse, not a resettable one | Lower resistance, so the transceivers' 5 V stays above their 4.5 V minimum |
+| Car connector | 3 screw terminals: CANH, CANL, ground | Wiring can be checked. There is no terminal for pin 16 |
 
 ## Blocks and requirements
 
 Every part on the board has to trace to a [requirement](../../docs/design/requirements.md).
 
-| Block | Serves | Done? |
+| Block | Serves | Schematic drawn? |
 |---|---|---|
-| 12 V input from OBD2 pin 16: fuse, reverse-polarity protection, TVS diode, buck converter to 5 V | PWR-1, PWR-2, PWR-3, PWR-4, PWR-6, PWR-7 | |
-| Battery-voltage divider into the ADC | PWR-4, PWR-6 | |
-| USB-C: power, data and ESD protection | PWR-5, LNK-3, USE-4 | |
-| 3.3 V regulator | PWR-5 | |
+| USB-C: power, fuse, data and ESD protection | PWR-5, LNK-3, USE-4 | |
+| 3.3 V regulator, PWR light | PWR-5, USE-3 | |
 | Microcontroller: crystal, decoupling, reset, BOOT0, SWD header | USE-4 | |
-| CAN1 transceiver, ESD protection, termination solder jumper | CAN-1, CAN-6 | |
-| CAN2 transceiver and self-test header | CAN-7 | |
-| LISTEN/OBD switch and TX light | SAF-3, USE-3 | |
-| PWR and BUS lights | USE-3 | |
-| Test points, current-measurement jumper, debug serial header | PWR-6, revision A only | |
+| CAN1 transceiver, ESD protection, termination solder jumper, car connector | CAN-1, CAN-6, PWR-8 | |
+| CAN2 transceiver and CAR/TEST jumpers | CAN-7 | |
+| LISTEN/OBD switch, silent signal, TX light | SAF-3, USE-3 | |
+| BUS light | USE-3 | |
+| Test points, debug serial header | Revision A only | |
+
+## Parts
+
+"Read" means the maker's datasheet was read for this design and the values below come from it.
+
+| Part | Number | Why this one | Datasheet | Read? |
+|---|---|---|---|---|
+| Microcontroller | STM32F446RET6, LQFP64 | Same chip as the development board | [ST](https://www.st.com/resource/en/datasheet/stm32f446re.pdf) | Not yet |
+| CAN transceiver, 2 of | TJA1051T/3, SO8 | Silent pin; 3.3 V logic supply; bus pins withstand -58 to +58 V; transmit timeout 0.3 to 5 ms; disconnects from the bus when unpowered (leakage at most 5 µA) | [NXP, rev. 9](https://www.nxp.com/docs/en/data-sheet/TJA1051.pdf) | Yes |
+| CAN ESD protection | NUP2105L, SOT-23 | Working voltage 24 V and breakdown at least 26.2 V, so a short to a 16 V battery doesn't make it conduct; 30 kV contact ESD | [onsemi, rev. 12](https://www.onsemi.com/pdf/datasheet/nup2105l-d.pdf) | Yes |
+| 3.3 V regulator | AP2112K-3.3, SOT-23-5 | 600 mA; input up to 6.5 V absolute; stable with 1 µF ceramic capacitors in and out | [Diodes, rev. 2-2](https://www.diodes.com/assets/Datasheets/AP2112.pdf) | Yes |
+| USB ESD protection | USBLC6-2SC6, SOT-23-6 | Made for USB data pairs | [ST](https://www.st.com/resource/en/datasheet/usblc6-2.pdf) | Not yet |
+| USB-C socket, fuse, crystal, switch, buttons, lights, terminals | To choose | | | |
+
+**Figures the design relies on, from the datasheets read**
+
+| Figure | Value | Used for |
+|---|---|---|
+| TJA1051 silent pin | High is silent, low is normal. Internal pull-down, 1 to 10 µA at the pin | The board's pull-up and the switch |
+| TJA1051 supply | 4.5 to 5.5 V. Below its undervoltage level (3.5 to 4.5 V) it disconnects from the bus | The 5 V budget from USB |
+| TJA1051 supply current | At most 70 mA each while sending a dominant bit, 10 mA idle | The USB power budget |
+| TJA1051 logic supply | 2.8 to 5.5 V | Runs from the 3.3 V rail |
+| AP2112 heat | 184 °C/W in SOT-23-5 | (5 - 3.3) V at 150 mA is 0.26 W, about 47 °C of rise |
 
 ## Microcontroller pins
 
-The chip is the STM32F446RE in LQFP64, the same chip as the development board. Check every pin against ST's datasheet
-while drawing the schematic: this table is a starting point, not a substitute for it.
+Pin numbers are for LQFP64 and come from KiCad's symbol for the chip. Every one is checked against ST's datasheet
+before the microcontroller sheet is drawn.
 
 | Function | Pin | Where it comes from |
 |---|---|---|
@@ -43,48 +79,36 @@ while drawing the schematic: this table is a starting point, not a substitute fo
 | SWD debug SWDIO, SWCLK | PA13, PA14 | Fixed by the chip |
 | Crystal in, out | PH0, PH1 | Fixed by the chip |
 | BOOT0, reset | BOOT0, NRST | Fixed by the chip |
-| Silent-pin control | | To choose |
-| Battery-voltage ADC input | | To choose |
-| BUS light | | To choose |
+| Silent-signal control | PB14 (proposed) | Next to the CAN2 pins |
+| BUS light | PB15 (proposed) | Next to the CAN2 pins |
 
 ## What the firmware will need for this board
 
-Design choices cost firmware work, so here is what's coming. None of it is built yet, and none of it should stop a better
-hardware choice.
+None of it is built yet.
 
 - **Crystal:** the firmware expects an 8 MHz clock from the development board's programmer. An 8 MHz crystal needs one
-  setting changed; any other frequency also needs new clock divider values ([clock tree](../../docs/design/build-and-boot.md#clock-tree)).
-- **Pins:** different CAN or serial pins are a small change, in one file.
-- **New drivers:** native USB, CAN2, the silent-pin control, the battery-voltage reading and the BUS light.
+  setting changed ([clock tree](../../docs/design/build-and-boot.md#clock-tree)).
+- **Pins:** a board definition for revision A beside the development board's.
+- **New drivers:** native USB, CAN2, the silent-signal control and the BUS light.
 - **No user button:** the development board's button goes away, along with its event.
-
-## Parts
-
-Part numbers are fixed here as they're chosen. Only choose parts whose datasheet has been read, and check that the board
-maker has them in stock.
-
-| Part | Value or number | Why this one | Requirement | Datasheet | In stock? |
-|---|---|---|---|---|---|
-| | | | | | |
 
 ## Before ordering
 
 **The design**
 - [ ] ERC and DRC pass, and every exclusion has a written reason ([design checks](../README.md#design-checks))
-- [ ] Every part in the table above has a reason, a read datasheet and stock
-- [ ] Every microcontroller pin checked against ST's datasheet and the firmware table above
+- [ ] Every part in the table above has a reason and a read datasheet, and is in stock
+- [ ] Every microcontroller pin checked against ST's datasheet and the pin table above
 - [ ] Every footprint checked against its datasheet, and the board checked in KiCad's 3D view
-- [ ] Reviewed by someone else
+- [ ] Reviewed by someone outside the project
 
 **The safety rules** ([safety.md](../../docs/design/safety.md))
-- [ ] The transceiver's silent pin is pulled to silent, so a reset, crash or blank chip means silent
+- [ ] No net on the board connects to OBD2 pin 16, and the car connector has only CANH, CANL and ground
+- [ ] The silent signal is pulled to silent on the board, so a reset, crash or blank chip means silent
 - [ ] In LISTEN, the switch stops the firmware enabling the transmitter, however the firmware behaves
-- [ ] The TX light is driven from the silent-pin signal itself, not by firmware
-- [ ] CAN1's transceiver has a dominant timeout, and tolerates bus faults
-- [ ] Termination is open by default
-- [ ] CAN2 has no path to the OBD2 pins
-- [ ] The fuse comes first on the 12 V input
-- [ ] The 12 V rail can't reach the CAN signals through any jumper or header
+- [ ] The TX light is switched by the silent signal itself, not by firmware
+- [ ] CAN1's transceiver has a dominant timeout, and its bus pins withstand a short to the car's battery
+- [ ] CAN1's termination is open by default
+- [ ] No position of the CAR/TEST jumpers connects CAN2 to the car connector
 
 **The rule for ordering**
 - [ ] [The conditions for ordering boards](../README.md#before-ordering-any-boards) are met
