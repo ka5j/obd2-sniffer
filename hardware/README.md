@@ -36,6 +36,7 @@ The design uses KiCad 10. The project for revision A goes in `hardware/rev-a/`, 
 | `sym-lib-table`, `fp-lib-table` | `*.lck`, `fp-info-cache` |
 | Anything in `lib/` | `*.kicad_prl` (local view settings) |
 | | `production/` (Gerbers, check reports and other generated files) |
+| | `references/` (datasheets downloaded for reading; the brief links to the makers' own copies) |
 
 KiCad's files are plain text, so changes can be reviewed like code. After the first save, run `git status` to
 confirm that only the left-hand column shows up.

@@ -40,6 +40,7 @@ hardware/**/*.kicad_prl
 hardware/**/_autosave-*
 hardware/**/.history/
 hardware/**/production/
+hardware/references/
 
 # Private notes (interview prep), never committed
 notes/

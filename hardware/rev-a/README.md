@@ -48,11 +48,11 @@ Every part on the board has to trace to a [requirement](../../docs/design/requir
 
 | Part | Number | Why this one | Datasheet | Read? |
 |---|---|---|---|---|
-| Microcontroller | STM32F446RET6, LQFP64 | Same chip as the development board | [ST](https://www.st.com/resource/en/datasheet/stm32f446re.pdf) | Not yet |
+| Microcontroller | STM32F446RET6, LQFP64 | Same chip as the development board | [ST, DS10693 rev. 11](https://www.st.com/resource/en/datasheet/stm32f446re.pdf), with application notes AN4488 rev. 7, AN2606 rev. 71 and AN2867 rev. 25 | Yes |
 | CAN transceiver, 2 of | TJA1051T/3, SO8 | Silent pin; 3.3 V logic supply; bus pins withstand -58 to +58 V; transmit timeout 0.3 to 5 ms; disconnects from the bus when unpowered (leakage at most 5 µA) | [NXP, rev. 9](https://www.nxp.com/docs/en/data-sheet/TJA1051.pdf) | Yes |
 | CAN ESD protection | NUP2105L, SOT-23 | Working voltage 24 V and breakdown at least 26.2 V, so a short to a 16 V battery doesn't make it conduct; 30 kV contact ESD | [onsemi, rev. 12](https://www.onsemi.com/pdf/datasheet/nup2105l-d.pdf) | Yes |
 | 3.3 V regulator | AP2112K-3.3, SOT-23-5 | 600 mA; input up to 6.5 V absolute; stable with 1 µF ceramic capacitors in and out | [Diodes, rev. 2-2](https://www.diodes.com/assets/Datasheets/AP2112.pdf) | Yes |
-| USB ESD protection | USBLC6-2SC6, SOT-23-6 | Made for USB data pairs | [ST](https://www.st.com/resource/en/datasheet/usblc6-2.pdf) | Not yet |
+| USB ESD protection | USBLC6-2SC6, SOT-23-6 | Made for USB data pairs: at most 3.5 pF per line, 8 kV contact ESD, and it protects the 5 V line too | [ST, DS4260 rev. 7](https://www.st.com/resource/en/datasheet/usblc6-2.pdf) | Yes |
 | USB-C socket, fuse, crystal, switch, buttons, lights, terminals | To choose | | | |
 
 **Figures the design relies on, from the datasheets read**
@@ -64,23 +64,27 @@ Every part on the board has to trace to a [requirement](../../docs/design/requir
 | TJA1051 supply current | At most 70 mA each while sending a dominant bit, 10 mA idle | The USB power budget |
 | TJA1051 logic supply | 2.8 to 5.5 V | Runs from the 3.3 V rail |
 | AP2112 heat | 184 °C/W in SOT-23-5 | (5 - 3.3) V at 150 mA is 0.26 W, about 47 °C of rise |
+| STM32F446 core capacitor | LQFP64 has one VCAP pin: a single 4.7 µF ceramic, ESR under 1 ohm | The microcontroller sheet. Larger packages use two 2.2 µF instead |
+| STM32F446 decoupling | 100 nF at each VDD pin plus one 4.7 µF; 100 nF plus 1 µF on VDDA; VBAT to VDD with 100 nF; 100 nF on NRST | The microcontroller sheet |
+| STM32F446 crystal | 4 to 26 MHz. The crystal's critical gain must stay under 1 mA/V | Choosing the crystal and its load capacitors |
+| STM32F446 USB bootloader | Needs a crystal that is a whole number of MHz, and prefers a low one such as 8 MHz. Entered with BOOT0 high and PB2 low. No pull-up resistor needed on the data lines | The 8 MHz crystal, the BOOT0 button and a pull-down on PB2 |
+| STM32F446 bootloader pins | In bootloader mode the chip drives or pulls PA4 to PA10, PB5, PB6, PB9 to PB15, PC7 and PC9 to PC11 | The silent-signal pin must not be one of these, or the bootloader could enable the transmitter |
 
 ## Microcontroller pins
 
-Pin numbers are for LQFP64 and come from KiCad's symbol for the chip. Every one is checked against ST's datasheet
-before the microcontroller sheet is drawn.
+Pin numbers are for LQFP64. Each was checked in ST's datasheet (table 10) and matches KiCad's symbol for the chip.
 
-| Function | Pin | Where it comes from |
+| Function | Pin (LQFP64 number) | Where it comes from |
 |---|---|---|
-| CAN1 receive, transmit | PB8, PB9 | Used by the firmware today ([`board.h`](../../firmware/system/board.h)) |
-| Debug serial TX, RX (USART2) | PA2, PA3 | Used by the firmware today ([`board.h`](../../firmware/system/board.h)) |
-| CAN2 receive, transmit | PB12, PB13 | Reserved ([pin assignments](../../docs/design/hardware.md#pin-assignments)) |
-| USB data D-, D+ | PA11, PA12 | Fixed by the chip's USB peripheral |
-| SWD debug SWDIO, SWCLK | PA13, PA14 | Fixed by the chip |
-| Crystal in, out | PH0, PH1 | Fixed by the chip |
-| BOOT0, reset | BOOT0, NRST | Fixed by the chip |
-| Silent-signal control | PB14 (proposed) | Next to the CAN2 pins |
-| BUS light | PB15 (proposed) | Next to the CAN2 pins |
+| CAN1 receive, transmit | PB8 (61), PB9 (62) | Used by the firmware today ([`board.h`](../../firmware/system/board.h)) |
+| Debug serial TX, RX (USART2) | PA2 (16), PA3 (17) | Used by the firmware today ([`board.h`](../../firmware/system/board.h)) |
+| CAN2 receive, transmit | PB12 (33), PB13 (34) | Reserved ([pin assignments](../../docs/design/hardware.md#pin-assignments)) |
+| USB data D-, D+ | PA11 (44), PA12 (45) | Fixed by the chip's USB peripheral |
+| SWD debug SWDIO, SWCLK | PA13 (46), PA14 (49) | Fixed by the chip |
+| Crystal in, out | PH0 (5), PH1 (6) | Fixed by the chip |
+| BOOT0, BOOT1, reset | BOOT0 (60), PB2 (28), NRST (7) | Fixed by the chip |
+| Silent-signal control | PC6 (37) | Chosen: the bootloader leaves it alone, so it floats and the board's pull-up keeps the transceivers silent |
+| BUS light | PC8 (39) | Chosen: not used by the bootloader |
 
 ## What the firmware will need for this board
 
@@ -97,7 +101,7 @@ None of it is built yet.
 **The design**
 - [ ] ERC and DRC pass, and every exclusion has a written reason ([design checks](../README.md#design-checks))
 - [ ] Every part in the table above has a reason and a read datasheet, and is in stock
-- [ ] Every microcontroller pin checked against ST's datasheet and the pin table above
+- [ ] Every microcontroller pin in the schematic matches the pin table above
 - [ ] Every footprint checked against its datasheet, and the board checked in KiCad's 3D view
 - [ ] Reviewed by someone outside the project
 
