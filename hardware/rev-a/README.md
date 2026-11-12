@@ -3,7 +3,8 @@
 Part of the [project documentation](../../docs/README.md). The folder's guide is [here](../README.md), and
 [the circuit board](../../docs/design/circuit-board.md) explains why each block exists.
 
-**Status: schematic in progress.** One sheet of five is drawn: USB and power. No board layout yet.
+**Status: schematic in progress.** Two sheets of three are drawn: USB and power, and the microcontroller. The CAN sheet
+is next. No board layout yet.
 
 The schematic can be read without KiCad in [obd2-sniffer-rev-a.pdf](obd2-sniffer-rev-a.pdf), which is exported from
 the KiCad files each time they change.
@@ -38,11 +39,11 @@ Every part on the board has to trace to a [requirement](../../docs/design/requir
 |---|---|---|
 | USB-C: power, fuse, data and ESD protection | PWR-5, LNK-3, USE-4 | Yes: `usb-power.kicad_sch` |
 | 3.3 V regulator, PWR light | PWR-5, USE-3 | Yes: `usb-power.kicad_sch` |
-| Microcontroller: crystal, decoupling, reset, BOOT0, SWD header | USE-4 | |
+| Microcontroller: crystal, decoupling, reset, BOOT0, SWD header | USE-4 | Yes: `microcontroller.kicad_sch` |
 | CAN1 transceiver, ESD protection, termination solder jumper, car connector | CAN-1, CAN-6, PWR-8 | |
 | CAN2 transceiver and CAR/TEST jumpers | CAN-7 | |
 | LISTEN/OBD switch, silent signal, TX light | SAF-3, USE-3 | |
-| BUS light | USE-3 | |
+| BUS light | USE-3 | Yes: `microcontroller.kicad_sch` |
 | Test points, debug serial header | Revision A only | |
 
 ## Parts
@@ -59,7 +60,9 @@ Every part on the board has to trace to a [requirement](../../docs/design/requir
 | USB-C socket | GCT USB4105-GF-A, 16 pins | USB 2.0 pins only; VBUS contacts rated 5 A together; 20,000 matings; a footprint ships with KiCad | [GCT](https://gct.co/files/drawings/usb4105.pdf) | Yes |
 | USB fuse | Bourns SF-1206F100-2, 1 A fast, 1206 | 0.132 ohm typical, so about 35 mV lost at 250 mA; rated 63 V, interrupts 50 A | [Bourns](https://www.bourns.com/docs/product-datasheets/sf-1206f.pdf) | Yes |
 | Resistors, capacitors, PWR light | 0603 (4.7 µF: 0805), capacitors X7R 16 V | Large enough to rework by hand on a test board | | |
-| Crystal, switch, buttons, other lights, terminals | To choose | | | |
+| Crystal | ECS ECS-80-10-30B-TR: 8 MHz, 10 pF load, 5.0 x 3.2 mm | At most 100 ohm, where 3.2 x 2.5 mm crystals at 8 MHz reach 400 ohm; pads 2 and 4 are ground | [ECS](https://ecsxtal.com/store/pdf/ECX-53B.pdf) | Yes |
+| Reset and boot buttons | C&K PTS645 type, 6 mm | A footprint ships with KiCad | | Not yet: read when the footprint is checked at layout |
+| Switch, TX light transistor, jumpers, terminals | To choose with the CAN sheet | | | |
 
 **Figures the design relies on, from the datasheets read**
 
@@ -74,6 +77,8 @@ Every part on the board has to trace to a [requirement](../../docs/design/requir
 | STM32F446 core capacitor | LQFP64 has one VCAP pin: a single 4.7 µF ceramic, ESR under 1 ohm | The microcontroller sheet. Larger packages use two 2.2 µF instead |
 | STM32F446 decoupling | 100 nF at each VDD pin plus one 4.7 µF; 100 nF plus 1 µF on VDDA; VBAT to VDD with 100 nF; 100 nF on NRST | The microcontroller sheet |
 | STM32F446 crystal | 4 to 26 MHz. The crystal's critical gain must stay under 1 mA/V | Choosing the crystal and its load capacitors |
+| Crystal start-up margin | Critical gain 4 x 100 ohm x (2 pi x 8 MHz)^2 x (5 pF + 10 pF)^2 = 0.23 mA/V, against the chip's 1 mA/V limit: a margin of about 22, where ST asks for 5 or more | Choosing the crystal. An 18 pF crystal of 400 ohm would have failed this check |
+| Crystal load capacitors | 2 x (10 pF load - 5 pF stray) = 10 pF each. The stray figure is an estimate | Checked on the built board by measuring the clock |
 | STM32F446 USB bootloader | Needs a crystal that is a whole number of MHz, and prefers a low one such as 8 MHz. Entered with BOOT0 high and PB2 low. No pull-up resistor needed on the data lines | The 8 MHz crystal, the BOOT0 button and a pull-down on PB2 |
 | STM32F446 bootloader pins | In bootloader mode the chip drives or pulls PA4 to PA10, PB5, PB6, PB9 to PB15, PC7 and PC9 to PC11 | The silent-signal pin must not be one of these, or the bootloader could enable the transmitter |
 
