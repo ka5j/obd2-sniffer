@@ -5,8 +5,8 @@ Part of the [project documentation](../docs/README.md).
 ## In short
 
 This folder holds the design files for the project's own circuit board, made in
-[KiCad](https://www.kicad.org/). **The design is at the parts-and-decisions stage**: there are no KiCad files
-here so far, only the working brief.
+[KiCad](https://www.kicad.org/). **The schematic for revision A is being drawn**, one sheet per pull request.
+There is no board layout yet.
 
 Two documents describe the board, and they do different jobs:
 
@@ -32,7 +32,7 @@ The design uses KiCad 10. The project for revision A goes in `hardware/rev-a/`, 
 
 | Committed | Not committed (`.gitignore` handles these) |
 |---|---|
-| `*.kicad_pro`, `*.kicad_sch`, `*.kicad_pcb` | `*-backups/`, `_autosave-*`, `.history/` |
+| `*.kicad_pro`, `*.kicad_sch`, `*.kicad_pcb`, the schematic's PDF | `*-backups/`, `_autosave-*`, `.history/` |
 | `sym-lib-table`, `fp-lib-table` | `*.lck`, `fp-info-cache` |
 | Anything in `lib/` | `*.kicad_prl` (local view settings) |
 | | `production/` (Gerbers, check reports and other generated files) |

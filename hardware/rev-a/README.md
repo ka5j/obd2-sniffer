@@ -3,7 +3,10 @@
 Part of the [project documentation](../../docs/README.md). The folder's guide is [here](../README.md), and
 [the circuit board](../../docs/design/circuit-board.md) explains why each block exists.
 
-**Status: parts and decisions being settled. No schematic yet.**
+**Status: schematic in progress.** One sheet of five is drawn: USB and power. No board layout yet.
+
+The schematic can be read without KiCad in [obd2-sniffer-rev-a.pdf](obd2-sniffer-rev-a.pdf), which is exported from
+the KiCad files each time they change.
 
 ## In short
 
@@ -33,8 +36,8 @@ Every part on the board has to trace to a [requirement](../../docs/design/requir
 
 | Block | Serves | Schematic drawn? |
 |---|---|---|
-| USB-C: power, fuse, data and ESD protection | PWR-5, LNK-3, USE-4 | |
-| 3.3 V regulator, PWR light | PWR-5, USE-3 | |
+| USB-C: power, fuse, data and ESD protection | PWR-5, LNK-3, USE-4 | Yes: `usb-power.kicad_sch` |
+| 3.3 V regulator, PWR light | PWR-5, USE-3 | Yes: `usb-power.kicad_sch` |
 | Microcontroller: crystal, decoupling, reset, BOOT0, SWD header | USE-4 | |
 | CAN1 transceiver, ESD protection, termination solder jumper, car connector | CAN-1, CAN-6, PWR-8 | |
 | CAN2 transceiver and CAR/TEST jumpers | CAN-7 | |
@@ -53,7 +56,10 @@ Every part on the board has to trace to a [requirement](../../docs/design/requir
 | CAN ESD protection | NUP2105L, SOT-23 | Working voltage 24 V and breakdown at least 26.2 V, so a short to a 16 V battery doesn't make it conduct; 30 kV contact ESD | [onsemi, rev. 12](https://www.onsemi.com/pdf/datasheet/nup2105l-d.pdf) | Yes |
 | 3.3 V regulator | AP2112K-3.3, SOT-23-5 | 600 mA; input up to 6.5 V absolute; stable with 1 µF ceramic capacitors in and out | [Diodes, rev. 2-2](https://www.diodes.com/assets/Datasheets/AP2112.pdf) | Yes |
 | USB ESD protection | USBLC6-2SC6, SOT-23-6 | Made for USB data pairs: at most 3.5 pF per line, 8 kV contact ESD, and it protects the 5 V line too | [ST, DS4260 rev. 7](https://www.st.com/resource/en/datasheet/usblc6-2.pdf) | Yes |
-| USB-C socket, fuse, crystal, switch, buttons, lights, terminals | To choose | | | |
+| USB-C socket | GCT USB4105-GF-A, 16 pins | USB 2.0 pins only; VBUS contacts rated 5 A together; 20,000 matings; a footprint ships with KiCad | [GCT](https://gct.co/files/drawings/usb4105.pdf) | Yes |
+| USB fuse | Bourns SF-1206F100-2, 1 A fast, 1206 | 0.132 ohm typical, so about 35 mV lost at 250 mA; rated 63 V, interrupts 50 A | [Bourns](https://www.bourns.com/docs/product-datasheets/sf-1206f.pdf) | Yes |
+| Resistors, capacitors, PWR light | 0603 (4.7 µF: 0805), capacitors X7R 16 V | Large enough to rework by hand on a test board | | |
+| Crystal, switch, buttons, other lights, terminals | To choose | | | |
 
 **Figures the design relies on, from the datasheets read**
 
@@ -63,6 +69,7 @@ Every part on the board has to trace to a [requirement](../../docs/design/requir
 | TJA1051 supply | 4.5 to 5.5 V. Below its undervoltage level (3.5 to 4.5 V) it disconnects from the bus | The 5 V budget from USB |
 | TJA1051 supply current | At most 70 mA each while sending a dominant bit, 10 mA idle | The USB power budget |
 | TJA1051 logic supply | 2.8 to 5.5 V | Runs from the 3.3 V rail |
+| USB 5 V budget | 4.75 V at the laptop's port, less the cable, socket and fuse: about 4.6 V at the transceivers, against their 4.5 V minimum | Choosing a low-resistance fuse. On a weak port the transceivers disconnect from the bus, which is the safe direction |
 | AP2112 heat | 184 °C/W in SOT-23-5 | (5 - 3.3) V at 150 mA is 0.26 W, about 47 °C of rise |
 | STM32F446 core capacitor | LQFP64 has one VCAP pin: a single 4.7 µF ceramic, ESR under 1 ohm | The microcontroller sheet. Larger packages use two 2.2 µF instead |
 | STM32F446 decoupling | 100 nF at each VDD pin plus one 4.7 µF; 100 nF plus 1 µF on VDDA; VBAT to VDD with 100 nF; 100 nF on NRST | The microcontroller sheet |
