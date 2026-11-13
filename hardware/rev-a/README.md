@@ -3,8 +3,8 @@
 Part of the [project documentation](../../docs/README.md). The folder's guide is [here](../README.md), and
 [the circuit board](../../docs/design/circuit-board.md) explains why each block exists.
 
-**Status: schematic in progress.** Two sheets of three are drawn: USB and power, and the microcontroller. The CAN sheet
-is next. No board layout yet.
+**Status: schematic drawn, not yet reviewed as a whole.** All three sheets are drawn: USB and power, the microcontroller,
+and CAN. The whole-schematic review comes next. No board layout yet.
 
 The schematic can be read without KiCad in [obd2-sniffer-rev-a.pdf](obd2-sniffer-rev-a.pdf), which is exported from
 the KiCad files each time they change.
@@ -23,10 +23,10 @@ the checklist to complete before ordering. Everything on it can change, except t
 |---|---|---|
 | Power | USB only. No connection to the car's 12 V (OBD2 pin 16) | The board only works with a laptop attached, and the laptop supplies 5 V. Removes the battery voltage from the board |
 | CAN transceiver | One with a silent pin, not a standby pin | Silent mode keeps the receiver fully working with the transmitter off. A standby pin would stop normal receiving too |
-| Silent-pin default | A 10 k resistor to 3.3 V on the board | The transceiver's internal resistor pulls the pin low, which selects "able to transmit". The board's resistor has to win, and does by a wide margin: the pin draws at most 10 µA |
+| Silent-pin default | A 4.7 k resistor to 3.3 V on the board | The transceiver's internal resistor pulls the pin low, which selects "able to transmit". The board's resistor has to win, also against the microcontroller's own 30 to 50 k pull-down if firmware turned it on by mistake: the signal then still sits at 2.8 V, above the 2.31 V the transceiver needs |
 | Silent signal | One signal for both transceivers | The self-test then needs the switch in OBD, which also tests the switch. One pin, one light |
-| TX light | Switched by a transistor from the silent signal | The light can't load the signal, and can't be lit by firmware alone |
-| Self-test connection | CAR/TEST jumpers on a three-position header | CAN2 can't reach the car connector in any position |
+| TX light | Switched by a transistor from the silent signal, through a 100 k gate resistor | The light can't load the signal, and can't be lit by firmware alone. The resistor keeps a short inside the transistor from pulling the signal low |
+| Self-test connection | CAR/TEST jumpers: two 3-pin headers, one for each bus wire, placed apart | CAN2 can't reach the car connector in any position. One 2 x 3 block was rejected: a jumper cap put on sideways would short the car's two CAN wires together |
 | Termination | CAN1: solder jumper, open by default. CAN2: fitted | The car's bus has its own. The self-test bus uses CAN2's |
 | USB fuse | A chip fuse, not a resettable one | Lower resistance, so the transceivers' 5 V stays above their 4.5 V minimum |
 | Car connector | 3 screw terminals: CANH, CANL, ground | Wiring can be checked. There is no terminal for pin 16 |
@@ -40,11 +40,11 @@ Every part on the board has to trace to a [requirement](../../docs/design/requir
 | USB-C: power, fuse, data and ESD protection | PWR-5, LNK-3, USE-4 | Yes: `usb-power.kicad_sch` |
 | 3.3 V regulator, PWR light | PWR-5, USE-3 | Yes: `usb-power.kicad_sch` |
 | Microcontroller: crystal, decoupling, reset, BOOT0, SWD header | USE-4 | Yes: `microcontroller.kicad_sch` |
-| CAN1 transceiver, ESD protection, termination solder jumper, car connector | CAN-1, CAN-6, PWR-8 | |
-| CAN2 transceiver and CAR/TEST jumpers | CAN-7 | |
-| LISTEN/OBD switch, silent signal, TX light | SAF-3, USE-3 | |
+| CAN1 transceiver, ESD protection, termination solder jumper, car connector | CAN-1, CAN-6, PWR-8 | Yes: `can.kicad_sch` |
+| CAN2 transceiver and CAR/TEST jumpers | CAN-7 | Yes: `can.kicad_sch` |
+| LISTEN/OBD switch, silent signal, TX light | SAF-3, USE-3 | Yes: `can.kicad_sch` |
 | BUS light | USE-3 | Yes: `microcontroller.kicad_sch` |
-| Test points, debug serial header | Revision A only | |
+| Test points, debug serial header | Revision A only | Yes: on all three sheets |
 
 ## Parts
 
@@ -62,7 +62,10 @@ Every part on the board has to trace to a [requirement](../../docs/design/requir
 | Resistors, capacitors, PWR light | 0603 (4.7 µF: 0805), capacitors X7R 16 V | Large enough to rework by hand on a test board | | |
 | Crystal | ECS ECS-80-10-30B-TR: 8 MHz, 10 pF load, 5.0 x 3.2 mm | At most 100 ohm, where 3.2 x 2.5 mm crystals at 8 MHz reach 400 ohm; pads 2 and 4 are ground | [ECS](https://ecsxtal.com/store/pdf/ECX-53B.pdf) | Yes |
 | Reset and boot buttons | C&K PTS645 type, 6 mm | A footprint ships with KiCad | | Not yet: read when the footprint is checked at layout |
-| Switch, TX light transistor, jumpers, terminals | To choose with the CAN sheet | | | |
+| TX light transistor | onsemi BSS84, SOT-23 | P-channel; gate leakage at most 10 nA, so it doesn't load the silent signal; turns on between 0.8 and 2.0 V below 3.3 V | [onsemi, rev. 5](https://www.onsemi.com/pdf/datasheet/bss84-d.pdf) | Yes |
+| LISTEN/OBD switch | C&K JS102011SAQN slide switch | Two positions; a footprint ships with KiCad | | Not yet. The schematic assumes pin 2 is the common pin and that it breaks one contact before making the other |
+| Car connector | Phoenix Contact MKDS 1,5/3-5,08, 3 screw terminals | A footprint ships with KiCad | | Not yet |
+| CAR/TEST and other headers | 2.54 mm pin headers, with two jumper caps | | | |
 
 **Figures the design relies on, from the datasheets read**
 
@@ -73,6 +76,7 @@ Every part on the board has to trace to a [requirement](../../docs/design/requir
 | TJA1051 supply current | At most 70 mA each while sending a dominant bit, 10 mA idle | The USB power budget |
 | TJA1051 logic supply | 2.8 to 5.5 V | Runs from the 3.3 V rail |
 | USB 5 V budget | 4.75 V at the laptop's port, less the cable, socket and fuse: about 4.6 V at the transceivers, against their 4.5 V minimum | Choosing a low-resistance fuse. On a weak port the transceivers disconnect from the bus, which is the safe direction |
+| TX light against the silent pin | The transceiver is certainly silent above 2.31 V and certainly able to transmit below 0.99 V. The light is certainly on below 1.3 V | Between about 1.3 and 2.3 V the board could be able to transmit with the light dark. The signal is driven to 0 or 3.3 V, and no single fault found leaves it in between (fault table in the pull request that added the CAN sheet) |
 | AP2112 heat | 184 °C/W in SOT-23-5 | (5 - 3.3) V at 150 mA is 0.26 W, about 47 °C of rise |
 | STM32F446 core capacitor | LQFP64 has one VCAP pin: a single 4.7 µF ceramic, ESR under 1 ohm | The microcontroller sheet. Larger packages use two 2.2 µF instead |
 | STM32F446 decoupling | 100 nF at each VDD pin plus one 4.7 µF; 100 nF plus 1 µF on VDDA; VBAT to VDD with 100 nF; 100 nF on NRST | The microcontroller sheet |

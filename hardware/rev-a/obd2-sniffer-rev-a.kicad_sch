@@ -56,6 +56,17 @@
 		)
 		(uuid "59357f17-7f0c-5c50-985a-b37126769922")
 	)
+	(text "Two CAN transceivers, LISTEN/OBD switch and the silent signal,\nTX light, CAR/TEST jumpers, termination, car connector, test points."
+		(exclude_from_sim no)
+		(at 66.04 121.92 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "7a0c284a-3fa3-50a7-b969-c47fceb34e9a")
+	)
 	(text "A read-only CAN and OBD2 scanner. Powered from the laptop's USB port only.\nDesign notes and requirements: docs/design/circuit-board.md, docs/design/requirements.md.\nParts, datasheets and the pre-order checklist: hardware/rev-a/README.md."
 		(exclude_from_sim no)
 		(at 15.24 24.13 0)
@@ -109,6 +120,52 @@
 			(project "obd2-sniffer-rev-a"
 				(path "/7558c402-028e-5b7e-9d18-ece3a104ad36"
 					(page "2")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 15.24 119.38)
+		(size 45.72 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
+		(uuid "a3900d58-fb63-5032-bca3-87e15c514806")
+		(property "Sheetname" "CAN"
+			(at 15.24 118.6684 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "can.kicad_sch"
+			(at 15.24 140.2846 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "obd2-sniffer-rev-a"
+				(path "/7558c402-028e-5b7e-9d18-ece3a104ad36"
+					(page "4")
 				)
 			)
 		)
