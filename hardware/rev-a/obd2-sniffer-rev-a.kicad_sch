@@ -21,6 +21,17 @@
 		)
 		(uuid "06f85b78-ac8d-5f1f-849f-9781f21a7685")
 	)
+	(text "STM32F446RET6, crystal, decoupling, reset and boot,\nSWD and debug serial headers, BUS light."
+		(exclude_from_sim no)
+		(at 66.04 88.9 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "1975b061-57ec-563b-88d3-d9fa97d07d95")
+	)
 	(text "OBD2 sniffer: revision A"
 		(exclude_from_sim no)
 		(at 15.24 15.24 0)
@@ -98,6 +109,52 @@
 			(project "obd2-sniffer-rev-a"
 				(path "/7558c402-028e-5b7e-9d18-ece3a104ad36"
 					(page "2")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 15.24 86.36)
+		(size 45.72 20.32)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
+		(uuid "ef0129b0-8c13-50f6-bf51-133f45d2281a")
+		(property "Sheetname" "Microcontroller"
+			(at 15.24 85.6484 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "microcontroller.kicad_sch"
+			(at 15.24 107.2646 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "obd2-sniffer-rev-a"
+				(path "/7558c402-028e-5b7e-9d18-ece3a104ad36"
+					(page "3")
 				)
 			)
 		)

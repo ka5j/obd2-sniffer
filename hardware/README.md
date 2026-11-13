@@ -5,7 +5,7 @@ Part of the [project documentation](../docs/README.md).
 ## In short
 
 This folder holds the design files for the project's own circuit board, made in
-[KiCad](https://www.kicad.org/). **The schematic for revision A is being drawn**, one sheet per pull request.
+[KiCad](https://www.kicad.org/). **The schematic for revision A is being drawn**, one sheet per pull request (two of three so far).
 There is no board layout yet.
 
 Two documents describe the board, and they do different jobs:
