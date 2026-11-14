@@ -3,8 +3,9 @@
 Part of the [project documentation](../../docs/README.md). The folder's guide is [here](../README.md), and
 [the circuit board](../../docs/design/circuit-board.md) explains why each block exists.
 
-**Status: schematic drawn, not yet reviewed as a whole.** All three sheets are drawn: USB and power, the microcontroller,
-and CAN. The whole-schematic review comes next. No board layout yet.
+**Status: schematic drawn and checked, with items still open.** All three sheets are drawn, and the
+[schematic review](schematic-review.md) found no wiring error. Three datasheets are still unread and no one outside the
+project has reviewed it. No board layout yet.
 
 The schematic can be read without KiCad in [obd2-sniffer-rev-a.pdf](obd2-sniffer-rev-a.pdf), which is exported from
 the KiCad files each time they change.
@@ -77,7 +78,8 @@ Every part on the board has to trace to a [requirement](../../docs/design/requir
 | TJA1051 logic supply | 2.8 to 5.5 V | Runs from the 3.3 V rail |
 | USB 5 V budget | 4.75 V at the laptop's port, less the cable, socket and fuse: about 4.6 V at the transceivers, against their 4.5 V minimum | Choosing a low-resistance fuse. On a weak port the transceivers disconnect from the bus, which is the safe direction |
 | TX light against the silent pin | The transceiver is certainly silent above 2.31 V and certainly able to transmit below 0.99 V. The light is certainly on below 1.3 V | Between about 1.3 and 2.3 V the board could be able to transmit with the light dark. The signal is driven to 0 or 3.3 V, and no single fault found leaves it in between (fault table in the pull request that added the CAN sheet) |
-| AP2112 heat | 184 °C/W in SOT-23-5 | (5 - 3.3) V at 150 mA is 0.26 W, about 47 °C of rise |
+| AP2112 heat | 184 °C/W in SOT-23-5 | (5.25 - 3.3) V at the worst-case 120 mA is 0.23 W, about 43 °C of rise |
+| Charge taken at plug-in | About 42 µC if every capacitor on the board charges at once, against 50 µC (10 µF at 5 V) allowed by USB 2.0 | C1 on the 5 V rail is 1 µF, not 4.7 µF ([schematic review](schematic-review.md#charge-taken-at-plug-in)) |
 | STM32F446 core capacitor | LQFP64 has one VCAP pin: a single 4.7 µF ceramic, ESR under 1 ohm | The microcontroller sheet. Larger packages use two 2.2 µF instead |
 | STM32F446 decoupling | 100 nF at each VDD pin plus one 4.7 µF; 100 nF plus 1 µF on VDDA; VBAT to VDD with 100 nF; 100 nF on NRST | The microcontroller sheet |
 | STM32F446 crystal | 4 to 26 MHz. The crystal's critical gain must stay under 1 mA/V | Choosing the crystal and its load capacitors |
@@ -85,6 +87,44 @@ Every part on the board has to trace to a [requirement](../../docs/design/requir
 | Crystal load capacitors | 2 x (10 pF load - 5 pF stray) = 10 pF each. The stray figure is an estimate | Checked on the built board by measuring the clock |
 | STM32F446 USB bootloader | Needs a crystal that is a whole number of MHz, and prefers a low one such as 8 MHz. Entered with BOOT0 high and PB2 low. No pull-up resistor needed on the data lines | The 8 MHz crystal, the BOOT0 button and a pull-down on PB2 |
 | STM32F446 bootloader pins | In bootloader mode the chip drives or pulls PA4 to PA10, PB5, PB6, PB9 to PB15, PC7 and PC9 to PC11 | The silent-signal pin must not be one of these, or the bootloader could enable the transmitter |
+
+## Bill of materials
+
+Exported from the schematic with `kicad-cli sch export bom`: 63 parts on 30 lines. Capacitors are X7R, 16 V, unless marked.
+A blank maker means any maker's part of that value and size.
+
+| Parts | Count | Value | KiCad footprint | Maker and part number |
+|---|---|---|---|---|
+| C1, C2, C3, C11 | 4 | 1uF 16V | `C_0603_1608Metric` |  |
+| C4, C5, C6, C7, C9, C10, C15, C16, C17, C18, C19 | 11 | 100nF | `C_0603_1608Metric` |  |
+| C8, C12 | 2 | 4.7uF 16V | `C_0805_2012Metric` |  |
+| C13, C14 | 2 | 10pF C0G | `C_0603_1608Metric` |  |
+| D1 | 1 | Green, PWR | `LED_0603_1608Metric` |  |
+| D2 | 1 | Yellow, BUS | `LED_0603_1608Metric` |  |
+| D3 | 1 | Red, TX | `LED_0603_1608Metric` |  |
+| D4 | 1 | NUP2105L | `SOT-23` | onsemi NUP2105LT1G |
+| F1 | 1 | 1A fast | `Fuse_1206_3216Metric` | Bourns SF-1206F100-2 |
+| J1 | 1 | USB4105-GF-A | `USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal` | GCT USB4105-GF-A |
+| J2 | 1 | Pin header | `PinHeader_1x06_P2.54mm_Vertical` |  |
+| J3, JP1, JP2 | 3 | Pin header | `PinHeader_1x03_P2.54mm_Vertical` |  |
+| J4 | 1 | CANH CANL GND | `TerminalBlock_Phoenix_MKDS-1,5-3-5.08_1x03_P5.08mm_Horizontal` | Phoenix Contact MKDS 1,5/3-5,08 |
+| Q1 | 1 | BSS84 | `SOT-23` | onsemi BSS84 |
+| R1, R2 | 2 | 5.1k | `R_0603_1608Metric` |  |
+| R3, R6, R8 | 3 | 1k | `R_0603_1608Metric` |  |
+| R4, R5 | 2 | 10k | `R_0603_1608Metric` |  |
+| R7 | 1 | 4.7k | `R_0603_1608Metric` |  |
+| R9, R10 | 2 | 120R | `R_0805_2012Metric` |  |
+| R11 | 1 | 100k | `R_0603_1608Metric` |  |
+| SJ1 | 1 | open | `SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm` |  |
+| SW1, SW2 | 2 | Push button | `SW_SPST_PTS645Sx43SMTR92` |  |
+| SW3 | 1 | LISTEN/OBD | `SW_SPDT_CK_JS102011SAQN` | C&K JS102011SAQN |
+| TP1, TP2, TP3, TP4, TP5, TP6, TP7, TP8, TP9, TP10 | 10 | Test point | `TestPoint_Pad_D1.5mm` |  |
+| TP11 | 1 | Test point | `TestPoint_Loop_D2.50mm_Drill1.0mm` |  |
+| U1 | 1 | USBLC6-2SC6 | `SOT-23-6` | STMicroelectronics USBLC6-2SC6 |
+| U2 | 1 | AP2112K-3.3 | `SOT-23-5` | Diodes Incorporated AP2112K-3.3TRG1 |
+| U3 | 1 | STM32F446RET6 | `LQFP-64_10x10mm_P0.5mm` | STMicroelectronics STM32F446RET6 |
+| U4, U5 | 2 | TJA1051T/3 | `SOIC-8_3.9x4.9mm_P1.27mm` | NXP TJA1051T/3 |
+| Y1 | 1 | 8MHz 10pF | `Crystal_SMD_5032-4Pin_5.0x3.2mm` | ECS ECS-80-10-30B-TR |
 
 ## Microcontroller pins
 
@@ -110,6 +150,8 @@ None of it is built yet.
   setting changed ([clock tree](../../docs/design/build-and-boot.md#clock-tree)).
 - **Pins:** a board definition for revision A beside the development board's.
 - **New drivers:** native USB, CAN2, the silent-signal control and the BUS light.
+- **USB:** the board has no VBUS signal on PA9, so the USB driver must not wait for one. It must declare the current
+  the board draws: 340 mA at worst.
 - **No user button:** the development board's button goes away, along with its event.
 
 ## Before ordering
@@ -117,7 +159,7 @@ None of it is built yet.
 **The design**
 - [ ] ERC and DRC pass, and every exclusion has a written reason ([design checks](../README.md#design-checks))
 - [ ] Every part in the table above has a reason and a read datasheet, and is in stock
-- [ ] Every microcontroller pin in the schematic matches the pin table above
+- [x] Every microcontroller pin in the schematic matches the pin table above
 - [ ] Every footprint checked against its datasheet, and the board checked in KiCad's 3D view
 - [ ] Reviewed by someone outside the project
 

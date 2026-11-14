@@ -4080,7 +4080,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "4.7uF 16V"
+		(property "Value" "1uF 16V"
 			(at 154.94 82.55 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4091,7 +4091,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
 			(at 153.3652 85.09 0)
 			(hide yes)
 			(show_name no)
