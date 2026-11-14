@@ -125,8 +125,8 @@ Around it:
 The self-test needs CAN1 and CAN2 on one bus. On a car, CAN2 must never be on the bus: a second
 node would acknowledge the car's messages and add a termination resistor.
 
-So CAN1's two bus wires go to the middle pins of a three-position header. One side of the header
-is the car connector, and the other side is CAN2. A jumper cap joins the middle to one side only:
+So each of CAN1's two bus wires goes to the middle pin of its own three-pin header. One end of each
+header is the car connector, and the other end is CAN2. A jumper cap joins the middle to one end only:
 
 | Position | CAN1 is connected to | Use |
 |---|---|---|
