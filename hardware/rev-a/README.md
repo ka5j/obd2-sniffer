@@ -3,9 +3,10 @@
 Part of the [project documentation](../../docs/README.md). The folder's guide is [here](../README.md), and
 [the circuit board](../../docs/design/circuit-board.md) explains why each block exists.
 
-**Status: schematic drawn and checked, with items still open.** All three sheets are drawn, and the
-[schematic review](schematic-review.md) found no wiring error. Three datasheets are still unread and no one outside the
-project has reviewed it. No board layout yet.
+**Status: parts placed on the board, nothing routed.** The schematic is drawn and its
+[review](schematic-review.md) found no wiring error. The [board](#the-board) has its outline, layers, rules and every
+part placed, with no copper tracks yet. Three datasheets are still unread and no one outside the project has reviewed
+the design.
 
 The schematic can be read without KiCad in [obd2-sniffer-rev-a.pdf](obd2-sniffer-rev-a.pdf), which is exported from
 the KiCad files each time they change.
@@ -90,8 +91,9 @@ Every part on the board has to trace to a [requirement](../../docs/design/requir
 
 ## Bill of materials
 
-Exported from the schematic with `kicad-cli sch export bom`: 63 parts on 30 lines. Capacitors are X7R, 16 V, unless marked.
-A blank maker means any maker's part of that value and size.
+Exported from the schematic with `kicad-cli sch export bom`: 52 parts on 28 lines. Capacitors are X7R, 16 V, unless marked.
+A blank maker means any maker's part of that value and size. The ten test-point pads and the solder jumper are
+copper shapes on the board, not parts, so they aren't listed.
 
 | Parts | Count | Value | KiCad footprint | Maker and part number |
 |---|---|---|---|---|
@@ -115,16 +117,53 @@ A blank maker means any maker's part of that value and size.
 | R7 | 1 | 4.7k | `R_0603_1608Metric` |  |
 | R9, R10 | 2 | 120R | `R_0805_2012Metric` |  |
 | R11 | 1 | 100k | `R_0603_1608Metric` |  |
-| SJ1 | 1 | open | `SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm` |  |
 | SW1, SW2 | 2 | Push button | `SW_SPST_PTS645Sx43SMTR92` |  |
 | SW3 | 1 | LISTEN/OBD | `SW_SPDT_CK_JS102011SAQN` | C&K JS102011SAQN |
-| TP1, TP2, TP3, TP4, TP5, TP6, TP7, TP8, TP9, TP10 | 10 | Test point | `TestPoint_Pad_D1.5mm` |  |
-| TP11 | 1 | Test point | `TestPoint_Loop_D2.50mm_Drill1.0mm` |  |
+| TP11 | 1 | Test point, wire loop | `TestPoint_Loop_D2.50mm_Drill1.0mm` |  |
 | U1 | 1 | USBLC6-2SC6 | `SOT-23-6` | STMicroelectronics USBLC6-2SC6 |
 | U2 | 1 | AP2112K-3.3 | `SOT-23-5` | Diodes Incorporated AP2112K-3.3TRG1 |
 | U3 | 1 | STM32F446RET6 | `LQFP-64_10x10mm_P0.5mm` | STMicroelectronics STM32F446RET6 |
 | U4, U5 | 2 | TJA1051T/3 | `SOIC-8_3.9x4.9mm_P1.27mm` | NXP TJA1051T/3 |
 | Y1 | 1 | 8MHz 10pF | `Crystal_SMD_5032-4Pin_5.0x3.2mm` | ECS ECS-80-10-30B-TR |
+
+## The board
+
+![Revision A with its parts placed and no tracks, rendered from the KiCad board file](board-top.png)
+
+| Item | Choice | Reason |
+|---|---|---|
+| Size | 80 x 56 mm, corners rounded at 2 mm, four M3 mounting holes | Room to probe. Standoffs keep the pins underneath off the desk |
+| Layers | 4, 1.6 mm thick. Planned use: signals, ground, power, signals | A solid ground layer under the USB and CAN signals |
+| Parts | All on the top side | One assembly pass, and nothing hidden when probing |
+| Smallest track and gap | 0.15 mm | Any board maker can build it. The chosen maker's own rules are confirmed before ordering |
+| Smallest via | 0.6 mm with a 0.3 mm hole | Same |
+| Copper to board edge | 0.3 mm | Same |
+
+**Where things are, and why**
+
+| Area | Parts | Reason |
+|---|---|---|
+| Left edge | USB-C socket, its ESD protection right behind it | A discharge is clamped at the connector. The microcontroller is turned so its USB pins face the socket |
+| Top left | Fuse, 3.3 V regulator, PWR light | Power comes in at the left and flows right |
+| Centre | Microcontroller, a capacitor beside each supply pin, the crystal beside its two pins | Short paths for the supply and the clock |
+| Top edge | SWD and debug serial headers | Reachable with the board flat on a desk |
+| Bottom edge | BOOT and RESET buttons, LISTEN/OBD switch with the TX light beside it | The switch's lever overhangs the edge. The light sits next to the control it reports on |
+| Right | The two transceivers, CAR/TEST headers, ESD protection, screw terminal on the edge | The car side is kept together and away from USB. The two CAR/TEST headers are 5.5 mm apart, so one jumper cap can't bridge them |
+
+**Checks on the board file**
+
+| Check | Result |
+|---|---|
+| Board against schematic (`kicad-cli pcb drc --schematic-parity`) | 0 differences |
+| Overlapping parts, clearances, holes | 0 violations |
+| Connections not yet routed | 150, as expected before routing |
+| Silkscreen | 19 warnings: part labels overlap each other or the board edge. Labels are arranged in the last layout step |
+| Footprints against each datasheet's pad drawing | Not done yet |
+
+One rule is relaxed, in `obd2-sniffer-rev-a.kicad_dru`: the USB-C socket's two locating pegs sit 0.19 mm from its own
+ground pads, which is how GCT's pad drawing for the part has them. Every other hole keeps 0.25 mm.
+
+The switch's position at the edge is taken from KiCad's footprint, because its datasheet is still unread.
 
 ## Microcontroller pins
 
