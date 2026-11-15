@@ -1,0 +1,8 @@
+(version 1)
+
+# The USB-C socket's two locating pegs sit 0.19 mm from its outer ground pads.
+# That spacing is fixed by GCT's land pattern for the USB4105, and both sides
+# of it belong to the same part. Every other hole keeps the board's 0.25 mm.
+(rule "USB-C socket locating pegs"
+	(condition "A.memberOfFootprint('J1') && B.memberOfFootprint('J1')")
+	(constraint hole_clearance (min 0.15mm)))
